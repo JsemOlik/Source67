@@ -57,6 +57,7 @@ namespace S67 {
         Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
 
         Ref<Framebuffer> m_Framebuffer;
+        Ref<Shader> m_OutlineShader;
         glm::vec2 m_ViewportSize = { 0, 0 };
         bool m_ViewportFocused = false, m_ViewportHovered = false;
 

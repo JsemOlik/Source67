@@ -15,6 +15,8 @@ namespace S67 {
 
         void OnImGuiRender();
 
+        Ref<Entity> GetSelectedEntity() const { return m_SelectionContext; }
+
     private:
         void DrawEntityNode(Ref<Entity> entity);
         void DrawProperties(Ref<Entity> entity);

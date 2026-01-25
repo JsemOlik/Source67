@@ -62,6 +62,7 @@ namespace S67 {
         fbSpec.Width = 1280;
         fbSpec.Height = 720;
         m_Framebuffer = Framebuffer::Create(fbSpec);
+        m_OutlineShader = Shader::Create("assets/shaders/FlatColor.glsl");
 
         S67_CORE_INFO("Application initialized successfully");
     }
@@ -274,6 +275,10 @@ namespace S67 {
             Renderer::BeginScene(*m_Camera, m_Sun);
 
             auto& bodyInterface = PhysicsSystem::GetBodyInterface();
+            Ref<Entity> selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
+
+            // Stencil clear
+            glClear(GL_STENCIL_BUFFER_BIT);
 
             for (auto& entity : m_Scene->GetEntities()) {
                 if (!entity->PhysicsBody.IsInvalid()) {
@@ -287,8 +292,39 @@ namespace S67 {
                     entity->Transform.Rotation = glm::degrees(glm::eulerAngles(q));
                 }
 
+                if (entity == selectedEntity) {
+                    glEnable(GL_STENCIL_TEST);
+                    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+                    glStencilFunc(GL_ALWAYS, 1, 0xFF);
+                    glStencilMask(0xFF);
+                }
+
                 entity->MaterialTexture->Bind();
                 Renderer::Submit(entity->MaterialShader, entity->Mesh, entity->Transform.GetTransform());
+
+                if (entity == selectedEntity) {
+                    glStencilMask(0x00);
+                }
+            }
+
+            // Outline Pass
+            if (selectedEntity) {
+                glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+                glDisable(GL_DEPTH_TEST);
+
+                m_OutlineShader->Bind();
+                m_OutlineShader->SetFloat3("u_Color", { 1.0f, 0.5f, 0.0f }); // Orange outline
+
+                glm::mat4 transform = selectedEntity->Transform.GetTransform();
+                // Sligthly scale up for outline
+                transform = glm::scale(transform, glm::vec3(1.03f));
+
+                Renderer::Submit(m_OutlineShader, selectedEntity->Mesh, transform);
+
+                glStencilMask(0xFF);
+                glEnable(GL_DEPTH_TEST);
+                glDisable(GL_STENCIL_TEST);
+                glClear(GL_STENCIL_BUFFER_BIT);
             }
 
             Renderer::EndScene();
