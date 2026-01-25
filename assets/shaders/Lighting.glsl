@@ -37,6 +37,7 @@ in vec2 v_TexCoord;
 
 uniform DirLight u_DirLight;
 uniform sampler2D u_Texture;
+uniform vec2 u_Tiling;
 
 void main() {
     // Ambient
@@ -49,6 +50,6 @@ void main() {
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * u_DirLight.Color;
     
-    vec4 texColor = texture(u_Texture, v_TexCoord);
+    vec4 texColor = texture(u_Texture, v_TexCoord * u_Tiling);
     color = vec4((ambient + diffuse) * texColor.rgb, 1.0) * u_DirLight.Intensity;
 }

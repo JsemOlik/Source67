@@ -23,11 +23,12 @@ namespace S67 {
     void Renderer::EndScene() {
     }
 
-    void Renderer::Submit(const Ref<Shader>& shader, const Ref<VertexArray>& vertexArray, const glm::mat4& transform) {
+    void Renderer::Submit(const Ref<Shader>& shader, const Ref<VertexArray>& vertexArray, const glm::mat4& transform, const glm::vec2& tiling) {
         shader->Bind();
         shader->SetMat4("u_ViewProjection", s_SceneData->ViewProjectionMatrix);
         shader->SetMat4("u_Transform", transform);
         shader->SetInt("u_Texture", 0);
+        shader->SetFloat2("u_Tiling", tiling);
         
         // Lighting uniforms
         shader->SetFloat3("u_DirLight.Direction", s_SceneData->DirLight.Direction);

@@ -96,6 +96,11 @@ namespace S67 {
         glUniform1f(location, value);
     }
 
+    void Shader::SetFloat2(const std::string& name, const glm::vec2& value) {
+        GLint location = glGetUniformLocation(m_RendererID, name.c_str());
+        glUniform2f(location, value.x, value.y);
+    }
+
     void Shader::SetFloat3(const std::string& name, const glm::vec3& value) {
         GLint location = glGetUniformLocation(m_RendererID, name.c_str());
         glUniform3f(location, value.x, value.y, value.z);

@@ -642,8 +642,9 @@ namespace S67 {
                     glStencilFunc(GL_ALWAYS, 1, 0xFF);
                     glStencilMask(0xFF);
                 }
-                entity->MaterialTexture->Bind();
-                Renderer::Submit(entity->MaterialShader, entity->Mesh, entity->Transform.GetTransform());
+                if (entity->Material.AlbedoMap)
+                    entity->Material.AlbedoMap->Bind();
+                Renderer::Submit(entity->MaterialShader, entity->Mesh, entity->Transform.GetTransform(), entity->Material.Tiling);
                 if (entity == selectedEntity) glStencilMask(0x00);
             }
 
@@ -670,8 +671,9 @@ namespace S67 {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             Renderer::BeginScene(*m_Camera, m_Sun);
             for (auto& entity : m_Scene->GetEntities()) {
-                entity->MaterialTexture->Bind();
-                Renderer::Submit(entity->MaterialShader, entity->Mesh, entity->Transform.GetTransform());
+                if (entity->Material.AlbedoMap)
+                    entity->Material.AlbedoMap->Bind();
+                Renderer::Submit(entity->MaterialShader, entity->Mesh, entity->Transform.GetTransform(), entity->Material.Tiling);
             }
             Renderer::EndScene();
             m_GameFramebuffer->Unbind();

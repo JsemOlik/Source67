@@ -25,16 +25,23 @@ namespace S67 {
         }
     };
 
+    struct Material {
+        Ref<Texture2D> AlbedoMap;
+        glm::vec2 Tiling = { 1.0f, 1.0f };
+    };
+
     class Entity {
     public:
         Entity() = default;
         Entity(const std::string& name, const Ref<VertexArray>& va, const Ref<Shader>& shader, const Ref<Texture2D>& texture)
-            : Name(name), Mesh(va), MaterialShader(shader), MaterialTexture(texture) {}
+            : Name(name), Mesh(va), MaterialShader(shader) {
+            Material.AlbedoMap = texture;
+        }
 
         Transform Transform;
         Ref<VertexArray> Mesh;
         Ref<Shader> MaterialShader;
-        Ref<Texture2D> MaterialTexture;
+        Material Material;
 
         JPH::BodyID PhysicsBody;
         std::string Name = "Entity";

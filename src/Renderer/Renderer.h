@@ -14,7 +14,7 @@ namespace S67 {
         static void BeginScene(const Camera& camera, const DirectionalLight& dirLight);
         static void EndScene();
 
-        static void Submit(const Ref<Shader>& shader, const Ref<VertexArray>& vertexArray, const glm::mat4& transform = glm::mat4(1.0f));
+        static void Submit(const Ref<Shader>& shader, const Ref<VertexArray>& vertexArray, const glm::mat4& transform = glm::mat4(1.0f), const glm::vec2& tiling = glm::vec2(1.0f));
 
     private:
         struct SceneData {

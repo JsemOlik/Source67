@@ -39,11 +39,11 @@ namespace S67 {
             : m_Entity(entity), m_OldTexture(oldTexture), m_NewTexture(newTexture) {}
 
         void Undo() override {
-            m_Entity->MaterialTexture = m_OldTexture;
+            m_Entity->Material.AlbedoMap = m_OldTexture;
         }
 
         void Redo() override {
-            m_Entity->MaterialTexture = m_NewTexture;
+            m_Entity->Material.AlbedoMap = m_NewTexture;
         }
 
     private:

@@ -27,7 +27,7 @@ namespace S67 {
             ss << "      Scale: [" << entity->Transform.Scale.x << ", " << entity->Transform.Scale.y << ", " << entity->Transform.Scale.z << "]\n";
             ss << "    MeshPath: " << entity->MeshPath << "\n";
             ss << "    ShaderPath: " << entity->MaterialShader->GetPath() << "\n";
-            ss << "    TexturePath: " << entity->MaterialTexture->GetPath() << "\n";
+            ss << "    TexturePath: " << entity->Material.AlbedoMap->GetPath() << "\n";
         }
 
         std::ofstream fout(filepath);
@@ -78,7 +78,7 @@ namespace S67 {
                     currentEntity->MaterialShader = Shader::Create(path);
                 } else if (line.find("TexturePath:") != std::string::npos) {
                     std::string path = line.substr(line.find(":") + 2);
-                    currentEntity->MaterialTexture = Texture2D::Create(path);
+                    currentEntity->Material.AlbedoMap = Texture2D::Create(path);
                 }
             }
         }

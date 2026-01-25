@@ -39,14 +39,16 @@ namespace S67 {
     void SceneHierarchyPanel::DrawEntityNode(Ref<Entity> entity) {
         auto& name = entity->Name;
 
-        ImGuiTreeNodeFlags flags = ((m_SelectionContext == entity) ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnArrow;
+        ImGuiTreeNodeFlags flags = ((m_SelectionContext == entity && !m_SelectionIsMaterial) ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnArrow;
         flags |= ImGuiTreeNodeFlags_SpanAvailWidth;
         bool opened = ImGui::TreeNodeEx((void*)(uint64_t)entity.get(), flags, "%s", name.c_str());
         if (ImGui::IsItemClicked()) {
             m_SelectionContext = entity;
+            m_SelectionIsMaterial = false;
         }
 
         if (ImGui::BeginDragDropTarget()) {
+            // ... (Drag Drop Logic) ...
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
                 const char* path = (const char*)payload->Data;
                 std::filesystem::path assetPath = path;
@@ -58,16 +60,68 @@ namespace S67 {
                 if (isImage) {
                     auto newTexture = Texture2D::Create(assetPath.string());
                     S67_CORE_INFO("Dropped texture {0} onto {1}", assetPath.string(), entity->Name);
-                    Application::Get().GetUndoSystem().AddCommand(CreateScope<TextureCommand>(entity, entity->MaterialTexture, newTexture));
-                    entity->MaterialTexture = newTexture;
+                    Application::Get().GetUndoSystem().AddCommand(CreateScope<TextureCommand>(entity, entity->Material.AlbedoMap, newTexture));
+                    entity->Material.AlbedoMap = newTexture;
                 }
             }
             ImGui::EndDragDropTarget();
         }
 
         if (opened) {
+            if (entity->Material.AlbedoMap) {
+                ImGuiTreeNodeFlags leafFlags = (m_SelectionContext == entity && m_SelectionIsMaterial) ? ImGuiTreeNodeFlags_Selected : 0;
+                leafFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
+                
+                std::string texName = std::filesystem::path(entity->Material.AlbedoMap->GetPath()).filename().string();
+                ImGui::TreeNodeEx((void*)((uint64_t)entity.get() + 1), leafFlags, "Texture: %s", texName.c_str());
+                if (ImGui::IsItemClicked()) {
+                    m_SelectionContext = entity;
+                    m_SelectionIsMaterial = true;
+                }
+            }
             ImGui::TreePop();
         }
+    }
+
+    static bool DrawVec2Control(const std::string& label, glm::vec2& values, float resetValue = 0.0f, float columnWidth = 100.0f) {
+        bool changed = false;
+        ImGui::PushID(label.c_str());
+
+        ImGui::Columns(2);
+        ImGui::SetColumnWidth(0, columnWidth);
+        ImGui::Text("%s", label.c_str());
+        ImGui::NextColumn();
+
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ 0, 0 });
+
+        float lineHeight = ImGui::GetFontSize() + ImGui::GetStyle().FramePadding.y * 2.0f;
+        ImVec2 buttonSize = { lineHeight + 3.0f, lineHeight };
+        float dragFloatWidth = (ImGui::GetContentRegionAvail().x - 2.0f * buttonSize.x) / 2.0f;
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.8f, 0.1f, 0.15f, 1.0f });
+        if (ImGui::Button("X", buttonSize)) { values.x = resetValue; changed = true; }
+        ImGui::PopStyleColor();
+
+        ImGui::SameLine();
+        ImGui::PushItemWidth(dragFloatWidth);
+        if (ImGui::DragFloat("##X", &values.x, 0.1f, 0.0f, 0.0f, "%.2f")) changed = true;
+        ImGui::PopItemWidth();
+        ImGui::SameLine();
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.2f, 0.7f, 0.2f, 1.0f });
+        if (ImGui::Button("Y", buttonSize)) { values.y = resetValue; changed = true; }
+        ImGui::PopStyleColor();
+
+        ImGui::SameLine();
+        ImGui::PushItemWidth(dragFloatWidth);
+        if (ImGui::DragFloat("##Y", &values.y, 0.1f, 0.0f, 0.0f, "%.2f")) changed = true;
+        ImGui::PopItemWidth();
+
+        ImGui::PopStyleVar();
+        ImGui::Columns(1);
+        ImGui::PopID();
+
+        return changed;
     }
 
     static bool DrawVec3Control(const std::string& label, glm::vec3& values, float resetValue = 0.0f, float columnWidth = 100.0f) {
@@ -131,22 +185,41 @@ namespace S67 {
     }
 
     void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
-        if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
-            Transform oldTransform = entity->Transform;
-            bool changed = false;
+        if (m_SelectionIsMaterial) {
+            if (ImGui::CollapsingHeader("Material Properties", ImGuiTreeNodeFlags_DefaultOpen)) {
+                if (entity->Material.AlbedoMap) {
+                    ImGui::Text("Texture: %s", std::filesystem::path(entity->Material.AlbedoMap->GetPath()).filename().string().c_str());
+                    DrawVec2Control("Tiling", entity->Material.Tiling, 1.0f);
+                    ImGui::Spacing();
+                }
+            }
+        } else {
+            if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+                Transform oldTransform = entity->Transform;
+                bool changed = false;
 
-            if (DrawVec3Control("Position", entity->Transform.Position)) changed = true;
-            
-            glm::vec3 rotation = entity->Transform.Rotation;
-            if (DrawVec3Control("Rotation", rotation)) {
-                entity->Transform.Rotation = rotation;
-                changed = true;
+                if (DrawVec3Control("Position", entity->Transform.Position)) changed = true;
+                
+                glm::vec3 rotation = entity->Transform.Rotation;
+                if (DrawVec3Control("Rotation", rotation)) {
+                    entity->Transform.Rotation = rotation;
+                    changed = true;
+                }
+
+                if (DrawVec3Control("Scale", entity->Transform.Scale, 1.0f)) changed = true;
+
+                if (changed && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+                    Application::Get().GetUndoSystem().AddCommand(CreateScope<TransformCommand>(entity, oldTransform, entity->Transform));
+                }
+                ImGui::Spacing();
             }
 
-            if (DrawVec3Control("Scale", entity->Transform.Scale, 1.0f)) changed = true;
-
-            if (changed && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
-                Application::Get().GetUndoSystem().AddCommand(CreateScope<TransformCommand>(entity, oldTransform, entity->Transform));
+            if (entity->Material.AlbedoMap) {
+                if (ImGui::CollapsingHeader("Material Properties", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::Text("Texture: %s", std::filesystem::path(entity->Material.AlbedoMap->GetPath()).filename().string().c_str());
+                    DrawVec2Control("Tiling", entity->Material.Tiling, 1.0f);
+                    ImGui::Spacing();
+                }
             }
         }
     }

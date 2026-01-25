@@ -25,6 +25,7 @@ namespace S67 {
     private:
         const Scope<Scene>* m_Context = nullptr;
         Ref<Entity> m_SelectionContext;
+        bool m_SelectionIsMaterial = false;
     };
 
 }
