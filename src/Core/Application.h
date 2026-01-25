@@ -1,6 +1,9 @@
 #include "Base.h"
 #include "Window.h"
 #include "Events/WindowEvent.h"
+#include "Renderer/Shader.h"
+#include "Renderer/VertexArray.h"
+#include "Renderer/Texture.h"
 
 namespace S67 {
 
@@ -18,9 +21,14 @@ namespace S67 {
 
     private:
         bool OnWindowClose(WindowCloseEvent& e);
+        bool OnWindowResize(WindowResizeEvent& e);
 
         std::unique_ptr<Window> m_Window;
         bool m_Running = true;
+
+        Ref<Shader> m_Shader;
+        Ref<VertexArray> m_VertexArray;
+        Ref<Texture2D> m_Texture;
 
         static Application* s_Instance;
     };

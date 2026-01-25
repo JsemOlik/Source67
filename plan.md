@@ -14,13 +14,12 @@ Source67 is a high-performance 3D game engine inspired by Valve's Source and Sou
     - [x] Abstract Keyboard, Mouse, and Controller input.
     - [x] Implement an Event System for decoupled communication between modules.
 
-## Phase 2: Visuals (Rendering Engine)
-- [ ] **OpenGL Renderer Base**
-    - [ ] Shader abstraction (Compile/Link/Hot-reload).
-    - [ ] Vertex Buffer, Index Buffer, and Vertex Array abstractions.
-    - [ ] Texture management (Loading, Unit mapping, Mipmaps).
-- [ ] **Advanced Rendering**
-    - [ ] **PBR (Physically Based Rendering)**: Implement Metallic-Roughness workflow.
+## Phase 2: Visuals (Rendering Engine) [/]
+- [x] **OpenGL Renderer Base** [DONE]
+    - [x] Shader abstraction (Compile/Link/Hot-reload support started)
+    - [x] Vertex Buffer, Index Buffer, and Vertex Array abstractions
+    - [x] Texture management (Loading, Unit mapping, Mipmaps)
+- [ ] **Advanced Rendering** [/]
     - [ ] **Lighting**: Support for Directional, Point, and Spot lights.
     - [ ] **Shadow Mapping**: Implement cascaded shadow maps for large environments.
     - [ ] **Post-Processing**: Bloom, HDR, Tone Mapping, and FXAA/SMAA.

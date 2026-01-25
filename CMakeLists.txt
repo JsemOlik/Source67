@@ -58,8 +58,10 @@ endif()
 
 # Explicitly exclude build directory from glob if it's inside the source tree
 file(GLOB_RECURSE SOURCES 
-    "src/*.cpp"
-    "src/*.h"
+    "src/**/*.cpp"
+    "src/**/*.h"
+    "vendor/**/*.cpp"
+    "vendor/**/*.h"
 )
 list(APPEND SOURCES "main.cpp")
 
@@ -67,6 +69,7 @@ add_executable(Source67 ${SOURCES})
 
 target_include_directories(Source67 PUBLIC 
     ${INCLUDE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb_image
 )
 
 target_link_libraries(Source67 PUBLIC 
@@ -79,3 +82,10 @@ target_link_libraries(Source67 PUBLIC
 if(APPLE)
     target_link_libraries(Source67 PUBLIC "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
 endif()
+
+# Copy assets to build directory
+add_custom_command(TARGET Source67 POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_CURRENT_SOURCE_DIR}/assets
+    $<TARGET_FILE_DIR:Source67>/assets
+)
