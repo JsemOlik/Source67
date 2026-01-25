@@ -5,8 +5,22 @@
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <GLFW/glfw3.h>
+#include "Renderer/Entity.h"
 
 namespace S67 {
+
+    class PlayerBodyFilter : public JPH::BodyFilter {
+    public:
+        virtual bool ShouldCollide(const JPH::BodyID &inBodyID) const override {
+            JPH::BodyInterface& bodyInterface = PhysicsSystem::GetBodyInterface();
+            uint64_t userData = bodyInterface.GetUserData(inBodyID);
+            if (userData != 0) {
+                Entity* entity = (Entity*)userData;
+                return entity->Collidable;
+            }
+            return true;
+        }
+    };
 
     PlayerController::PlayerController(Ref<PerspectiveCamera> camera)
         : m_Camera(camera) {
@@ -94,7 +108,8 @@ namespace S67 {
         // Update Character
         // We need a temp allocator for collision checks
         JPH::TempAllocatorImpl allocator(10 * 1024 * 1024);
-        m_Character->Update(dt, JPH::Vec3(0, -9.81f, 0), PhysicsSystem::GetBroadPhaseLayerFilter(), PhysicsSystem::GetObjectLayerFilter(), JPH::BodyFilter(), JPH::ShapeFilter(), allocator);
+        PlayerBodyFilter bodyFilter;
+        m_Character->Update(dt, JPH::Vec3(0, -9.81f, 0), PhysicsSystem::GetBroadPhaseLayerFilter(), PhysicsSystem::GetObjectLayerFilter(), bodyFilter, JPH::ShapeFilter(), allocator);
         
         // We set linear velocity to control movement? No, CharacterVirtual is usually position-based or velocity-based but you call Update with velocity.
         // Wait, Update takes gravity. velocity is set via SetLinearVelocity usually? 
