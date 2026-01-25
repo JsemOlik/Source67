@@ -83,6 +83,8 @@ namespace S67 {
         bool m_LevelLoaded = false;
         std::string m_LevelFilePath = "";
 
+        int m_GizmoType = 7; // ImGuizmo::TRANSLATE
+
         Ref<Framebuffer> m_SceneFramebuffer;
         Ref<Framebuffer> m_GameFramebuffer;
         Ref<Shader> m_OutlineShader;

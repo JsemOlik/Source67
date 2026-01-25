@@ -18,6 +18,12 @@
 #include "Core/PlatformUtils.h"
 #include "Core/Input.h"
 #include "ImGui/Panels/ContentBrowserPanel.h"
+#include "ImGuizmo/ImGuizmo.h"
+
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
+#include <glm/gtx/transform.hpp>
 
 namespace S67 {
 
@@ -465,6 +471,8 @@ namespace S67 {
                     }
                 } else if (mb.GetMouseButton() == 0) { // Left Click
                     if (m_SceneViewportHovered && m_SceneState != SceneState::Play) {
+                        if (ImGuizmo::IsOver()) return;
+                        
                         // Mouse Picking
                         ImVec2 mousePos = ImGui::GetMousePos();
                         float x = mousePos.x - m_SceneViewportPos.x;
@@ -523,6 +531,18 @@ namespace S67 {
             if (m_SceneState == SceneState::Edit) {
                 if (ek.GetKeyCode() == GLFW_KEY_S && (control || super)) {
                     OnSaveScene();
+                }
+
+                // Gizmo shortcuts
+                if (!m_EditorCameraController->IsRotationEnabled()) {
+                    if (ek.GetKeyCode() == GLFW_KEY_Q)
+                        m_GizmoType = -1;
+                    if (ek.GetKeyCode() == GLFW_KEY_W)
+                        m_GizmoType = (int)ImGuizmo::OPERATION::TRANSLATE;
+                    if (ek.GetKeyCode() == GLFW_KEY_E)
+                        m_GizmoType = (int)ImGuizmo::OPERATION::ROTATE;
+                    if (ek.GetKeyCode() == GLFW_KEY_R)
+                        m_GizmoType = (int)ImGuizmo::OPERATION::SCALE;
                 }
             }
 
@@ -672,6 +692,47 @@ namespace S67 {
                 
                 if (m_LevelLoaded) {
                     ImGui::Image((void*)(uint64_t)m_SceneFramebuffer->GetColorAttachmentRendererID(), sceneSize, { 0, 1 }, { 1, 0 });
+
+                    // Gizmos
+                    Ref<Entity> selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
+                    if (selectedEntity && m_GizmoType != -1) {
+                        ImGuizmo::SetOrthographic(false);
+                        ImGuizmo::SetDrawlist();
+
+                        ImGuizmo::SetRect(m_SceneViewportPos.x, m_SceneViewportPos.y, m_SceneViewportSize.x, m_SceneViewportSize.y);
+
+                        // Editor camera
+                        const glm::mat4& cameraProjection = m_EditorCamera->GetProjectionMatrix();
+                        glm::mat4 cameraView = m_EditorCamera->GetViewMatrix();
+
+                        // Entity transform
+                        glm::mat4 transform = selectedEntity->Transform.GetTransform();
+
+                        // Snapping
+                        bool snap = Input::IsKeyPressed(GLFW_KEY_LEFT_CONTROL) || Input::IsKeyPressed(GLFW_KEY_LEFT_SUPER);
+                        float snapValue = 0.5f; // Snap to 0.5m for translation/scale
+                        if (m_GizmoType == (int)ImGuizmo::OPERATION::ROTATE)
+                            snapValue = 45.0f;
+
+                        float snapValues[3] = { snapValue, snapValue, snapValue };
+
+                        ImGuizmo::Manipulate(glm::value_ptr(cameraView), glm::value_ptr(cameraProjection),
+                            (ImGuizmo::OPERATION)m_GizmoType, ImGuizmo::LOCAL, glm::value_ptr(transform),
+                            nullptr, snap ? snapValues : nullptr);
+
+                        if (ImGuizmo::IsUsing()) {
+                            glm::vec3 translation, rotation, scale;
+                            glm::quat orientation;
+                            glm::vec3 skew;
+                            glm::vec4 perspective;
+                            glm::decompose(transform, scale, orientation, translation, skew, perspective);
+
+                            glm::vec3 deltaRotation = glm::degrees(glm::eulerAngles(orientation)) - selectedEntity->Transform.Rotation;
+                            selectedEntity->Transform.Position = translation;
+                            selectedEntity->Transform.Rotation += deltaRotation;
+                            selectedEntity->Transform.Scale = scale;
+                        }
+                    }
                 } else {
                     std::string text = "No level open";
                     ImVec2 textSize = ImGui::CalcTextSize(text.c_str());

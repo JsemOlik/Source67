@@ -15,6 +15,7 @@ namespace S67 {
         void OnEvent(Event& e);
 
         void SetRotationEnabled(bool enabled) { m_RotationEnabled = enabled; }
+        bool IsRotationEnabled() const { return m_RotationEnabled; }
         void SetFirstMouse(bool first) { m_FirstMouse = first; }
 
         Ref<PerspectiveCamera> GetCamera() { return m_Camera; }
