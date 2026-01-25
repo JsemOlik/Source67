@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 project(Source67)
 
+# Trigger re-scan of src/ directory
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -46,13 +48,21 @@ FetchContent_Declare(
     GIT_TAG        master
     SOURCE_SUBDIR  Build
 )
+
+# ImGui
+FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG        docking
+)
+
 set(USE_STATIC_CRT ON CACHE BOOL "" FORCE)
 set(GENERATE_DEBUG_SYMBOLS OFF CACHE BOOL "" FORCE)
 set(UNITTESTS OFF CACHE BOOL "" FORCE)
 set(SAMPLES OFF CACHE BOOL "" FORCE)
 set(PERFORMANCE_TEST OFF CACHE BOOL "" FORCE)
 
-FetchContent_MakeAvailable(glfw glm spdlog jolt)
+FetchContent_MakeAvailable(glfw glm spdlog jolt imgui)
 
 # GLAD
 FetchContent_Declare(
@@ -81,12 +91,26 @@ file(GLOB_RECURSE SOURCES
 )
 list(APPEND SOURCES "main.cpp")
 
+# ImGui Files
+set(IMGUI_DIR ${imgui_SOURCE_DIR})
+list(APPEND SOURCES 
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_demo.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+)
+
 add_executable(Source67 ${SOURCES})
 
 target_include_directories(Source67 PUBLIC 
     ${INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb_image
     ${jolt_SOURCE_DIR}
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
 )
 
 # Let's set up the executable

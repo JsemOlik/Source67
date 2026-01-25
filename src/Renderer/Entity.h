@@ -7,6 +7,7 @@
 #include "Renderer/Texture.h"
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/BodyID.h>
+#include <string>
 
 namespace S67 {
 
@@ -27,8 +28,8 @@ namespace S67 {
     class Entity {
     public:
         Entity() = default;
-        Entity(const Ref<VertexArray>& va, const Ref<Shader>& shader, const Ref<Texture2D>& texture)
-            : Mesh(va), MaterialShader(shader), MaterialTexture(texture) {}
+        Entity(const std::string& name, const Ref<VertexArray>& va, const Ref<Shader>& shader, const Ref<Texture2D>& texture)
+            : Name(name), Mesh(va), MaterialShader(shader), MaterialTexture(texture) {}
 
         Transform Transform;
         Ref<VertexArray> Mesh;
@@ -36,6 +37,7 @@ namespace S67 {
         Ref<Texture2D> MaterialTexture;
 
         JPH::BodyID PhysicsBody;
+        std::string Name = "Entity";
     };
 
 }

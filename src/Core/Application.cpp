@@ -9,6 +9,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <imgui.h>
 #include "Physics/PhysicsShapes.h"
 
 namespace S67 {
@@ -100,7 +101,7 @@ namespace S67 {
 
         // 1. Static Floor
         auto floorVA = vertexArray; // Reusing cube for floor
-        auto floor = CreateRef<Entity>(floorVA, shader, texture);
+        auto floor = CreateRef<Entity>("Static Floor", floorVA, shader, texture);
         floor->Transform.Position = { 0.0f, -2.0f, 0.0f };
         floor->Transform.Scale = { 20.0f, 1.0f, 20.0f };
         
@@ -110,7 +111,8 @@ namespace S67 {
 
         // 2. Dynamic Cubes
         for (int i = 0; i < 5; i++) {
-            auto cube = CreateRef<Entity>(vertexArray, shader, texture);
+            std::string name = "Cube " + std::to_string(i);
+            auto cube = CreateRef<Entity>(name, vertexArray, shader, texture);
             cube->Transform.Position = { (float)i * 2.0f - 4.0f, 10.0f + (float)i * 2.0f, 0.0f };
             
             JPH::BodyCreationSettings cubeSettings(PhysicsShapes::CreateBox({ 1.0f, 1.0f, 1.0f }), JPH::RVec3(cube->Transform.Position.x, cube->Transform.Position.y, cube->Transform.Position.z), JPH::Quat::sIdentity(), JPH::EMotionType::Dynamic, Layers::MOVING);
@@ -121,14 +123,21 @@ namespace S67 {
         m_CameraController = CreateRef<CameraController>(m_Camera);
         m_Window->SetCursorLocked(true);
 
+        m_ImGuiLayer = CreateScope<ImGuiLayer>();
+        m_ImGuiLayer->OnAttach();
+
+        m_SceneHierarchyPanel = CreateScope<SceneHierarchyPanel>(m_Scene);
+
         S67_CORE_INFO("Application initialized successfully");
     }
 
     Application::~Application() {
+        m_ImGuiLayer->OnDetach();
         PhysicsSystem::Shutdown();
     }
 
     void Application::OnEvent(Event& e) {
+        m_ImGuiLayer->OnEvent(e);
         m_CameraController->OnEvent(e);
 
         EventDispatcher dispatcher(e);
@@ -171,6 +180,16 @@ namespace S67 {
             }
 
             Renderer::EndScene();
+
+            m_ImGuiLayer->Begin();
+            {
+                m_SceneHierarchyPanel->OnImGuiRender();
+
+                ImGui::Begin("Engine Statistics");
+                ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+                ImGui::End();
+            }
+            m_ImGuiLayer->End();
 
             m_Window->OnUpdate();
         }

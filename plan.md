@@ -29,41 +29,29 @@ Source67 is a high-performance 3D game engine inspired by Valve's Source and Sou
     - [x] Implement a Basic Scene/Entity structure.
 
 ## Phase 3: The Portal Problem (Non-Euclidean Mechanics) [NEXT]
-... (content preserved) ...
+- [ ] **Portal Rendering**
+    - [ ] Implement Stencil Buffer slicing for portal views.
+    - [ ] Recursive rendering support.
+- [ ] **Seamless Physical Transition**
+    - [ ] Handle camera teleportation and collision predictions.
 
 ## Phase 4: Physics & Dynamics [DONE]
 - [x] **Physics Integration** [DONE]
-    - [x] Integrated `Jolt Physics` (High-performance multi-threaded engine).
-    - [x] Implement Rigid Body dynamics and basic shapes (Box, Sphere).
+    - [x] Integrated `Jolt Physics`.
+    - [x] Implement Rigid Body dynamics and basic shapes (Box).
     - [x] Transformation Sync between Physics and Graphics.
-- [ ] **Portal Rendering**
-    - [ ] Implement Stencil Buffer slicing for portal views.
-    - [ ] Recursive rendering support (Portals within portals).
-    - [ ] Dynamic Clip Planes to prevent geometry clipping through portals.
-- [ ] **Seamless Physical Transition**
-    - [ ] Handle camera teleportation without frame jitter.
-    - [ ] Recursive collision testing (predicting collisions through a portal).
-
-## Phase 4: Physics & Dynamics
-- [ ] **Physics Integration**
-    - [ ] Integrate `Bullet Physics` or `Jolt Physics`.
-    - [ ] Implement Rigid Body dynamics and complex collision shapes.
 - [ ] **Portal Momentum Mechanics**
-    - [ ] Transform velocity vectors correctly across portal planes ("Speedy thing goes in, speedy thing comes out").
-    - [ ] Interpolate physics states across portals to prevent tunneling.
+    - [ ] Transform velocity vectors correctly across portal planes.
 
-## Phase 5: Developer Experience (Tools & UI)
-- [ ] **Engine UI (Editor)**
-    - [ ] Integrate `ImGui` for real-time debugging and property editing.
+## Phase 5: Developer Experience (Tools & UI) [DONE]
+- [x] **Engine UI (Editor)** [DONE]
+    - [x] Integrated `ImGui` for real-time debugging and property editing.
     - [ ] Scene hierarchy viewer and asset browser.
 - [ ] **Asset Pipeline**
-    - [ ] Model loader (supporting modern formats like `glTF` or `FBX`).
-    - [ ] Material system compatible with Source-like `.vmt` or modern JSON/YAML descriptions.
-- [ ] **Hot Reloading**
-    - [ ] Live shader editing and texture swapping.
-    - [ ] (Optional) Dynamic library loading for game logic hot-reloading.
+    - [ ] Model loader (supporting modern formats like `glTF`).
+    - [ ] Material system description.
 
 ## Phase 6: Game Logic & Recreations
-- [ ] Implement Player Controller (Source-like movement: air strafing, friction).
+- [ ] Implement Player Controller (Source-like movement).
 - [ ] Modular Weapon/Tool system (The Portal Gun).
 - [ ] Level loading from standard formats.

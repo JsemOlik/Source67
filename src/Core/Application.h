@@ -9,6 +9,8 @@
 #include "Renderer/Light.h"
 #include "Renderer/CameraController.h"
 #include "Physics/PhysicsSystem.h"
+#include "ImGui/ImGuiLayer.h"
+#include "ImGui/Panels/SceneHierarchyPanel.h"
 
 namespace S67 {
 
@@ -22,6 +24,7 @@ namespace S67 {
         void OnEvent(Event& e);
 
         inline Window& GetWindow() { return *m_Window; }
+        ImGuiLayer& GetImGuiLayer() { return *m_ImGuiLayer; }
         inline static Application& Get() { return *s_Instance; }
 
     private:
@@ -37,6 +40,9 @@ namespace S67 {
         DirectionalLight m_Sun;
 
         float m_LastFrameTime = 0.0f;
+
+        Scope<ImGuiLayer> m_ImGuiLayer;
+        Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
 
         static Application* s_Instance;
     };
