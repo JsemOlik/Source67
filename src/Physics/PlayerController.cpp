@@ -110,7 +110,7 @@ namespace S67 {
         velocity.SetZ(direction.z * currentSpeed);
 
         // Gravity
-        velocity.SetY(velocity.GetY() - 9.81f * dt * 20.0f); // Stronger gravity for high speed feel
+        velocity.SetY(velocity.GetY() - 9.81f * dt * 3.0f); 
 
         // Jump
         if (Input::IsKeyPressed(GLFW_KEY_SPACE) && m_Character->GetGroundState() == JPH::CharacterVirtual::EGroundState::OnGround) {

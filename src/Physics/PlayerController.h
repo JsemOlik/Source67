@@ -31,7 +31,7 @@ namespace S67 {
         glm::vec3 m_Position = { 0.0f, 2.0f, 0.0f };
         float m_WalkSpeed = 6.0f;
         float m_SprintSpeed = 10.0f;
-        float m_JumpForce = 22.0f; 
+        float m_JumpForce = 8.0f; 
         
         float m_LastMouseX = 0.0f, m_LastMouseY = 0.0f;
         bool m_FirstMouse = true;
