@@ -8,6 +8,8 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include "Physics/PhysicsShapes.h"
 
 namespace S67 {
 
@@ -23,6 +25,9 @@ namespace S67 {
 
         S67_CORE_INFO("Initializing Renderer...");
         Renderer::Init();
+
+        S67_CORE_INFO("Initializing Physics...");
+        PhysicsSystem::Init();
 
         m_Camera = CreateRef<PerspectiveCamera>(45.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
         m_Camera->SetPosition({ 0.0f, 2.0f, 8.0f });
@@ -91,20 +96,27 @@ namespace S67 {
         auto shader = Shader::Create("assets/shaders/Lighting.glsl");
         auto texture = Texture2D::Create("assets/textures/Checkerboard.png");
 
-        // Create some entities
-        auto cube1 = CreateRef<Entity>(vertexArray, shader, texture);
-        cube1->Transform.Position = { 0.0f, 0.0f, 0.0f };
-        m_Scene->AddEntity(cube1);
+        auto& bodyInterface = PhysicsSystem::GetBodyInterface();
 
-        auto cube2 = CreateRef<Entity>(vertexArray, shader, texture);
-        cube2->Transform.Position = { -3.0f, 0.5f, -2.0f };
-        cube2->Transform.Scale = { 0.5f, 2.0f, 0.5f };
-        m_Scene->AddEntity(cube2);
+        // 1. Static Floor
+        auto floorVA = vertexArray; // Reusing cube for floor
+        auto floor = CreateRef<Entity>(floorVA, shader, texture);
+        floor->Transform.Position = { 0.0f, -2.0f, 0.0f };
+        floor->Transform.Scale = { 20.0f, 1.0f, 20.0f };
+        
+        JPH::BodyCreationSettings floorSettings(PhysicsShapes::CreateBox({ 20.0f, 1.0f, 20.0f }), JPH::RVec3(0, -2, 0), JPH::Quat::sIdentity(), JPH::EMotionType::Static, Layers::NON_MOVING);
+        floor->PhysicsBody = bodyInterface.CreateAndAddBody(floorSettings, JPH::EActivation::DontActivate);
+        m_Scene->AddEntity(floor);
 
-        auto cube3 = CreateRef<Entity>(vertexArray, shader, texture);
-        cube3->Transform.Position = { 3.0f, -0.5f, -1.0f };
-        cube3->Transform.Rotation = { 45.0f, 0.0f, 20.0f };
-        m_Scene->AddEntity(cube3);
+        // 2. Dynamic Cubes
+        for (int i = 0; i < 5; i++) {
+            auto cube = CreateRef<Entity>(vertexArray, shader, texture);
+            cube->Transform.Position = { (float)i * 2.0f - 4.0f, 10.0f + (float)i * 2.0f, 0.0f };
+            
+            JPH::BodyCreationSettings cubeSettings(PhysicsShapes::CreateBox({ 1.0f, 1.0f, 1.0f }), JPH::RVec3(cube->Transform.Position.x, cube->Transform.Position.y, cube->Transform.Position.z), JPH::Quat::sIdentity(), JPH::EMotionType::Dynamic, Layers::MOVING);
+            cube->PhysicsBody = bodyInterface.CreateAndAddBody(cubeSettings, JPH::EActivation::Activate);
+            m_Scene->AddEntity(cube);
+        }
 
         m_CameraController = CreateRef<CameraController>(m_Camera);
         m_Window->SetCursorLocked(true);
@@ -113,6 +125,7 @@ namespace S67 {
     }
 
     Application::~Application() {
+        PhysicsSystem::Shutdown();
     }
 
     void Application::OnEvent(Event& e) {
@@ -135,10 +148,24 @@ namespace S67 {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             m_CameraController->OnUpdate(timestep);
+            PhysicsSystem::OnUpdate(timestep);
 
             Renderer::BeginScene(*m_Camera, m_Sun);
 
+            auto& bodyInterface = PhysicsSystem::GetBodyInterface();
+
             for (auto& entity : m_Scene->GetEntities()) {
+                if (!entity->PhysicsBody.IsInvalid()) {
+                    JPH::RVec3 position;
+                    JPH::Quat rotation;
+                    bodyInterface.GetPositionAndRotation(entity->PhysicsBody, position, rotation);
+
+                    entity->Transform.Position = { position.GetX(), position.GetY(), position.GetZ() };
+                    // Convert Quat to Euler for our simple Transform struct
+                    glm::quat q = { rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ() };
+                    entity->Transform.Rotation = glm::degrees(glm::eulerAngles(q));
+                }
+
                 entity->MaterialTexture->Bind();
                 Renderer::Submit(entity->MaterialShader, entity->Mesh, entity->Transform.GetTransform());
             }

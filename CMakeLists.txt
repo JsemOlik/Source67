@@ -38,7 +38,21 @@ FetchContent_Declare(
 )
 set(SPDLOG_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(SPDLOG_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(spdlog)
+
+# Jolt Physics
+FetchContent_Declare(
+    jolt
+    GIT_REPOSITORY https://github.com/jrouwe/JoltPhysics.git
+    GIT_TAG        master
+    SOURCE_SUBDIR  Build
+)
+set(USE_STATIC_CRT ON CACHE BOOL "" FORCE)
+set(GENERATE_DEBUG_SYMBOLS OFF CACHE BOOL "" FORCE)
+set(UNITTESTS OFF CACHE BOOL "" FORCE)
+set(SAMPLES OFF CACHE BOOL "" FORCE)
+set(PERFORMANCE_TEST OFF CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(glfw glm spdlog jolt)
 
 # GLAD
 FetchContent_Declare(
@@ -72,13 +86,17 @@ add_executable(Source67 ${SOURCES})
 target_include_directories(Source67 PUBLIC 
     ${INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb_image
+    ${jolt_SOURCE_DIR}
 )
+
+# Let's set up the executable
 
 target_link_libraries(Source67 PUBLIC 
     glfw 
     glm::glm
     spdlog::spdlog
     glad
+    Jolt
 )
 
 if(APPLE)

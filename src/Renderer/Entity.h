@@ -5,6 +5,8 @@
 #include "Renderer/VertexArray.h"
 #include "Renderer/Shader.h"
 #include "Renderer/Texture.h"
+#include <Jolt/Jolt.h>
+#include <Jolt/Physics/Body/BodyID.h>
 
 namespace S67 {
 
@@ -32,6 +34,8 @@ namespace S67 {
         Ref<VertexArray> Mesh;
         Ref<Shader> MaterialShader;
         Ref<Texture2D> MaterialTexture;
+
+        JPH::BodyID PhysicsBody;
     };
 
 }

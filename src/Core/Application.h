@@ -8,6 +8,7 @@
 #include "Renderer/Scene.h"
 #include "Renderer/Light.h"
 #include "Renderer/CameraController.h"
+#include "Physics/PhysicsSystem.h"
 
 namespace S67 {
 

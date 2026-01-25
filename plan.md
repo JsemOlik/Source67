@@ -23,13 +23,19 @@ Source67 is a high-performance 3D game engine inspired by Valve's Source and Sou
     - [x] **3D Foundation**: Integrated `PerspectiveCamera` and View-Projection matrices.
     - [x] **Basic 3D Rendering**: Verified with textured spinning cubes.
     - [x] **Lighting**: Implemented Blinn-Phong with Directional Light support.
+    - [x] **Navigation**: Added FPS-style WASD movement and Mouse-look.
     - [ ] **PBR (Physically Based Rendering)**: Implement Metallic-Roughness workflow.
-    - [ ] **Shadow Mapping**: Implement cascaded shadow maps for large environments.
 - [x] **Scene Management** [DONE]
     - [x] Implement a Basic Scene/Entity structure.
-    - [ ] Integrate `EnTT` for advanced Entity Component System (ECS).
 
-## Phase 3: The Portal Problem (Non-Euclidean Mechanics)
+## Phase 3: The Portal Problem (Non-Euclidean Mechanics) [NEXT]
+... (content preserved) ...
+
+## Phase 4: Physics & Dynamics [DONE]
+- [x] **Physics Integration** [DONE]
+    - [x] Integrated `Jolt Physics` (High-performance multi-threaded engine).
+    - [x] Implement Rigid Body dynamics and basic shapes (Box, Sphere).
+    - [x] Transformation Sync between Physics and Graphics.
 - [ ] **Portal Rendering**
     - [ ] Implement Stencil Buffer slicing for portal views.
     - [ ] Recursive rendering support (Portals within portals).
