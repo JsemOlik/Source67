@@ -12,8 +12,11 @@
 #include "Renderer/Framebuffer.h"
 #include "ImGui/ImGuiLayer.h"
 #include "ImGui/Panels/SceneHierarchyPanel.h"
+#include <filesystem>
 
 namespace S67 {
+
+    class ContentBrowserPanel;
 
     enum class SceneState {
         Edit = 0, Play = 1, Pause = 2
@@ -31,6 +34,10 @@ namespace S67 {
         void OnScenePlay();
         void OnScenePause();
         void OnSceneStop();
+
+        void OnSaveScene();
+        void OnOpenScene(); // Dialog version
+        void OpenScene(const std::string& filepath); // Direct version
 
         void CreateTestScene();
         void ResetScene();
@@ -57,6 +64,9 @@ namespace S67 {
 
         Scope<ImGuiLayer> m_ImGuiLayer;
         Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
+        Scope<ContentBrowserPanel> m_ContentBrowserPanel;
+
+        std::filesystem::path m_ProjectPath;
 
         Ref<Framebuffer> m_SceneFramebuffer;
         Ref<Framebuffer> m_GameFramebuffer;

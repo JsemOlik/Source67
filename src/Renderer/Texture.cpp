@@ -46,6 +46,7 @@ namespace S67 {
 
         virtual uint32_t GetWidth() const override { return m_Width; }
         virtual uint32_t GetHeight() const override { return m_Height; }
+        virtual const std::string& GetPath() const override { return m_Path; }
 
         virtual void Bind(uint32_t slot = 0) const override {
             glActiveTexture(GL_TEXTURE0 + slot);

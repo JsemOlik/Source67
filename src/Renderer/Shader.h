@@ -23,6 +23,7 @@ namespace S67 {
         void SetMat4(const std::string& name, const glm::mat4& value);
 
         const std::string& GetName() const { return m_Name; }
+        const std::string& GetPath() const { return m_FilePath; }
 
         static Ref<Shader> Create(const std::string& filepath);
         static Ref<Shader> Create(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc);
@@ -34,6 +35,7 @@ namespace S67 {
 
         uint32_t m_RendererID;
         std::string m_Name;
+        std::string m_FilePath;
     };
 
     class ShaderLibrary {

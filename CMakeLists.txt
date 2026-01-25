@@ -5,6 +5,9 @@ project(Source67)
 
 set(CMAKE_CXX_STANDARD 20)
 # Nudge to pick up Framebuffer.cpp
+# Nudge to pick up SceneSerializer.cpp
+# Nudge to pick up PlatformUtils.cpp
+# Nudge to pick up ContentBrowserPanel.cpp
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Directory Structure

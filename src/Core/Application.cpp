@@ -13,7 +13,10 @@
 #include <glm/gtc/quaternion.hpp>
 #include <imgui.h>
 #include "Renderer/Framebuffer.h"
+#include "Renderer/SceneSerializer.h"
 #include "Physics/PhysicsShapes.h"
+#include "Core/PlatformUtils.h"
+#include "ImGui/Panels/ContentBrowserPanel.h"
 
 namespace S67 {
 
@@ -63,6 +66,7 @@ namespace S67 {
         m_ImGuiLayer->OnAttach();
 
         m_SceneHierarchyPanel = CreateScope<SceneHierarchyPanel>(m_Scene);
+        m_ContentBrowserPanel = CreateScope<ContentBrowserPanel>();
 
         FramebufferSpecification fbSpec;
         fbSpec.Width = 1280;
@@ -227,9 +231,96 @@ namespace S67 {
                 entity->Transform.Scale = data.Scale;
 
                 if (!entity->PhysicsBody.IsInvalid()) {
-                    bodyInterface.SetPositionAndRotation(entity->PhysicsBody, JPH::RVec3(data.Position.x, data.Position.y, data.Position.z), JPH::Quat::sIdentity(), JPH::EActivation::DontActivate);
+                    glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
+                    JPH::Quat jRotate(q.x, q.y, q.z, q.w);
+                    bodyInterface.SetPositionAndRotation(entity->PhysicsBody, JPH::RVec3(data.Position.x, data.Position.y, data.Position.z), jRotate, JPH::EActivation::DontActivate);
                     bodyInterface.SetLinearAndAngularVelocity(entity->PhysicsBody, JPH::Vec3::sZero(), JPH::Vec3::sZero());
                 }
+            }
+        }
+    }
+
+    void Application::OnSaveScene() {
+        if (m_SceneState != SceneState::Edit) {
+            S67_CORE_WARN("Cannot save while playing!");
+            return;
+        }
+
+        std::string filepath = FileDialogs::SaveFile("Source67 Level (*.l67)\0*.l67\0");
+        if (!filepath.empty()) {
+            SceneSerializer serializer(m_Scene.get());
+            serializer.Serialize(filepath);
+        }
+    }
+
+    void Application::OnOpenScene() {
+        if (m_SceneState != SceneState::Edit) {
+            S67_CORE_WARN("Cannot load while playing!");
+            return;
+        }
+
+        std::string filepath = FileDialogs::OpenFile("Source67 Level (*.l67)\0*.l67\0");
+        if (!filepath.empty()) {
+            OpenScene(filepath);
+        }
+    }
+
+    void Application::OpenScene(const std::string& filepath) {
+        PhysicsSystem::Shutdown(); // Reset physics system to clear all bodies
+        PhysicsSystem::Init();
+
+        SceneSerializer serializer(m_Scene.get());
+        if (serializer.Deserialize(filepath)) {
+            auto& bodyInterface = PhysicsSystem::GetBodyInterface();
+            
+            // Shared Mesh for now
+            auto vertexArray = VertexArray::Create();
+            float vertices[] = {
+                -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f, 0.0f,
+                 1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f,  1.0f, 0.0f,
+                 1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f,  1.0f, 1.0f,
+                -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f, 1.0f,
+                -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
+                 1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
+                 1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
+                -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
+                -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
+                 1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
+                 1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
+                -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
+                -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
+                 1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
+                 1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
+                -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
+                -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
+                -1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+                -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
+                -1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+                 1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+                 1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
+                 1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+                 1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f
+            };
+            auto vbo = VertexBuffer::Create(vertices, sizeof(vertices));
+            vbo->SetLayout({ { ShaderDataType::Float3, "a_Position" }, { ShaderDataType::Float3, "a_Normal" }, { ShaderDataType::Float2, "a_TexCoord" } });
+            vertexArray->AddVertexBuffer(vbo);
+            uint32_t indices[] = { 0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4, 8, 9, 10, 10, 11, 8, 12, 13, 14, 14, 15, 12, 16, 17, 18, 18, 19, 16, 20, 21, 22, 22, 23, 20 };
+            auto ibo = IndexBuffer::Create(indices, 36);
+            vertexArray->SetIndexBuffer(ibo);
+
+            for (auto& entity : m_Scene->GetEntities()) {
+                entity->Mesh = vertexArray;
+                
+                // Recreate Physics Body
+                glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
+                bool isStat = (entity->Name == "Static Floor");
+                JPH::BodyCreationSettings settings(PhysicsShapes::CreateBox({ entity->Transform.Scale.x, entity->Transform.Scale.y, entity->Transform.Scale.z }), 
+                    JPH::RVec3(entity->Transform.Position.x, entity->Transform.Position.y, entity->Transform.Position.z), 
+                    JPH::Quat(q.x, q.y, q.z, q.w), 
+                    isStat ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic, 
+                    isStat ? Layers::NON_MOVING : Layers::MOVING);
+                
+                entity->PhysicsBody = bodyInterface.CreateAndAddBody(settings, JPH::EActivation::Activate);
             }
         }
     }
@@ -403,6 +494,7 @@ namespace S67 {
             m_ImGuiLayer->Begin();
             {
                 m_SceneHierarchyPanel->OnImGuiRender();
+                m_ContentBrowserPanel->OnImGuiRender();
 
                 // Scene Viewport
                 ImGui::Begin("Scene");
@@ -451,6 +543,14 @@ namespace S67 {
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("Reset")) ResetScene();
+                
+                ImGui::Spacing();
+                ImGui::Text("File:");
+                ImGui::SameLine();
+                if (ImGui::Button("Save As")) OnSaveScene();
+                ImGui::SameLine();
+                if (ImGui::Button("Open")) OnOpenScene();
+                
                 ImGui::End();
 
                 ImGui::Begin("Engine Statistics");

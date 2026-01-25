@@ -11,6 +11,7 @@ namespace S67 {
         Scene() = default;
 
         void AddEntity(const Ref<Entity>& entity) { m_Entities.push_back(entity); }
+        void Clear() { m_Entities.clear(); }
         const std::vector<Ref<Entity>>& GetEntities() const { return m_Entities; }
 
     private:

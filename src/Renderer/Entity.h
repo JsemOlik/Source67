@@ -38,6 +38,7 @@ namespace S67 {
 
         JPH::BodyID PhysicsBody;
         std::string Name = "Entity";
+        std::string MeshPath = "Cube";
     };
 
 }

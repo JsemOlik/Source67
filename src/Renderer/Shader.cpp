@@ -15,7 +15,8 @@ namespace S67 {
         return 0;
     }
 
-    Shader::Shader(const std::string& filepath) {
+    Shader::Shader(const std::string& filepath)
+        : m_FilePath(filepath) {
         std::string source = ReadFile(filepath);
         auto shaderSources = PreProcess(source);
         Compile(shaderSources);
