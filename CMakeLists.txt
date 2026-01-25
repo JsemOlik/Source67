@@ -61,7 +61,7 @@ FetchContent_Declare(
     GIT_TAG        docking
 )
 
-set(USE_STATIC_CRT ON CACHE BOOL "" FORCE)
+set(USE_STATIC_CRT OFF CACHE BOOL "" FORCE)
 set(GENERATE_DEBUG_SYMBOLS OFF CACHE BOOL "" FORCE)
 set(UNITTESTS OFF CACHE BOOL "" FORCE)
 set(SAMPLES OFF CACHE BOOL "" FORCE)
@@ -129,6 +129,13 @@ target_link_libraries(Source67 PUBLIC
     glad
     Jolt
 )
+
+if(MSVC)
+    target_compile_definitions(Source67 PUBLIC 
+        _CRT_SECURE_NO_WARNINGS
+        _SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS
+    )
+endif()
 
 if(APPLE)
     target_link_libraries(Source67 PUBLIC "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
