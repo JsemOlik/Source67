@@ -38,9 +38,30 @@ namespace S67 {
 
     Application* Application::s_Instance = nullptr;
 
-    Application::Application() {
+    Application::Application(const std::string& executablePath) {
         S67_CORE_ASSERT(!s_Instance, "Application already exists!");
         s_Instance = this;
+
+        // Find assets root
+        std::filesystem::path currentPath = std::filesystem::absolute(executablePath).parent_path();
+        bool found = false;
+        for (int i = 0; i < 5; i++) {
+            if (std::filesystem::exists(currentPath / "assets")) {
+                std::filesystem::current_path(currentPath);
+                found = true;
+                break;
+            }
+            if (currentPath.has_parent_path())
+                currentPath = currentPath.parent_path();
+            else
+                break;
+        }
+        
+        if (!found) {
+            S67_CORE_ERROR("Could not find 'assets' directory relative to executable path: {0}!", executablePath);
+        } else {
+            S67_CORE_INFO("Set working directory to project root: {0}", currentPath.string());
+        }
 
         S67_CORE_INFO("Initializing Window...");
         m_Window = std::unique_ptr<Window>(Window::Create());

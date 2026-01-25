@@ -26,7 +26,7 @@ namespace S67 {
 
     class Application {
     public:
-        Application();
+        Application(const std::string& executablePath);
         virtual ~Application();
 
         void Run();
