@@ -26,6 +26,10 @@
 #include <glm/gtx/transform.hpp>
 #include "Renderer/Mesh.h"
 
+#include <nlohmann/json.hpp>
+#include <fstream>
+#include <iomanip>
+
 namespace S67 {
 
     struct SceneBackup {
@@ -98,6 +102,7 @@ namespace S67 {
         m_SceneHierarchyPanel = CreateScope<SceneHierarchyPanel>(m_Scene);
         m_ContentBrowserPanel = CreateScope<ContentBrowserPanel>();
         m_Skybox = CreateScope<Skybox>("assets/textures/skybox.png");
+        LoadSettings();
 
         FramebufferSpecification fbSpec;
         fbSpec.Width = 1280;
@@ -993,18 +998,22 @@ namespace S67 {
             ImGui::Separator();
             ImGui::Text("Themes");
             if (ImGui::Button("Unity Dark")) {
+                m_EditorTheme = EditorTheme::Unity;
                 m_ImGuiLayer->SetDarkThemeColors();
             }
             ImGui::SameLine();
             if (ImGui::Button("Dracula")) {
+                m_EditorTheme = EditorTheme::Dracula;
                 m_ImGuiLayer->SetDraculaThemeColors();
             }
             ImGui::SameLine();
             if (ImGui::Button("Classic Dark")) {
+                m_EditorTheme = EditorTheme::Classic;
                 ImGui::StyleColorsDark();
             }
             ImGui::SameLine();
             if (ImGui::Button("Light")) {
+                m_EditorTheme = EditorTheme::Light;
                 ImGui::StyleColorsLight();
             }
 
@@ -1016,7 +1025,64 @@ namespace S67 {
             }
         }
 
+        ImGui::Separator();
+        if (ImGui::Button("Apply & Save")) {
+            SaveSettings();
+        }
+
         ImGui::End();
+    }
+
+    void Application::SaveSettings() {
+        nlohmann::json j;
+        j["FontSize"] = m_FontSize;
+        j["Theme"] = (int)m_EditorTheme;
+        j["CustomColor"] = { m_CustomColor.r, m_CustomColor.g, m_CustomColor.b, m_CustomColor.a };
+
+        std::ofstream o("settings.json");
+        o << std::setw(4) << j << std::endl;
+        S67_CORE_INFO("Saved settings to settings.json");
+    }
+
+    void Application::LoadSettings() {
+        std::ifstream i("settings.json");
+        if (i.is_open()) {
+            try {
+                nlohmann::json j;
+                i >> j;
+                m_FontSize = j.at("FontSize").get<float>();
+                m_EditorTheme = (EditorTheme)j.at("Theme").get<int>();
+                
+                if (j.contains("CustomColor")) {
+                    m_CustomColor.r = j["CustomColor"][0];
+                    m_CustomColor.g = j["CustomColor"][1];
+                    m_CustomColor.b = j["CustomColor"][2];
+                    m_CustomColor.a = j["CustomColor"][3];
+                }
+
+                // Apply
+                ImGui::GetIO().FontGlobalScale = m_FontSize / 18.0f;
+                switch (m_EditorTheme) {
+                    case EditorTheme::Unity: m_ImGuiLayer->SetDarkThemeColors(); break;
+                    case EditorTheme::Dracula: m_ImGuiLayer->SetDraculaThemeColors(); break;
+                    case EditorTheme::Classic: ImGui::StyleColorsDark(); break;
+                    case EditorTheme::Light: ImGui::StyleColorsLight(); break;
+                }
+                
+                auto& colors = ImGui::GetStyle().Colors;
+                colors[ImGuiCol_WindowBg] = ImVec4{ m_CustomColor.r, m_CustomColor.g, m_CustomColor.b, m_CustomColor.a };
+                
+                S67_CORE_INFO("Loaded settings from settings.json");
+            } catch (...) {
+                S67_CORE_ERROR("Error parsing settings.json! Using defaults.");
+            }
+        } else {
+            // Defaults
+            m_FontSize = 18.0f;
+            m_EditorTheme = EditorTheme::Dracula;
+            m_ImGuiLayer->SetDraculaThemeColors();
+            S67_CORE_INFO("No settings.json found, using defaults (Dracula, 18px)");
+        }
     }
 
 }

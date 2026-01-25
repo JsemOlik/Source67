@@ -25,6 +25,10 @@ namespace S67 {
         Edit = 0, Play = 1, Pause = 2
     };
 
+    enum class EditorTheme {
+        Unity = 0, Dracula = 1, Classic = 2, Light = 3
+    };
+
     class Application {
     public:
         Application(const std::string& executablePath);
@@ -33,6 +37,9 @@ namespace S67 {
         void Run();
 
         void OnEvent(Event& e);
+
+        void SaveSettings();
+        void LoadSettings();
 
         void OnScenePlay();
         void OnScenePause();
@@ -117,6 +124,7 @@ namespace S67 {
         float m_FontSize = 18.0f;
         std::string m_FontPath = "assets/fonts/Roboto-Medium.ttf";
         glm::vec4 m_CustomColor = { 0.1f, 0.105f, 0.11f, 1.0f };
+        EditorTheme m_EditorTheme = EditorTheme::Dracula;
 
         Ref<Shader> m_DefaultShader;
         Ref<Texture2D> m_DefaultTexture;
