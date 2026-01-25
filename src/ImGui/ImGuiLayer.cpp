@@ -43,6 +43,42 @@ namespace S67 {
         colors[ImGuiCol_TitleBgCollapsed] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
     }
 
+    void ImGuiLayer::SetDraculaThemeColors() {
+        auto& colors = ImGui::GetStyle().Colors;
+        
+        colors[ImGuiCol_WindowBg] = ImVec4{ 0.157f, 0.165f, 0.212f, 1.0f };
+
+        // Headers
+        colors[ImGuiCol_Header] = ImVec4{ 0.267f, 0.278f, 0.353f, 1.0f };
+        colors[ImGuiCol_HeaderHovered] = ImVec4{ 0.384f, 0.447f, 0.643f, 1.0f };
+        colors[ImGuiCol_HeaderActive] = ImVec4{ 0.741f, 0.576f, 0.976f, 1.0f };
+        
+        // Buttons
+        colors[ImGuiCol_Button] = ImVec4{ 0.267f, 0.278f, 0.353f, 1.0f };
+        colors[ImGuiCol_ButtonHovered] = ImVec4{ 0.384f, 0.447f, 0.643f, 1.0f };
+        colors[ImGuiCol_ButtonActive] = ImVec4{ 0.741f, 0.576f, 0.976f, 1.0f };
+
+        // Frame BG
+        colors[ImGuiCol_FrameBg] = ImVec4{ 0.176f, 0.184f, 0.235f, 1.0f };
+        colors[ImGuiCol_FrameBgHovered] = ImVec4{ 0.267f, 0.278f, 0.353f, 1.0f };
+        colors[ImGuiCol_FrameBgActive] = ImVec4{ 0.384f, 0.447f, 0.643f, 1.0f };
+
+        // Tabs
+        colors[ImGuiCol_Tab] = ImVec4{ 0.176f, 0.184f, 0.235f, 1.0f };
+        colors[ImGuiCol_TabHovered] = ImVec4{ 0.384f, 0.447f, 0.643f, 1.0f };
+        colors[ImGuiCol_TabActive] = ImVec4{ 0.267f, 0.278f, 0.353f, 1.0f };
+        colors[ImGuiCol_TabUnfocused] = ImVec4{ 0.157f, 0.165f, 0.212f, 1.0f };
+        colors[ImGuiCol_TabUnfocusedActive] = ImVec4{ 0.267f, 0.278f, 0.353f, 1.0f };
+
+        // Title
+        colors[ImGuiCol_TitleBg] = ImVec4{ 0.122f, 0.129f, 0.165f, 1.0f };
+        colors[ImGuiCol_TitleBgActive] = ImVec4{ 0.157f, 0.165f, 0.212f, 1.0f };
+        colors[ImGuiCol_TitleBgCollapsed] = ImVec4{ 0.122f, 0.129f, 0.165f, 1.0f };
+        
+        // Text
+        colors[ImGuiCol_Text] = ImVec4{ 0.973f, 0.973f, 0.949f, 1.0f };
+    }
+
     void ImGuiLayer::OnAttach() {
         // Setup Dear ImGui context
         IMGUI_CHECKVERSION();

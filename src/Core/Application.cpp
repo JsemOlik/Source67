@@ -762,11 +762,20 @@ namespace S67 {
 
                         ImGui::EndMenu();
                     }
+
+                    if (ImGui::BeginMenu("Settings")) {
+                        if (ImGui::MenuItem("Settings")) m_ShowSettingsWindow = true;
+                        if (ImGui::MenuItem("Project Settings")) { /* Dummy */ }
+                        ImGui::EndMenu();
+                    }
                     ImGui::EndMainMenuBar();
                 }
 
                 m_SceneHierarchyPanel->OnImGuiRender();
                 m_ContentBrowserPanel->OnImGuiRender();
+
+                if (m_ShowSettingsWindow)
+                    UI_SettingsWindow();
 
                 // Scene Viewport
                 ImGui::Begin("Scene");
@@ -970,6 +979,44 @@ namespace S67 {
         }
 
         return true;
+    }
+
+    void Application::UI_SettingsWindow() {
+        ImGui::Begin("Settings", &m_ShowSettingsWindow);
+
+        if (ImGui::CollapsingHeader("Appearance", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("UI Font Settings");
+            if (ImGui::DragFloat("Font Scale", &m_FontSize, 0.01f, 0.5f, 2.0f, "%.2f")) {
+                ImGui::GetIO().FontGlobalScale = m_FontSize / 18.0f;
+            }
+
+            ImGui::Separator();
+            ImGui::Text("Themes");
+            if (ImGui::Button("Unity Dark")) {
+                m_ImGuiLayer->SetDarkThemeColors();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Dracula")) {
+                m_ImGuiLayer->SetDraculaThemeColors();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Classic Dark")) {
+                ImGui::StyleColorsDark();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Light")) {
+                ImGui::StyleColorsLight();
+            }
+
+            ImGui::Separator();
+            ImGui::Text("Custom Colors");
+            if (ImGui::ColorEdit4("Window BG", glm::value_ptr(m_CustomColor))) {
+                auto& colors = ImGui::GetStyle().Colors;
+                colors[ImGuiCol_WindowBg] = ImVec4{ m_CustomColor.r, m_CustomColor.g, m_CustomColor.b, m_CustomColor.a };
+            }
+        }
+
+        ImGui::End();
     }
 
 }

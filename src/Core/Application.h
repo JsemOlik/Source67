@@ -68,6 +68,8 @@ namespace S67 {
         bool OnWindowResize(WindowResizeEvent& e);
         bool OnWindowDrop(WindowDropEvent& e);
 
+        void UI_SettingsWindow();
+
         std::unique_ptr<Window> m_Window;
         bool m_Running = true;
 
@@ -110,6 +112,11 @@ namespace S67 {
 
         bool m_SceneViewportFocused = false, m_SceneViewportHovered = false;
         bool m_GameViewportFocused = false, m_GameViewportHovered = false;
+
+        bool m_ShowSettingsWindow = false;
+        float m_FontSize = 18.0f;
+        std::string m_FontPath = "assets/fonts/Roboto-Medium.ttf";
+        glm::vec4 m_CustomColor = { 0.1f, 0.105f, 0.11f, 1.0f };
 
         Ref<Shader> m_DefaultShader;
         Ref<Texture2D> m_DefaultTexture;

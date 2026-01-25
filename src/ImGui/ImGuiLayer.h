@@ -13,11 +13,12 @@ namespace S67 {
 
         void Begin();
         void End();
+        void SetDarkThemeColors();
+        void SetDraculaThemeColors();
 
         void SetBlockEvents(bool block) { m_BlockEvents = block; }
 
     private:
-        void SetDarkThemeColors();
         bool m_BlockEvents = true;
     };
 
