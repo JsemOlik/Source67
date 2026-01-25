@@ -1,5 +1,6 @@
 #include "Application.h"
 #include "Logger.h"
+#include "Events/KeyEvent.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/Shader.h"
 #include "Renderer/Buffer.h"
@@ -121,7 +122,7 @@ namespace S67 {
         }
 
         m_CameraController = CreateRef<CameraController>(m_Camera);
-        m_Window->SetCursorLocked(true);
+        m_Window->SetCursorLocked(false);
 
         m_ImGuiLayer = CreateScope<ImGuiLayer>();
         m_ImGuiLayer->OnAttach();
@@ -136,13 +137,33 @@ namespace S67 {
         PhysicsSystem::Shutdown();
     }
 
+    void Application::OnScenePlay() {
+        m_SceneState = SceneState::Play;
+        m_Window->SetCursorLocked(true);
+    }
+
+    void Application::OnSceneStop() {
+        m_SceneState = SceneState::Edit;
+        m_Window->SetCursorLocked(false);
+    }
+
     void Application::OnEvent(Event& e) {
         m_ImGuiLayer->OnEvent(e);
-        m_CameraController->OnEvent(e);
+        
+        if (m_SceneState == SceneState::Play)
+            m_CameraController->OnEvent(e);
 
         EventDispatcher dispatcher(e);
         dispatcher.Dispatch<WindowCloseEvent>(BIND_EVENT_FN(Application::OnWindowClose));
         dispatcher.Dispatch<WindowResizeEvent>(BIND_EVENT_FN(Application::OnWindowResize));
+
+        if (e.GetEventType() == EventType::KeyPressed) {
+            auto& kp = (KeyPressedEvent&)e;
+            if (kp.GetKeyCode() == GLFW_KEY_ESCAPE) {
+                if (m_SceneState == SceneState::Play)
+                    OnSceneStop();
+            }
+        }
 
         S67_CORE_TRACE("{0}", e.ToString());
     }
@@ -156,8 +177,10 @@ namespace S67 {
             glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            m_CameraController->OnUpdate(timestep);
-            PhysicsSystem::OnUpdate(timestep);
+            if (m_SceneState == SceneState::Play) {
+                m_CameraController->OnUpdate(timestep);
+                PhysicsSystem::OnUpdate(timestep);
+            }
 
             Renderer::BeginScene(*m_Camera, m_Sun);
 
@@ -184,6 +207,16 @@ namespace S67 {
             m_ImGuiLayer->Begin();
             {
                 m_SceneHierarchyPanel->OnImGuiRender();
+
+                ImGui::Begin("Toolbar");
+                if (m_SceneState == SceneState::Edit) {
+                    if (ImGui::Button("Play (F5)"))
+                        OnScenePlay();
+                } else {
+                    if (ImGui::Button("Stop (ESC)"))
+                        OnSceneStop();
+                }
+                ImGui::End();
 
                 ImGui::Begin("Engine Statistics");
                 ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);

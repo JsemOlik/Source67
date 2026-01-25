@@ -14,6 +14,10 @@
 
 namespace S67 {
 
+    enum class SceneState {
+        Edit = 0, Play = 1
+    };
+
     class Application {
     public:
         Application();
@@ -22,6 +26,9 @@ namespace S67 {
         void Run();
 
         void OnEvent(Event& e);
+
+        void OnScenePlay();
+        void OnSceneStop();
 
         inline Window& GetWindow() { return *m_Window; }
         ImGuiLayer& GetImGuiLayer() { return *m_ImGuiLayer; }
@@ -43,6 +50,8 @@ namespace S67 {
 
         Scope<ImGuiLayer> m_ImGuiLayer;
         Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
+
+        SceneState m_SceneState = SceneState::Edit;
 
         static Application* s_Instance;
     };

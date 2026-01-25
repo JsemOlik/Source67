@@ -45,9 +45,12 @@ Source67 is a high-performance 3D game engine inspired by Valve's Source and Sou
 
 ## Phase 5: Developer Experience (Tools & UI) [DONE]
 - [x] **Engine UI (Editor)** [DONE]
-    - [x] Integrated `ImGui` for real-time debugging and property editing.
-    - [ ] Scene hierarchy viewer and asset browser.
-- [ ] **Asset Pipeline**
+    - [x] Integrated `ImGui` (Docking branch).
+    - [x] Scene hierarchy viewer and property editing.
+- [/] **Workflow & Lifecycle** [/]
+    - [ ] Play/Stop simulation logic.
+    - [ ] Dynamic Mouse Locking (ESC to release).
+    - [ ] Asset browser foundation.
     - [ ] Model loader (supporting modern formats like `glTF`).
     - [ ] Material system description.
 
