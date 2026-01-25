@@ -2,8 +2,6 @@
 
 #include "Core/Base.h"
 #include "Core/Timestep.h"
-#include "Core/Base.h"
-#include "Core/Timestep.h"
 #include "Renderer/Camera.h"
 #include "Events/Event.h"
 #include <Jolt/Jolt.h>
@@ -31,7 +29,9 @@ namespace S67 {
         Ref<PerspectiveCamera> m_Camera;
         JPH::Ref<JPH::CharacterVirtual> m_Character;
         glm::vec3 m_Position = { 0.0f, 2.0f, 0.0f };
-        float m_Speed = 6.0f;
+        float m_WalkSpeed = 6.0f;
+        float m_SprintSpeed = 10.0f;
+        float m_JumpForce = 22.0f; 
         
         float m_LastMouseX = 0.0f, m_LastMouseY = 0.0f;
         bool m_FirstMouse = true;

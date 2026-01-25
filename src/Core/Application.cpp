@@ -403,6 +403,7 @@ namespace S67 {
     void Application::OpenScene(const std::string& filepath) {
         PhysicsSystem::Shutdown(); // Reset physics system to clear all bodies
         PhysicsSystem::Init();
+        m_PlayerController = CreateScope<PlayerController>(m_Camera);
 
         SceneSerializer serializer(m_Scene.get());
         if (serializer.Deserialize(filepath)) {

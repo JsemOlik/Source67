@@ -88,7 +88,7 @@ namespace S67 {
 
     void PlayerController::HandleInput(float dt) {
         glm::vec3 direction = { 0.0f, 0.0f, 0.0f };
-        glm::vec3 forward = m_Camera->GetForward(); // We use camera forward for movement direction, but flatten Y
+        glm::vec3 forward = m_Camera->GetForward(); 
         forward.y = 0;
         forward = glm::normalize(forward);
         glm::vec3 right = m_Camera->GetRight();
@@ -100,20 +100,27 @@ namespace S67 {
         if (Input::IsKeyPressed(GLFW_KEY_A)) direction -= right;
         if (Input::IsKeyPressed(GLFW_KEY_D)) direction += right;
 
+        float currentSpeed = Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT) ? m_SprintSpeed : m_WalkSpeed;
+
         if (glm::length(direction) > 0.0f)
             direction = glm::normalize(direction);
 
-        JPH::Vec3 velocity = { direction.x * m_Speed, -9.81f, direction.z * m_Speed }; // Simple gravity
+        JPH::Vec3 velocity = m_Character->GetLinearVelocity();
+        velocity.SetX(direction.x * currentSpeed);
+        velocity.SetZ(direction.z * currentSpeed);
+
+        // Gravity
+        velocity.SetY(velocity.GetY() - 9.81f * dt * 20.0f); // Stronger gravity for high speed feel
+
+        // Jump
+        if (Input::IsKeyPressed(GLFW_KEY_SPACE) && m_Character->GetGroundState() == JPH::CharacterVirtual::EGroundState::OnGround) {
+            velocity.SetY(m_JumpForce);
+        }
         
         // Update Character
-        // We need a temp allocator for collision checks
         JPH::TempAllocatorImpl allocator(10 * 1024 * 1024);
         PlayerBodyFilter bodyFilter;
         m_Character->Update(dt, JPH::Vec3(0, -9.81f, 0), PhysicsSystem::GetBroadPhaseLayerFilter(), PhysicsSystem::GetObjectLayerFilter(), bodyFilter, JPH::ShapeFilter(), allocator);
-        
-        // We set linear velocity to control movement? No, CharacterVirtual is usually position-based or velocity-based but you call Update with velocity.
-        // Wait, Update takes gravity. velocity is set via SetLinearVelocity usually? 
-        // CharacterVirtual::SetLinearVelocity(velocity).
         
         m_Character->SetLinearVelocity(velocity);
     }
