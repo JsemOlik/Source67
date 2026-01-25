@@ -78,8 +78,8 @@ namespace S67 {
         Ref<IndexBuffer> m_IndexBuffer;
     };
 
-    VertexArray* VertexArray::Create() {
-        return new OpenGLVertexArray();
+    Ref<VertexArray> VertexArray::Create() {
+        return CreateRef<OpenGLVertexArray>();
     }
 
 }

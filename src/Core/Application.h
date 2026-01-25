@@ -4,6 +4,7 @@
 #include "Renderer/Shader.h"
 #include "Renderer/VertexArray.h"
 #include "Renderer/Texture.h"
+#include "Renderer/Camera.h"
 
 namespace S67 {
 
@@ -29,6 +30,7 @@ namespace S67 {
         Ref<Shader> m_Shader;
         Ref<VertexArray> m_VertexArray;
         Ref<Texture2D> m_Texture;
+        Ref<PerspectiveCamera> m_Camera;
 
         static Application* s_Instance;
     };

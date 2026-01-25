@@ -56,7 +56,7 @@ endif()
 
 # Let's set up the executable
 
-# Explicitly exclude build directory from glob if it's inside the source tree
+# Source files - globbing is used for convenience, but requires re-configuring when adding new files
 file(GLOB_RECURSE SOURCES 
     "src/**/*.cpp"
     "src/**/*.h"

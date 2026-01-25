@@ -33,8 +33,8 @@ namespace S67 {
         BufferLayout m_Layout;
     };
 
-    VertexBuffer* VertexBuffer::Create(float* vertices, uint32_t size) {
-        return new OpenGLVertexBuffer(vertices, size);
+    Ref<VertexBuffer> VertexBuffer::Create(float* vertices, uint32_t size) {
+        return CreateRef<OpenGLVertexBuffer>(vertices, size);
     }
 
     // --- IndexBuffer --------------------------------------------------------
@@ -67,8 +67,8 @@ namespace S67 {
         uint32_t m_Count;
     };
 
-    IndexBuffer* IndexBuffer::Create(uint32_t* indices, uint32_t count) {
-        return new OpenGLIndexBuffer(indices, count);
+    Ref<IndexBuffer> IndexBuffer::Create(uint32_t* indices, uint32_t count) {
+        return CreateRef<OpenGLIndexBuffer>(indices, count);
     }
 
 }
