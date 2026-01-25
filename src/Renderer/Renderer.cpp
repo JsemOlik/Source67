@@ -15,8 +15,9 @@ namespace S67 {
         glViewport(0, 0, width, height);
     }
 
-    void Renderer::BeginScene(const Camera& camera) {
+    void Renderer::BeginScene(const Camera& camera, const DirectionalLight& dirLight) {
         s_SceneData->ViewProjectionMatrix = camera.GetViewProjectionMatrix();
+        s_SceneData->DirLight = dirLight;
     }
 
     void Renderer::EndScene() {
@@ -26,6 +27,11 @@ namespace S67 {
         shader->Bind();
         shader->SetMat4("u_ViewProjection", s_SceneData->ViewProjectionMatrix);
         shader->SetMat4("u_Transform", transform);
+        
+        // Lighting uniforms
+        shader->SetFloat3("u_DirLight.Direction", s_SceneData->DirLight.Direction);
+        shader->SetFloat3("u_DirLight.Color", s_SceneData->DirLight.Color);
+        shader->SetFloat("u_DirLight.Intensity", s_SceneData->DirLight.Intensity);
 
         vertexArray->Bind();
         glDrawElements(GL_TRIANGLES, vertexArray->GetIndexBuffer()->GetCount(), GL_UNSIGNED_INT, nullptr);

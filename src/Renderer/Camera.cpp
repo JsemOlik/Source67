@@ -5,8 +5,7 @@ namespace S67 {
 
     PerspectiveCamera::PerspectiveCamera(float fov, float aspectRatio, float nearClip, float farClip) {
         SetProjection(fov, aspectRatio, nearClip, farClip);
-        m_ViewMatrix = glm::mat4(1.0f);
-        m_ViewProjectionMatrix = m_ProjectionMatrix * m_ViewMatrix;
+        UpdateViewMatrix();
     }
 
     void PerspectiveCamera::SetProjection(float fov, float aspectRatio, float nearClip, float farClip) {
@@ -14,12 +13,17 @@ namespace S67 {
         m_ViewProjectionMatrix = m_ProjectionMatrix * m_ViewMatrix;
     }
 
-    void PerspectiveCamera::RecalculateViewMatrix() {
-        // Simple camera tracking for now (improving this later with quaternions/Euler)
-        glm::mat4 transform = glm::translate(glm::mat4(1.0f), m_Position) *
-                              glm::rotate(glm::mat4(1.0f), glm::radians(m_Rotation), glm::vec3(0, 1, 0));
+    void PerspectiveCamera::UpdateViewMatrix() {
+        glm::vec3 front;
+        front.x = cos(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch));
+        front.y = sin(glm::radians(m_Pitch));
+        front.z = sin(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch));
+        m_Front = glm::normalize(front);
+        
+        m_Right = glm::normalize(glm::cross(m_Front, m_WorldUp));
+        m_Up    = glm::normalize(glm::cross(m_Right, m_Front));
 
-        m_ViewMatrix = glm::inverse(transform);
+        m_ViewMatrix = glm::lookAt(m_Position, m_Position + m_Front, m_Up);
         m_ViewProjectionMatrix = m_ProjectionMatrix * m_ViewMatrix;
     }
 

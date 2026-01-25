@@ -32,6 +32,8 @@ namespace S67 {
 
         inline void SetEventCallback(const EventCallbackFn& callback) { m_Data.EventCallback = callback; }
 
+        void SetCursorLocked(bool locked);
+
         inline void* GetNativeWindow() const { return m_Window; }
 
         static Window* Create(const WindowProps& props = WindowProps());

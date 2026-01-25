@@ -138,6 +138,9 @@ namespace S67 {
         
         S67_CORE_INFO("Window initialized successfully");
     }
+    void Window::SetCursorLocked(bool locked) {
+        glfwSetInputMode(m_Window, GLFW_CURSOR, locked ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+    }
 
     void Window::Shutdown() {
         glfwDestroyWindow(m_Window);

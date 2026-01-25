@@ -57,6 +57,8 @@ endif()
 # Let's set up the executable
 
 # Source files - globbing is used for convenience, but requires re-configuring when adding new files
+# (Note: Touching this file triggers a re-scan of the src/ and vendor/ directories)
+
 file(GLOB_RECURSE SOURCES 
     "src/**/*.cpp"
     "src/**/*.h"

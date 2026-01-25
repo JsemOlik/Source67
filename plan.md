@@ -20,12 +20,14 @@ Source67 is a high-performance 3D game engine inspired by Valve's Source and Sou
     - [x] Vertex Buffer, Index Buffer, and Vertex Array abstractions
     - [x] Texture management (Loading, Unit mapping, Mipmaps)
 - [ ] **Advanced Rendering** [/]
-    - [ ] **Lighting**: Support for Directional, Point, and Spot lights.
+    - [x] **3D Foundation**: Integrated `PerspectiveCamera` and View-Projection matrices.
+    - [x] **Basic 3D Rendering**: Verified with textured spinning cubes.
+    - [x] **Lighting**: Implemented Blinn-Phong with Directional Light support.
+    - [ ] **PBR (Physically Based Rendering)**: Implement Metallic-Roughness workflow.
     - [ ] **Shadow Mapping**: Implement cascaded shadow maps for large environments.
-    - [ ] **Post-Processing**: Bloom, HDR, Tone Mapping, and FXAA/SMAA.
-- [ ] **Scene Management**
-    - [ ] Implement a Scene Graph or Entity Component System (ECS) using `EnTT`.
-    - [ ] Frustum Culling for performance optimization.
+- [x] **Scene Management** [DONE]
+    - [x] Implement a Basic Scene/Entity structure.
+    - [ ] Integrate `EnTT` for advanced Entity Component System (ECS).
 
 ## Phase 3: The Portal Problem (Non-Euclidean Mechanics)
 - [ ] **Portal Rendering**

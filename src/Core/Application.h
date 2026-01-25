@@ -5,6 +5,9 @@
 #include "Renderer/VertexArray.h"
 #include "Renderer/Texture.h"
 #include "Renderer/Camera.h"
+#include "Renderer/Scene.h"
+#include "Renderer/Light.h"
+#include "Renderer/CameraController.h"
 
 namespace S67 {
 
@@ -27,10 +30,12 @@ namespace S67 {
         std::unique_ptr<Window> m_Window;
         bool m_Running = true;
 
-        Ref<Shader> m_Shader;
-        Ref<VertexArray> m_VertexArray;
-        Ref<Texture2D> m_Texture;
         Ref<PerspectiveCamera> m_Camera;
+        Ref<CameraController> m_CameraController;
+        Scope<Scene> m_Scene;
+        DirectionalLight m_Sun;
+
+        float m_LastFrameTime = 0.0f;
 
         static Application* s_Instance;
     };
