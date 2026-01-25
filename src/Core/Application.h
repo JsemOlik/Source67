@@ -65,6 +65,7 @@ namespace S67 {
     private:
         bool OnWindowClose(WindowCloseEvent& e);
         bool OnWindowResize(WindowResizeEvent& e);
+        bool OnWindowDrop(WindowDropEvent& e);
 
         std::unique_ptr<Window> m_Window;
         bool m_Running = true;

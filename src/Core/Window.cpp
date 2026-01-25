@@ -135,6 +135,20 @@ namespace S67 {
                 data.EventCallback(event);
             }
         });
+
+        glfwSetDropCallback(m_Window, [](GLFWwindow* window, int count, const char** paths) {
+            WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+
+            std::vector<std::string> pathList;
+            for (int i = 0; i < count; i++) {
+                pathList.push_back(paths[i]);
+            }
+
+            if (data.EventCallback) {
+                WindowDropEvent event(pathList);
+                data.EventCallback(event);
+            }
+        });
         
         S67_CORE_INFO("Window initialized successfully");
     }

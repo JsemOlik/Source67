@@ -14,6 +14,8 @@ namespace S67 {
         void OnImGuiRender();
         void SetRoot(const std::filesystem::path& root);
 
+        const std::filesystem::path& GetCurrentDirectory() const { return m_CurrentDirectory; }
+
     private:
         std::filesystem::path m_BaseDirectory;
         std::filesystem::path m_CurrentDirectory;

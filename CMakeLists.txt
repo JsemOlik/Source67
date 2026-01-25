@@ -11,6 +11,11 @@ set(CMAKE_CXX_STANDARD 20)
 # Nudge to pick up PlayerController.cpp
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Force dynamic CRT on Windows to match Jolt and other libs if USE_STATIC_CRT is OFF
+if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+endif()
+
 # Directory Structure
 set(SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)

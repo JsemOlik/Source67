@@ -556,6 +556,7 @@ namespace S67 {
         EventDispatcher dispatcher(e);
         dispatcher.Dispatch<WindowCloseEvent>(BIND_EVENT_FN(Application::OnWindowClose));
         dispatcher.Dispatch<WindowResizeEvent>(BIND_EVENT_FN(Application::OnWindowResize));
+        dispatcher.Dispatch<WindowDropEvent>(BIND_EVENT_FN(Application::OnWindowDrop));
 
         if (e.GetEventType() == EventType::KeyPressed) {
             auto& ek = (KeyPressedEvent&)e;
@@ -903,9 +904,47 @@ namespace S67 {
     }
 
     bool Application::OnWindowResize(WindowResizeEvent& e) {
+        if (e.GetWidth() == 0 || e.GetHeight() == 0) {
+            return false;
+        }
+
         Renderer::OnWindowResize(e.GetWidth(), e.GetHeight());
+        m_SceneFramebuffer->Resize(e.GetWidth(), e.GetHeight());
+        m_GameFramebuffer->Resize(e.GetWidth(), e.GetHeight());
         m_Camera->SetProjection(45.0f, (float)e.GetWidth() / (float)e.GetHeight(), 0.1f, 100.0f);
         return false;
+    }
+
+    bool Application::OnWindowDrop(WindowDropEvent& e) {
+        if (!m_LevelLoaded) {
+            S67_CORE_WARN("Cannot import files without an open project/level!");
+            return false;
+        }
+
+        std::filesystem::path targetDir = m_ContentBrowserPanel->GetCurrentDirectory();
+        
+        for (const auto& pathStr : e.GetPaths()) {
+            std::filesystem::path sourcePath(pathStr);
+            std::filesystem::path targetPath = targetDir / sourcePath.filename();
+
+            try {
+                if (std::filesystem::exists(targetPath)) {
+                    S67_CORE_WARN("File already exists: {0}. Skipping.", targetPath.string());
+                    continue;
+                }
+
+                if (std::filesystem::is_directory(sourcePath)) {
+                    std::filesystem::copy(sourcePath, targetPath, std::filesystem::copy_options::recursive);
+                } else {
+                    std::filesystem::copy_file(sourcePath, targetPath);
+                }
+                S67_CORE_INFO("Imported: {0} -> {1}", sourcePath.string(), targetPath.string());
+            } catch (const std::filesystem::filesystem_error& err) {
+                S67_CORE_ERROR("Failed to import {0}: {1}", sourcePath.string(), err.what());
+            }
+        }
+
+        return true;
     }
 
 }

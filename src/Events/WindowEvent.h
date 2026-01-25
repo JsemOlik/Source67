@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vector>
 #include "Event.h"
 #include <sstream>
 
@@ -31,6 +32,25 @@ namespace S67 {
 
         EVENT_CLASS_TYPE(WindowClose)
         EVENT_CLASS_CATEGORY(EventCategoryApplication)
+    };
+
+    class WindowDropEvent : public Event {
+    public:
+        WindowDropEvent(const std::vector<std::string>& paths)
+            : m_Paths(paths) {}
+
+        const std::vector<std::string>& GetPaths() const { return m_Paths; }
+
+        std::string ToString() const override {
+            std::stringstream ss;
+            ss << "WindowDropEvent: " << m_Paths.size() << " files";
+            return ss.str();
+        }
+
+        EVENT_CLASS_TYPE(WindowDrop)
+        EVENT_CLASS_CATEGORY(EventCategoryApplication | EventCategoryInput)
+    private:
+        std::vector<std::string> m_Paths;
     };
 
 }
