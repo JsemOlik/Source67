@@ -78,6 +78,9 @@ namespace S67 {
                         attrib.texcoords[2 * index.texcoord_index + 1]
                     };
                     uvCount++;
+                } else {
+                    // Auto-UV projection (Planar XY)
+                    vertex.TexCoord = { vertex.Position.x, vertex.Position.y };
                 }
 
                 if (uniqueVertices.count(vertex) == 0) {
@@ -89,10 +92,7 @@ namespace S67 {
             }
         }
 
-        S67_CORE_INFO("Loaded OBJ: {0} ({1} vertices, {2} indices, {3} with UVs)", path, vertices.size(), indices.size(), uvCount);
-        if (uvCount == 0) {
-            S67_CORE_WARN("Mesh '{0}' has NO texture coordinates! Textures will not appear correctly.", path);
-        }
+        S67_CORE_INFO("Loaded OBJ: {0} ({1} vertices, {2} indices, {3} explicit UVs, Generated Auto-UVs for others)", path, vertices.size(), indices.size(), uvCount);
 
         Ref<VertexArray> va = VertexArray::Create();
         Ref<VertexBuffer> vb = VertexBuffer::Create((float*)vertices.data(), (uint32_t)(vertices.size() * sizeof(OBJVertex)));
@@ -153,16 +153,16 @@ namespace S67 {
                 n = glm::normalize(glm::cross(edge1, edge2));
             }
 
-            vertices.push_back({ { v1[0], v1[1], v1[2] }, n, { 0.0f, 0.0f } });
-            vertices.push_back({ { v2[0], v2[1], v2[2] }, n, { 0.0f, 0.0f } });
-            vertices.push_back({ { v3[0], v3[1], v3[2] }, n, { 0.0f, 0.0f } });
+            vertices.push_back({ { v1[0], v1[1], v1[2] }, n, { v1[0], v1[1] } });
+            vertices.push_back({ { v2[0], v2[1], v2[2] }, n, { v2[0], v2[1] } });
+            vertices.push_back({ { v3[0], v3[1], v3[2] }, n, { v3[0], v3[1] } });
 
             indices.push_back(i * 3 + 0);
             indices.push_back(i * 3 + 1);
             indices.push_back(i * 3 + 2);
         }
 
-        S67_CORE_INFO("Loaded STL: {0} ({1} triangles, 0 with UVs)", path, triangleCount);
+        S67_CORE_INFO("Loaded STL: {0} ({1} triangles, Generated Auto-UVs)", path, triangleCount);
 
         Ref<VertexArray> va = VertexArray::Create();
         Ref<VertexBuffer> vb = VertexBuffer::Create((float*)vertices.data(), (uint32_t)(vertices.size() * sizeof(OBJVertex)));
