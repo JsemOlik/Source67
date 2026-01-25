@@ -177,19 +177,37 @@ namespace S67 {
     }
 
     void Application::OnScenePlay() {
+        if (m_SceneState == SceneState::Edit) {
+            // Backup before first play
+            s_SceneBackup.Data.clear();
+            for (auto& entity : m_Scene->GetEntities()) {
+                s_SceneBackup.Data[entity.get()] = { entity->Transform.Position, entity->Transform.Rotation, entity->Transform.Scale };
+            }
+        }
+
         m_SceneState = SceneState::Play;
         m_Window->SetCursorLocked(true);
 
-        // Backup
-        s_SceneBackup.Data.clear();
-        for (auto& entity : m_Scene->GetEntities()) {
-            s_SceneBackup.Data[entity.get()] = { entity->Transform.Position, entity->Transform.Rotation, entity->Transform.Scale };
-        }
+        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
+        m_ImGuiLayer->SetBlockEvents(false);
+    }
+
+    void Application::OnScenePause() {
+        if (m_SceneState != SceneState::Play) return;
+
+        m_SceneState = SceneState::Pause;
+        m_Window->SetCursorLocked(false);
+
+        ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
+        m_ImGuiLayer->SetBlockEvents(true);
     }
 
     void Application::OnSceneStop() {
         m_SceneState = SceneState::Edit;
         m_Window->SetCursorLocked(false);
+
+        ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
+        m_ImGuiLayer->SetBlockEvents(true);
 
         // Restore
         auto& bodyInterface = PhysicsSystem::GetBodyInterface();
@@ -222,7 +240,7 @@ namespace S67 {
             auto& kp = (KeyPressedEvent&)e;
             if (kp.GetKeyCode() == GLFW_KEY_ESCAPE) {
                 if (m_SceneState == SceneState::Play)
-                    OnSceneStop();
+                    OnScenePause();
             }
         }
     }
@@ -283,7 +301,9 @@ namespace S67 {
                 ImGui::Begin("Viewport");
                 m_ViewportFocused = ImGui::IsWindowFocused();
                 m_ViewportHovered = ImGui::IsWindowHovered();
-                m_ImGuiLayer->SetBlockEvents(!m_ViewportFocused || !m_ViewportHovered);
+                
+                if (m_SceneState != SceneState::Play)
+                    m_ImGuiLayer->SetBlockEvents(!m_ViewportFocused || !m_ViewportHovered);
 
                 ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
                 m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };

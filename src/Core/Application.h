@@ -29,6 +29,7 @@ namespace S67 {
         void OnEvent(Event& e);
 
         void OnScenePlay();
+        void OnScenePause();
         void OnSceneStop();
 
         void CreateTestScene();
