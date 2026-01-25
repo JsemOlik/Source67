@@ -11,22 +11,14 @@ namespace S67 {
             : m_Path(path) {
             int width, height, channels;
             stbi_set_flip_vertically_on_load(1);
-            stbi_uc* data = stbi_load(path.c_str(), &width, &height, &channels, 0);
+            stbi_uc* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
             S67_CORE_ASSERT(data, "Failed to load image!");
 
             m_Width = width;
             m_Height = height;
 
-            GLenum internalFormat = 0, dataFormat = 0;
-            if (channels == 4) {
-                internalFormat = GL_RGBA8;
-                dataFormat = GL_RGBA;
-            } else if (channels == 3) {
-                internalFormat = GL_RGB8;
-                dataFormat = GL_RGB;
-            }
-
-            S67_CORE_ASSERT(internalFormat & dataFormat, "Format not supported!");
+            GLenum internalFormat = GL_RGBA8;
+            GLenum dataFormat = GL_RGBA;
 
             glGenTextures(1, &m_RendererID);
             glBindTexture(GL_TEXTURE_2D, m_RendererID);

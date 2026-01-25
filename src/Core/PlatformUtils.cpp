@@ -67,4 +67,14 @@ namespace S67 {
         return result;
     }
 
+    void FileDialogs::OpenExplorer(const std::string& path) {
+        std::string cmd = "open -R \"" + path + "\"";
+        system(cmd.c_str());
+    }
+
+    void FileDialogs::OpenExternally(const std::string& path) {
+        std::string cmd = "open \"" + path + "\"";
+        system(cmd.c_str());
+    }
+
 }

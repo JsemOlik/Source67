@@ -1,6 +1,7 @@
 #include "ContentBrowserPanel.h"
 #include <imgui.h>
 #include "Core/Application.h"
+#include "Core/PlatformUtils.h"
 
 namespace S67 {
 
@@ -9,6 +10,11 @@ namespace S67 {
 
     ContentBrowserPanel::ContentBrowserPanel()
         : m_BaseDirectory(s_AssetPath), m_CurrentDirectory(s_AssetPath) {
+        
+        std::filesystem::path iconPath = "assets/textures/level_icon.png";
+        if (std::filesystem::exists(iconPath)) {
+            m_LevelIcon = Texture2D::Create(iconPath.string());
+        }
     }
 
     void ContentBrowserPanel::SetRoot(const std::filesystem::path& root) {
@@ -43,7 +49,11 @@ namespace S67 {
             ImGui::PushID(filenameString.c_str());
             
             bool isDirectory = directoryEntry.is_directory();
-            bool isImage = path.extension() == ".png" || path.extension() == ".jpg";
+            std::string ext = path.extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+            bool isImage = ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga";
+            bool isLevel = ext == ".s67";
             
             ImTextureID iconID = 0; // Use dummy or fallback
             if (isImage) {
@@ -51,24 +61,33 @@ namespace S67 {
                     m_ThumbnailCache[path.string()] = Texture2D::Create(path.string());
                 }
                 iconID = (ImTextureID)(uint64_t)m_ThumbnailCache[path.string()]->GetRendererID();
+            } else if (isLevel && m_LevelIcon) {
+                iconID = (ImTextureID)(uint64_t)m_LevelIcon->GetRendererID();
             }
 
             if (iconID) {
                 ImGui::ImageButton(filenameString.c_str(), iconID, { thumbnailSize, thumbnailSize }, { 0, 1 }, { 1, 0 });
             } else {
-                ImGui::Button(isDirectory ? "[D]" : "[F]", { thumbnailSize, thumbnailSize });
+                std::string label = isDirectory ? "[D]" : (isLevel ? "[L]" : "[F]");
+                ImGui::Button(label.c_str(), { thumbnailSize, thumbnailSize });
             }
 
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
                 if (isDirectory) {
                     m_CurrentDirectory /= path.filename();
-                } else if (path.extension() == ".s67") {
+                } else if (isLevel) {
                     Application::Get().OpenScene(path.string());
+                } else {
+                    FileDialogs::OpenExternally(path.string());
                 }
             }
 
             // Right-click on item
             if (ImGui::BeginPopupContextItem()) {
+                if (ImGui::MenuItem("Open in Finder")) {
+                    FileDialogs::OpenExplorer(path.string());
+                }
+
                 if (isDirectory) {
                     if (ImGui::MenuItem("Rename")) {
                         m_PathToRename = path;
@@ -102,6 +121,11 @@ namespace S67 {
                 }
                 std::filesystem::create_directory(newPath);
             }
+
+            if (ImGui::MenuItem("Open in Finder")) {
+                FileDialogs::OpenExplorer(m_CurrentDirectory.string());
+            }
+
             ImGui::EndPopup();
         }
 
