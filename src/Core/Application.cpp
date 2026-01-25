@@ -11,9 +11,18 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <imgui.h>
+#include "Renderer/Framebuffer.h"
 #include "Physics/PhysicsShapes.h"
 
 namespace S67 {
+
+    struct SceneBackup {
+        struct TransformData {
+            glm::vec3 Position, Rotation, Scale;
+        };
+        std::unordered_map<void*, TransformData> Data;
+    };
+    static SceneBackup s_SceneBackup;
 
     Application* Application::s_Instance = nullptr;
 
@@ -39,7 +48,25 @@ namespace S67 {
         m_Sun.Color = { 1.0f, 0.95f, 0.8f }; // Warm sun color
         m_Sun.Intensity = 1.0f;
 
-        // Testing Cube with Normals
+        CreateTestScene();
+
+        m_CameraController = CreateRef<CameraController>(m_Camera);
+        m_Window->SetCursorLocked(false);
+
+        m_ImGuiLayer = CreateScope<ImGuiLayer>();
+        m_ImGuiLayer->OnAttach();
+
+        m_SceneHierarchyPanel = CreateScope<SceneHierarchyPanel>(m_Scene);
+
+        FramebufferSpecification fbSpec;
+        fbSpec.Width = 1280;
+        fbSpec.Height = 720;
+        m_Framebuffer = Framebuffer::Create(fbSpec);
+
+        S67_CORE_INFO("Application initialized successfully");
+    }
+
+    void Application::CreateTestScene() {
         S67_CORE_INFO("Setting up test scene...");
         auto vertexArray = VertexArray::Create();
 
@@ -120,16 +147,28 @@ namespace S67 {
             cube->PhysicsBody = bodyInterface.CreateAndAddBody(cubeSettings, JPH::EActivation::Activate);
             m_Scene->AddEntity(cube);
         }
+    }
 
-        m_CameraController = CreateRef<CameraController>(m_Camera);
-        m_Window->SetCursorLocked(false);
+    void Application::ResetScene() {
+        S67_CORE_INFO("Resetting scene...");
+        OnSceneStop();
 
-        m_ImGuiLayer = CreateScope<ImGuiLayer>();
-        m_ImGuiLayer->OnAttach();
+        // Clear Physics
+        auto& bodyInterface = PhysicsSystem::GetBodyInterface();
+        for (auto& entity : m_Scene->GetEntities()) {
+            if (!entity->PhysicsBody.IsInvalid()) {
+                bodyInterface.RemoveBody(entity->PhysicsBody);
+                bodyInterface.DestroyBody(entity->PhysicsBody);
+            }
+        }
 
-        m_SceneHierarchyPanel = CreateScope<SceneHierarchyPanel>(m_Scene);
+        // Re-create
+        m_Scene = CreateScope<Scene>();
+        CreateTestScene();
 
-        S67_CORE_INFO("Application initialized successfully");
+        if (m_SceneHierarchyPanel) {
+            m_SceneHierarchyPanel->SetContext(m_Scene);
+        }
     }
 
     Application::~Application() {
@@ -140,11 +179,33 @@ namespace S67 {
     void Application::OnScenePlay() {
         m_SceneState = SceneState::Play;
         m_Window->SetCursorLocked(true);
+
+        // Backup
+        s_SceneBackup.Data.clear();
+        for (auto& entity : m_Scene->GetEntities()) {
+            s_SceneBackup.Data[entity.get()] = { entity->Transform.Position, entity->Transform.Rotation, entity->Transform.Scale };
+        }
     }
 
     void Application::OnSceneStop() {
         m_SceneState = SceneState::Edit;
         m_Window->SetCursorLocked(false);
+
+        // Restore
+        auto& bodyInterface = PhysicsSystem::GetBodyInterface();
+        for (auto& entity : m_Scene->GetEntities()) {
+            if (s_SceneBackup.Data.count(entity.get())) {
+                auto& data = s_SceneBackup.Data[entity.get()];
+                entity->Transform.Position = data.Position;
+                entity->Transform.Rotation = data.Rotation;
+                entity->Transform.Scale = data.Scale;
+
+                if (!entity->PhysicsBody.IsInvalid()) {
+                    bodyInterface.SetPositionAndRotation(entity->PhysicsBody, JPH::RVec3(data.Position.x, data.Position.y, data.Position.z), JPH::Quat::sIdentity(), JPH::EActivation::DontActivate);
+                    bodyInterface.SetLinearAndAngularVelocity(entity->PhysicsBody, JPH::Vec3::sZero(), JPH::Vec3::sZero());
+                }
+            }
+        }
     }
 
     void Application::OnEvent(Event& e) {
@@ -164,8 +225,6 @@ namespace S67 {
                     OnSceneStop();
             }
         }
-
-        S67_CORE_TRACE("{0}", e.ToString());
     }
 
     void Application::Run() {
@@ -174,12 +233,24 @@ namespace S67 {
             Timestep timestep = time - m_LastFrameTime;
             m_LastFrameTime = time;
 
+            // Viewport Resize
+            if (FramebufferSpecification spec = m_Framebuffer->GetSpecification();
+                m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f &&
+                (spec.Width != (uint32_t)m_ViewportSize.x || spec.Height != (uint32_t)m_ViewportSize.y)) {
+                m_Framebuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+                m_Camera->SetProjection(45.0f, m_ViewportSize.x / m_ViewportSize.y, 0.1f, 100.0f);
+            }
+
+            m_Framebuffer->Bind();
             glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             if (m_SceneState == SceneState::Play) {
                 m_CameraController->OnUpdate(timestep);
                 PhysicsSystem::OnUpdate(timestep);
+            } else if (m_ViewportFocused && m_ViewportHovered) {
+                // Allow camera movement in editor?? Let's keep it locked for now unless in Play
+                // Actually most engines allow movement. Let's add a "Free cam" later.
             }
 
             Renderer::BeginScene(*m_Camera, m_Sun);
@@ -203,19 +274,40 @@ namespace S67 {
             }
 
             Renderer::EndScene();
+            m_Framebuffer->Unbind();
 
             m_ImGuiLayer->Begin();
             {
                 m_SceneHierarchyPanel->OnImGuiRender();
 
+                ImGui::Begin("Viewport");
+                m_ViewportFocused = ImGui::IsWindowFocused();
+                m_ViewportHovered = ImGui::IsWindowHovered();
+                m_ImGuiLayer->SetBlockEvents(!m_ViewportFocused || !m_ViewportHovered);
+
+                ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+                m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };
+
+                uint32_t textureID = m_Framebuffer->GetColorAttachmentRendererID();
+                ImGui::Image((void*)(uint64_t)textureID, ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, ImVec2{ 0, 1 }, ImVec2{ 1, 0 });
+                ImGui::End();
+
                 ImGui::Begin("Toolbar");
                 if (m_SceneState == SceneState::Edit) {
-                    if (ImGui::Button("Play (F5)"))
+                    if (ImGui::Button("Play"))
                         OnScenePlay();
                 } else {
-                    if (ImGui::Button("Stop (ESC)"))
+                    if (ImGui::Button("Stop"))
                         OnSceneStop();
+                    
+                    ImGui::SameLine();
+                    if (ImGui::Button(m_SceneState == SceneState::Play ? "Pause" : "Resume")) {
+                        m_SceneState = (m_SceneState == SceneState::Play) ? SceneState::Pause : SceneState::Play;
+                    }
                 }
+                ImGui::SameLine();
+                if (ImGui::Button("Reset"))
+                    ResetScene();
                 ImGui::End();
 
                 ImGui::Begin("Engine Statistics");

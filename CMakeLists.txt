@@ -4,6 +4,7 @@ project(Source67)
 # Trigger re-scan of src/ directory
 
 set(CMAKE_CXX_STANDARD 20)
+# Nudge to pick up Framebuffer.cpp
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Directory Structure

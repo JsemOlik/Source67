@@ -26,7 +26,7 @@ namespace S67 {
 
         ImGui::End();
 
-        ImGui::Begin("Properties");
+        ImGui::Begin("Inspector");
         if (m_SelectionContext) {
             DrawProperties(m_SelectionContext);
         }
@@ -37,12 +37,14 @@ namespace S67 {
         auto& name = entity->Name;
 
         ImGuiTreeNodeFlags flags = ((m_SelectionContext == entity) ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnArrow;
+        flags |= ImGuiTreeNodeFlags_SpanAvailWidth;
         bool opened = ImGui::TreeNodeEx((void*)(uint64_t)entity.get(), flags, "%s", name.c_str());
         if (ImGui::IsItemClicked()) {
             m_SelectionContext = entity;
         }
 
         if (opened) {
+            DrawProperties(entity);
             ImGui::TreePop();
         }
     }

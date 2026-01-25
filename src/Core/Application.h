@@ -9,13 +9,14 @@
 #include "Renderer/Light.h"
 #include "Renderer/CameraController.h"
 #include "Physics/PhysicsSystem.h"
+#include "Renderer/Framebuffer.h"
 #include "ImGui/ImGuiLayer.h"
 #include "ImGui/Panels/SceneHierarchyPanel.h"
 
 namespace S67 {
 
     enum class SceneState {
-        Edit = 0, Play = 1
+        Edit = 0, Play = 1, Pause = 2
     };
 
     class Application {
@@ -29,6 +30,9 @@ namespace S67 {
 
         void OnScenePlay();
         void OnSceneStop();
+
+        void CreateTestScene();
+        void ResetScene();
 
         inline Window& GetWindow() { return *m_Window; }
         ImGuiLayer& GetImGuiLayer() { return *m_ImGuiLayer; }
@@ -50,6 +54,10 @@ namespace S67 {
 
         Scope<ImGuiLayer> m_ImGuiLayer;
         Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
+
+        Ref<Framebuffer> m_Framebuffer;
+        glm::vec2 m_ViewportSize = { 0, 0 };
+        bool m_ViewportFocused = false, m_ViewportHovered = false;
 
         SceneState m_SceneState = SceneState::Edit;
 
