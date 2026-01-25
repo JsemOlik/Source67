@@ -2,17 +2,17 @@
 
 Source67 is a high-performance 3D game engine inspired by Valve's Source and Source 2, built with C++ and OpenGL.
 
-## Phase 1: Foundation (Core Systems)
-- [ ] **Build System & Project Setup**
-    - [ ] Configure CMake for cross-platform (macOS/Windows) support.
-    - [ ] Integrate core dependencies: `GLFW` (Windowing), `GLAD` (OpenGL Loading), `GLM` (Math), `spdlog` (Logging).
-- [ ] **Engine Core**
-    - [ ] Implement a robust `Logger` and `Assertion` system.
-    - [ ] Create a high-resolution `Timer` for delta time and frame tracking.
-    - [ ] Standardize the File System (VFS) for asset path management.
-- [ ] **Input Management**
-    - [ ] Abstract Keyboard, Mouse, and Controller input.
-    - [ ] Implement an Event System for decoupled communication between modules.
+## Phase 1: Foundation (Core Systems) [DONE]
+- [x] **Build System & Project Setup**
+    - [x] Configure CMake for cross-platform (macOS/Windows) support.
+    - [x] Integrate core dependencies: `GLFW` (Windowing), `GLAD` (OpenGL Loading), `GLM` (Math), `spdlog` (Logging).
+- [x] **Engine Core**
+    - [x] Implement a robust `Logger` and `Assertion` system.
+    - [x] Create a high-resolution `Timer` for delta time and frame tracking.
+    - [x] Standardize the File System (VFS) for asset path management (VFS partially implemented via CMake/paths).
+- [x] **Input Management**
+    - [x] Abstract Keyboard, Mouse, and Controller input.
+    - [x] Implement an Event System for decoupled communication between modules.
 
 ## Phase 2: Visuals (Rendering Engine)
 - [ ] **OpenGL Renderer Base**
