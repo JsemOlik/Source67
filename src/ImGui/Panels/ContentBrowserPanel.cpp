@@ -85,7 +85,7 @@ namespace S67 {
         ImGui::Columns(1);
 
         // Right-click on background
-        if (ImGui::BeginPopupContextWindow(0, 1, false)) {
+        if (ImGui::BeginPopupContextWindow(nullptr, ImGuiPopupFlags_MouseButtonRight)) {
             if (ImGui::MenuItem("Create New Folder")) {
                 std::filesystem::path newPath = m_CurrentDirectory / "NewFolder";
                 int i = 1;
