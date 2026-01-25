@@ -644,6 +644,7 @@ namespace S67 {
             m_GameFramebuffer->Unbind();
 
             m_ImGuiLayer->Begin();
+            ImGuizmo::BeginFrame();
             {
                 if (ImGui::BeginMainMenuBar()) {
                     if (ImGui::BeginMenu("File")) {
@@ -685,7 +686,7 @@ namespace S67 {
                 ImVec2 viewportOffset = ImGui::GetCursorScreenPos();
                 m_SceneViewportPos = { viewportOffset.x, viewportOffset.y };
                 if (m_SceneState != SceneState::Play)
-                    m_ImGuiLayer->SetBlockEvents(!m_SceneViewportFocused || !m_SceneViewportHovered);
+                    m_ImGuiLayer->SetBlockEvents((!m_SceneViewportFocused || !m_SceneViewportHovered) && !ImGuizmo::IsOver());
                 
                 ImVec2 sceneSize = ImGui::GetContentRegionAvail();
                 m_SceneViewportSize = { sceneSize.x, sceneSize.y };
@@ -721,16 +722,12 @@ namespace S67 {
                             nullptr, snap ? snapValues : nullptr);
 
                         if (ImGuizmo::IsUsing()) {
-                            glm::vec3 translation, rotation, scale;
-                            glm::quat orientation;
-                            glm::vec3 skew;
-                            glm::vec4 perspective;
-                            glm::decompose(transform, scale, orientation, translation, skew, perspective);
-
-                            glm::vec3 deltaRotation = glm::degrees(glm::eulerAngles(orientation)) - selectedEntity->Transform.Rotation;
-                            selectedEntity->Transform.Position = translation;
-                            selectedEntity->Transform.Rotation += deltaRotation;
-                            selectedEntity->Transform.Scale = scale;
+                            float translation[3], rotation[3], scale[3];
+                            ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(transform), translation, rotation, scale);
+                            
+                            selectedEntity->Transform.Position = { translation[0], translation[1], translation[2] };
+                            selectedEntity->Transform.Rotation = { rotation[0], rotation[1], rotation[2] };
+                            selectedEntity->Transform.Scale = { scale[0], scale[1], scale[2] };
                         }
                     }
                 } else {
