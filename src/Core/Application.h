@@ -39,12 +39,18 @@ namespace S67 {
         void OnOpenScene(); // Dialog version
         void OpenScene(const std::string& filepath); // Direct version
 
+        void OnNewProject();
+        void OnOpenProject();
+
         void CreateTestScene();
         void ResetScene();
 
         inline Window& GetWindow() { return *m_Window; }
         ImGuiLayer& GetImGuiLayer() { return *m_ImGuiLayer; }
         inline static Application& Get() { return *s_Instance; }
+
+        const std::filesystem::path& GetProjectRoot() const { return m_ProjectRoot; }
+        void SetProjectRoot(const std::filesystem::path& root);
 
     private:
         bool OnWindowClose(WindowCloseEvent& e);
@@ -66,7 +72,7 @@ namespace S67 {
         Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
         Scope<ContentBrowserPanel> m_ContentBrowserPanel;
 
-        std::filesystem::path m_ProjectPath;
+        std::filesystem::path m_ProjectRoot;
 
         Ref<Framebuffer> m_SceneFramebuffer;
         Ref<Framebuffer> m_GameFramebuffer;

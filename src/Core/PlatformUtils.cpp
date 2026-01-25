@@ -4,12 +4,12 @@
 
 namespace S67 {
 
-    std::string FileDialogs::OpenFile(const char* filter) {
+    std::string FileDialogs::OpenFile(const char* filter, const char* extension) {
         char buffer[1024];
         std::string result = "";
         
-        // Command to open Finder and choose a file with .s67 extension
-        std::string cmd = "osascript -e 'POSIX path of (choose file of type {\"s67\"} with prompt \"Select a Source67 Level\")' 2>/dev/null";
+        // Command to open Finder and choose a file with specific extension
+        std::string cmd = "osascript -e 'POSIX path of (choose file of type {\"" + std::string(extension) + "\"} with prompt \"Select a Source67 File\")' 2>/dev/null";
         
         FILE* pipe = popen(cmd.c_str(), "r");
         if (!pipe) return "";
@@ -23,12 +23,12 @@ namespace S67 {
         return result;
     }
 
-    std::string FileDialogs::SaveFile(const char* filter) {
+    std::string FileDialogs::SaveFile(const char* filter, const char* defaultName, const char* extension) {
         char buffer[1024];
         std::string result = "";
         
         // Command to open Finder save dialog
-        std::string cmd = "osascript -e 'POSIX path of (choose file name default name \"level.s67\" with prompt \"Save Source67 Level\")' 2>/dev/null";
+        std::string cmd = "osascript -e 'POSIX path of (choose file name default name \"" + std::string(defaultName) + "." + std::string(extension) + "\" with prompt \"Save Source67 File\")' 2>/dev/null";
         
         FILE* pipe = popen(cmd.c_str(), "r");
         if (!pipe) return "";
@@ -41,8 +41,9 @@ namespace S67 {
         if (!result.empty() && result.back() == '\n') result.pop_back();
         
         // Ensure extension
-        if (!result.empty() && result.find(".s67") == std::string::npos) {
-            result += ".s67";
+        std::string extStr = "." + std::string(extension);
+        if (!result.empty() && result.find(extStr) == std::string::npos) {
+            result += extStr;
         }
         
         return result;

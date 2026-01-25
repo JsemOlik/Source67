@@ -1,6 +1,9 @@
 #pragma once
 
 #include <filesystem>
+#include <unordered_map>
+#include "Core/Base.h"
+#include "Renderer/Texture.h"
 
 namespace S67 {
 
@@ -9,9 +12,12 @@ namespace S67 {
         ContentBrowserPanel();
 
         void OnImGuiRender();
+        void SetRoot(const std::filesystem::path& root);
 
     private:
+        std::filesystem::path m_BaseDirectory;
         std::filesystem::path m_CurrentDirectory;
+        std::unordered_map<std::string, Ref<Texture2D>> m_ThumbnailCache;
     };
 
 }

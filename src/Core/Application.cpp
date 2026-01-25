@@ -240,13 +240,62 @@ namespace S67 {
         }
     }
 
+    void Application::SetProjectRoot(const std::filesystem::path& root) {
+        m_ProjectRoot = root;
+        if (m_ContentBrowserPanel)
+            m_ContentBrowserPanel->SetRoot(root);
+    }
+
+    void Application::OnNewProject() {
+        std::string path = FileDialogs::SaveFile("Source67 Project (*.s67)\0*.s67\0", "project", "s67");
+        if (!path.empty()) {
+            std::filesystem::path projectPath(path);
+            std::filesystem::create_directories(projectPath.parent_path());
+            
+            // Create dummy project file
+            std::ofstream fout(path);
+            fout << "Project: Untitled\n";
+            fout << "DefaultLevel: assets/scenes/level.l67\n";
+            fout.close();
+
+            SetProjectRoot(projectPath.parent_path());
+            S67_CORE_INFO("Created new project: {0}", path);
+        }
+    }
+
+    void Application::OnOpenProject() {
+        std::string path = FileDialogs::OpenFile("Source67 Project (*.s67)\0*.s67\0", "s67");
+        if (!path.empty()) {
+            std::filesystem::path projectPath(path);
+            SetProjectRoot(projectPath.parent_path());
+            S67_CORE_INFO("Opened project: {0}", path);
+
+            // Parse Project for Default Level
+            std::ifstream fin(path);
+            std::string line;
+            while (std::getline(fin, line)) {
+                if (line.find("DefaultLevel:") != std::string::npos) {
+                    std::string levelPath = line.substr(line.find(":") + 2);
+                    if (!levelPath.empty()) {
+                        std::filesystem::path fullPath = m_ProjectRoot / levelPath;
+                        if (std::filesystem::exists(fullPath)) {
+                            OpenScene(fullPath.string());
+                            S67_CORE_INFO("Auto-loaded default level: {0}", levelPath);
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
     void Application::OnSaveScene() {
         if (m_SceneState != SceneState::Edit) {
             S67_CORE_WARN("Cannot save while playing!");
             return;
         }
 
-        std::string filepath = FileDialogs::SaveFile("Source67 Level (*.l67)\0*.l67\0");
+        std::string filepath = FileDialogs::SaveFile("Source67 Level (*.l67)\0*.l67\0", "level", "l67");
         if (!filepath.empty()) {
             SceneSerializer serializer(m_Scene.get());
             serializer.Serialize(filepath);
@@ -259,7 +308,7 @@ namespace S67 {
             return;
         }
 
-        std::string filepath = FileDialogs::OpenFile("Source67 Level (*.l67)\0*.l67\0");
+        std::string filepath = FileDialogs::OpenFile("Source67 Level (*.l67)\0*.l67\0", "l67");
         if (!filepath.empty()) {
             OpenScene(filepath);
         }
@@ -524,6 +573,17 @@ namespace S67 {
                 ImGui::End();
 
                 ImGui::Begin("Toolbar");
+                
+                ImGui::Text("Project:");
+                ImGui::SameLine();
+                if (ImGui::Button("New")) OnNewProject();
+                ImGui::SameLine();
+                if (ImGui::Button("Open")) OnOpenProject();
+                
+                ImGui::Separator();
+                
+                ImGui::Text("Scene:");
+                ImGui::SameLine();
                 if (m_SceneState == SceneState::Edit) {
                     if (ImGui::Button("Play")) {
                         OnScenePlay();
@@ -544,12 +604,10 @@ namespace S67 {
                 ImGui::SameLine();
                 if (ImGui::Button("Reset")) ResetScene();
                 
-                ImGui::Spacing();
-                ImGui::Text("File:");
                 ImGui::SameLine();
-                if (ImGui::Button("Save As")) OnSaveScene();
+                if (ImGui::Button("Save Level")) OnSaveScene();
                 ImGui::SameLine();
-                if (ImGui::Button("Open")) OnOpenScene();
+                if (ImGui::Button("Open Level")) OnOpenScene();
                 
                 ImGui::End();
 
