@@ -105,12 +105,23 @@ namespace S67 {
         if (glm::length(direction) > 0.0f)
             direction = glm::normalize(direction);
 
-        JPH::Vec3 velocity = m_Character->GetLinearVelocity();
-        velocity.SetX(direction.x * currentSpeed);
-        velocity.SetZ(direction.z * currentSpeed);
+        JPH::Vec3 currentVelocity = m_Character->GetLinearVelocity();
+        glm::vec3 currentHorizontalVel = { currentVelocity.GetX(), 0.0f, currentVelocity.GetZ() };
+        glm::vec3 targetHorizontalVel = direction * currentSpeed;
+
+        float lerpFactor = (glm::length(direction) > 0.0f) ? m_Acceleration : m_Friction;
+        glm::vec3 newHorizontalVel = glm::mix(currentHorizontalVel, targetHorizontalVel, std::min(dt * lerpFactor, 1.0f));
+
+        currentVelocity.SetX(newHorizontalVel.x);
+        currentVelocity.SetZ(newHorizontalVel.z);
+        JPH::Vec3& velocity = currentVelocity; 
 
         // Gravity
-        velocity.SetY(velocity.GetY() - 9.81f * dt * 3.0f); 
+        if (m_Character->GetGroundState() != JPH::CharacterVirtual::EGroundState::OnGround) {
+            velocity.SetY(velocity.GetY() - 9.81f * dt * 3.0f);
+        } else {
+            velocity.SetY(-1.0f); // Small downward force to stay grounded
+        }
 
         // Jump
         if (Input::IsKeyPressed(GLFW_KEY_SPACE) && m_Character->GetGroundState() == JPH::CharacterVirtual::EGroundState::OnGround) {
@@ -132,6 +143,11 @@ namespace S67 {
     glm::vec3 PlayerController::GetPosition() const {
         JPH::RVec3 p = m_Character->GetPosition();
         return { p.GetX(), p.GetY(), p.GetZ() };
+    }
+
+    float PlayerController::GetSpeed() const {
+        JPH::Vec3 v = m_Character->GetLinearVelocity();
+        return glm::length(glm::vec2(v.GetX(), v.GetZ()));
     }
 
 }

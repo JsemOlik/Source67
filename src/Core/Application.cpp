@@ -913,7 +913,8 @@ namespace S67 {
                 ImGui::End();
 
                 ImGui::Begin("Engine Statistics");
-                ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+                float speed = m_PlayerController ? m_PlayerController->GetSpeed() : 0.0f;
+                ImGui::Text("%.3f ms/frame (%.1f FPS) | Speed: %.2f units/s", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate, speed);
                 ImGui::End();
             }
             m_ImGuiLayer->End();

@@ -21,6 +21,7 @@ namespace S67 {
         
         void SetPosition(const glm::vec3& position);
         glm::vec3 GetPosition() const;
+        float GetSpeed() const;
 
     private:
         void HandleInput(float dt);
@@ -32,6 +33,8 @@ namespace S67 {
         float m_WalkSpeed = 6.0f;
         float m_SprintSpeed = 10.0f;
         float m_JumpForce = 8.0f; 
+        float m_Acceleration = 30.0f;
+        float m_Friction = 15.0f;
         
         float m_LastMouseX = 0.0f, m_LastMouseY = 0.0f;
         bool m_FirstMouse = true;
