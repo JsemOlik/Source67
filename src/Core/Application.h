@@ -14,6 +14,7 @@
 #include "ImGui/Panels/SceneHierarchyPanel.h"
 #include "Core/UndoSystem.h"
 #include "Physics/PlayerController.h"
+#include "Renderer/Skybox.h"
 #include <filesystem>
 
 namespace S67 {
@@ -84,6 +85,7 @@ namespace S67 {
         Scope<ImGuiLayer> m_ImGuiLayer;
         Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
         Scope<ContentBrowserPanel> m_ContentBrowserPanel;
+        Scope<Skybox> m_Skybox;
 
         std::filesystem::path m_ProjectRoot;
         std::filesystem::path m_ProjectFilePath;

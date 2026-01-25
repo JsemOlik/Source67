@@ -97,6 +97,7 @@ namespace S67 {
 
         m_SceneHierarchyPanel = CreateScope<SceneHierarchyPanel>(m_Scene);
         m_ContentBrowserPanel = CreateScope<ContentBrowserPanel>();
+        m_Skybox = CreateScope<Skybox>("assets/textures/skybox.png");
 
         FramebufferSpecification fbSpec;
         fbSpec.Width = 1280;
@@ -674,6 +675,7 @@ namespace S67 {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
             Renderer::BeginScene(*m_EditorCamera, m_Sun);
+            m_Skybox->Draw(*m_EditorCamera);
             for (auto& entity : m_Scene->GetEntities()) {
                 if (!entity->PhysicsBody.IsInvalid()) {
                     if (m_SceneState == SceneState::Play) {
@@ -722,6 +724,7 @@ namespace S67 {
             glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             Renderer::BeginScene(*m_Camera, m_Sun);
+            m_Skybox->Draw(*m_Camera);
             for (auto& entity : m_Scene->GetEntities()) {
                 if (entity->Material.AlbedoMap)
                     entity->Material.AlbedoMap->Bind();
