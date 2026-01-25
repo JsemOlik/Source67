@@ -562,6 +562,21 @@ namespace S67 {
                     if (ek.GetKeyCode() == GLFW_KEY_R)
                         m_GizmoType = (int)ImGuizmo::OPERATION::SCALE;
                 }
+
+                if (ek.GetKeyCode() == GLFW_KEY_F) {
+                    auto selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
+                    if (selectedEntity) {
+                        glm::vec3 pos = selectedEntity->Transform.Position;
+                        glm::vec3 scale = selectedEntity->Transform.Scale;
+                        float maxScale = std::max({ scale.x, scale.y, scale.z });
+                        
+                        // Move camera to look at object
+                        glm::vec3 offset = { 0.0f, maxScale * 2.0f, maxScale * 5.0f };
+                        m_EditorCamera->SetPosition(pos + offset);
+                        
+                        // We could also set rotation here, but let's keep it simple first
+                    }
+                }
             }
 
             if (ek.GetKeyCode() == GLFW_KEY_ESCAPE) {
@@ -718,15 +733,22 @@ namespace S67 {
                             const char* path = (const char*)payload->Data;
                             std::filesystem::path assetPath = path;
 
-                            if (assetPath.extension() == ".obj") {
-                                auto mesh = MeshLoader::LoadOBJ(assetPath.string());
+                            if (assetPath.extension() == ".obj" || assetPath.extension() == ".stl") {
+                                Ref<VertexArray> mesh = nullptr;
+                                if (assetPath.extension() == ".obj")
+                                    mesh = MeshLoader::LoadOBJ(assetPath.string());
+                                else if (assetPath.extension() == ".stl")
+                                    mesh = MeshLoader::LoadSTL(assetPath.string());
+
                                 if (mesh) {
                                     auto entity = CreateRef<Entity>(assetPath.stem().string(), mesh, m_DefaultShader, m_DefaultTexture);
                                     glm::vec3 dropPos = m_EditorCamera->GetPosition() + m_EditorCamera->GetForward() * 5.0f;
                                     entity->Transform.Position = dropPos;
+                                    
                                     auto& bodyInterface = PhysicsSystem::GetBodyInterface();
                                     JPH::BodyCreationSettings settings(PhysicsShapes::CreateBox({ 1.0f, 1.0f, 1.0f }), JPH::RVec3(dropPos.x, dropPos.y, dropPos.z), JPH::Quat::sIdentity(), JPH::EMotionType::Static, Layers::NON_MOVING);
                                     entity->PhysicsBody = bodyInterface.CreateAndAddBody(settings, JPH::EActivation::DontActivate);
+                                    
                                     m_Scene->AddEntity(entity);
                                     m_SceneHierarchyPanel->SetSelectedEntity(entity);
                                 }

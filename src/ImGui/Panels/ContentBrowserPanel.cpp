@@ -54,7 +54,7 @@ namespace S67 {
 
             bool isImage = ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga";
             bool isLevel = ext == ".s67";
-            bool isMesh = ext == ".obj";
+            bool isMesh = ext == ".obj" || ext == ".stl";
             
             ImTextureID iconID = 0; // Use dummy or fallback
             if (isImage) {

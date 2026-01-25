@@ -8,6 +8,7 @@ namespace S67 {
     class MeshLoader {
     public:
         static Ref<VertexArray> LoadOBJ(const std::string& path);
+        static Ref<VertexArray> LoadSTL(const std::string& path);
     };
 
 }
