@@ -183,6 +183,8 @@ namespace S67 {
 
         // Re-create
         m_Scene = CreateScope<Scene>();
+        m_UndoSystem.Clear();
+        m_IsDraggingGizmo = false;
         CreateTestScene();
 
         if (m_SceneHierarchyPanel) {
@@ -533,6 +535,19 @@ namespace S67 {
                     OnSaveScene();
                 }
 
+                // Undo/Redo
+                if (control || super) {
+                    if (ek.GetKeyCode() == GLFW_KEY_Z) {
+                        if (Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT) || Input::IsKeyPressed(GLFW_KEY_RIGHT_SHIFT))
+                            m_UndoSystem.Redo();
+                        else
+                            m_UndoSystem.Undo();
+                    }
+                    if (ek.GetKeyCode() == GLFW_KEY_Y) {
+                        m_UndoSystem.Redo();
+                    }
+                }
+
                 // Gizmo shortcuts
                 if (!m_EditorCameraController->IsRotationEnabled()) {
                     if (ek.GetKeyCode() == GLFW_KEY_Q)
@@ -722,12 +737,22 @@ namespace S67 {
                             nullptr, snap ? snapValues : nullptr);
 
                         if (ImGuizmo::IsUsing()) {
+                            if (!m_IsDraggingGizmo) {
+                                m_IsDraggingGizmo = true;
+                                m_InitialGizmoTransform = selectedEntity->Transform;
+                            }
+
                             float translation[3], rotation[3], scale[3];
                             ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(transform), translation, rotation, scale);
                             
                             selectedEntity->Transform.Position = { translation[0], translation[1], translation[2] };
                             selectedEntity->Transform.Rotation = { rotation[0], rotation[1], rotation[2] };
                             selectedEntity->Transform.Scale = { scale[0], scale[1], scale[2] };
+                        } else {
+                            if (m_IsDraggingGizmo) {
+                                m_IsDraggingGizmo = false;
+                                m_UndoSystem.AddCommand(CreateScope<TransformCommand>(selectedEntity, m_InitialGizmoTransform, selectedEntity->Transform));
+                            }
                         }
                     }
                 } else {

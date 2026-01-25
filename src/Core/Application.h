@@ -12,6 +12,7 @@
 #include "Renderer/Framebuffer.h"
 #include "ImGui/ImGuiLayer.h"
 #include "ImGui/Panels/SceneHierarchyPanel.h"
+#include "Core/UndoSystem.h"
 #include <filesystem>
 
 namespace S67 {
@@ -56,6 +57,8 @@ namespace S67 {
         const std::filesystem::path& GetProjectRoot() const { return m_ProjectRoot; }
         void SetProjectRoot(const std::filesystem::path& root);
 
+        UndoSystem& GetUndoSystem() { return m_UndoSystem; }
+
     private:
         bool OnWindowClose(WindowCloseEvent& e);
         bool OnWindowResize(WindowResizeEvent& e);
@@ -84,6 +87,9 @@ namespace S67 {
         std::string m_LevelFilePath = "";
 
         int m_GizmoType = 7; // ImGuizmo::TRANSLATE
+        UndoSystem m_UndoSystem;
+        Transform m_InitialGizmoTransform;
+        bool m_IsDraggingGizmo = false;
 
         Ref<Framebuffer> m_SceneFramebuffer;
         Ref<Framebuffer> m_GameFramebuffer;

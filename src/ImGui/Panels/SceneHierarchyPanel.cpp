@@ -1,6 +1,8 @@
 #include "SceneHierarchyPanel.h"
 #include <imgui.h>
 #include <glm/gtc/type_ptr.hpp>
+#include "Core/Application.h"
+#include "Core/UndoSystem.h"
 
 namespace S67 {
 
@@ -44,12 +46,12 @@ namespace S67 {
         }
 
         if (opened) {
-            // No inline children/properties anymore
             ImGui::TreePop();
         }
     }
 
-    static void DrawVec3Control(const std::string& label, glm::vec3& values, float resetValue = 0.0f, float columnWidth = 100.0f) {
+    static bool DrawVec3Control(const std::string& label, glm::vec3& values, float resetValue = 0.0f, float columnWidth = 100.0f) {
+        bool changed = false;
         ImGui::PushID(label.c_str());
 
         ImGui::Columns(2);
@@ -64,49 +66,68 @@ namespace S67 {
         float dragFloatWidth = (ImGui::GetContentRegionAvail().x - 3.0f * buttonSize.x) / 3.0f;
 
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.8f, 0.1f, 0.15f, 1.0f });
-        if (ImGui::Button("X", buttonSize))
+        if (ImGui::Button("X", buttonSize)) {
             values.x = resetValue;
+            changed = true;
+        }
         ImGui::PopStyleColor();
 
         ImGui::SameLine();
         ImGui::PushItemWidth(dragFloatWidth);
-        ImGui::DragFloat("##X", &values.x, 0.1f, 0.0f, 0.0f, "%.2f");
+        if (ImGui::DragFloat("##X", &values.x, 0.1f, 0.0f, 0.0f, "%.2f")) changed = true;
         ImGui::PopItemWidth();
         ImGui::SameLine();
 
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.2f, 0.7f, 0.2f, 1.0f });
-        if (ImGui::Button("Y", buttonSize))
+        if (ImGui::Button("Y", buttonSize)) {
             values.y = resetValue;
+            changed = true;
+        }
         ImGui::PopStyleColor();
 
         ImGui::SameLine();
         ImGui::PushItemWidth(dragFloatWidth);
-        ImGui::DragFloat("##Y", &values.y, 0.1f, 0.0f, 0.0f, "%.2f");
+        if (ImGui::DragFloat("##Y", &values.y, 0.1f, 0.0f, 0.0f, "%.2f")) changed = true;
         ImGui::PopItemWidth();
         ImGui::SameLine();
 
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.1f, 0.25f, 0.8f, 1.0f });
-        if (ImGui::Button("Z", buttonSize))
+        if (ImGui::Button("Z", buttonSize)) {
             values.z = resetValue;
+            changed = true;
+        }
         ImGui::PopStyleColor();
 
         ImGui::SameLine();
         ImGui::PushItemWidth(dragFloatWidth);
-        ImGui::DragFloat("##Z", &values.z, 0.1f, 0.0f, 0.0f, "%.2f");
+        if (ImGui::DragFloat("##Z", &values.z, 0.1f, 0.0f, 0.0f, "%.2f")) changed = true;
         ImGui::PopItemWidth();
 
         ImGui::PopStyleVar();
         ImGui::Columns(1);
         ImGui::PopID();
+
+        return changed || ImGui::IsItemDeactivatedAfterEdit();
     }
 
     void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
         if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
-            DrawVec3Control("Position", entity->Transform.Position);
+            Transform oldTransform = entity->Transform;
+            bool changed = false;
+
+            if (DrawVec3Control("Position", entity->Transform.Position)) changed = true;
+            
             glm::vec3 rotation = entity->Transform.Rotation;
-            DrawVec3Control("Rotation", rotation);
-            entity->Transform.Rotation = rotation;
-            DrawVec3Control("Scale", entity->Transform.Scale, 1.0f);
+            if (DrawVec3Control("Rotation", rotation)) {
+                entity->Transform.Rotation = rotation;
+                changed = true;
+            }
+
+            if (DrawVec3Control("Scale", entity->Transform.Scale, 1.0f)) changed = true;
+
+            if (changed && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+                Application::Get().GetUndoSystem().AddCommand(CreateScope<TransformCommand>(entity, oldTransform, entity->Transform));
+            }
         }
     }
 
