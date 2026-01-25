@@ -3,6 +3,7 @@
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
+#include <filesystem>
 
 #include "Core/Application.h"
 
@@ -50,6 +51,11 @@ namespace S67 {
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+
+        // Load Font
+        if (std::filesystem::exists("assets/fonts/Roboto-Medium.ttf")) {
+            io.Fonts->AddFontFromFileTTF("assets/fonts/Roboto-Medium.ttf", 18.0f);
+        }
 
         // Setup Dear ImGui style
         ImGui::StyleColorsDark();
