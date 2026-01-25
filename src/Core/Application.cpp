@@ -157,7 +157,7 @@ namespace S67 {
         floor->Transform.Scale = { 20.0f, 1.0f, 20.0f };
         
         JPH::BodyCreationSettings floorSettings(PhysicsShapes::CreateBox({ 20.0f, 1.0f, 20.0f }), JPH::RVec3(0, -2, 0), JPH::Quat::sIdentity(), JPH::EMotionType::Static, Layers::NON_MOVING);
-        if (!floor->Collidable) floorSettings.mIsSensor = true;
+        floorSettings.mUserData = (uint64_t)floor.get();
         floor->PhysicsBody = bodyInterface.CreateAndAddBody(floorSettings, JPH::EActivation::DontActivate);
         m_Scene->AddEntity(floor);
 
@@ -168,7 +168,7 @@ namespace S67 {
             cube->Transform.Position = { (float)i * 2.0f - 4.0f, 10.0f + (float)i * 2.0f, 0.0f };
             
             JPH::BodyCreationSettings cubeSettings(PhysicsShapes::CreateBox({ 1.0f, 1.0f, 1.0f }), JPH::RVec3(cube->Transform.Position.x, cube->Transform.Position.y, cube->Transform.Position.z), JPH::Quat::sIdentity(), JPH::EMotionType::Dynamic, Layers::MOVING);
-            if (!cube->Collidable) cubeSettings.mIsSensor = true;
+            cubeSettings.mUserData = (uint64_t)cube.get();
             cube->PhysicsBody = bodyInterface.CreateAndAddBody(cubeSettings, JPH::EActivation::Activate);
             m_Scene->AddEntity(cube);
         }
@@ -481,9 +481,7 @@ namespace S67 {
             isStatic ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic, 
             isStatic ? Layers::NON_MOVING : Layers::MOVING);
         
-        if (!entity->Collidable) {
-            settings.mIsSensor = true;
-        }
+        settings.mUserData = (uint64_t)entity.get();
 
         entity->PhysicsBody = bodyInterface.CreateAndAddBody(settings, JPH::EActivation::Activate);
     }
