@@ -17,6 +17,7 @@ namespace S67 {
         void SetBlockEvents(bool block) { m_BlockEvents = block; }
 
     private:
+        void SetDarkThemeColors();
         bool m_BlockEvents = true;
     };
 
