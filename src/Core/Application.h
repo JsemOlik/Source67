@@ -40,7 +40,7 @@ namespace S67 {
         void OpenScene(const std::string& filepath); // Direct version
 
         void OnNewProject();
-        void OnOpenProject();
+        void DiscoverProject(const std::filesystem::path& levelPath);
 
         void CreateTestScene();
         void ResetScene();
@@ -73,6 +73,9 @@ namespace S67 {
         Scope<ContentBrowserPanel> m_ContentBrowserPanel;
 
         std::filesystem::path m_ProjectRoot;
+        std::filesystem::path m_ProjectFilePath;
+        std::string m_ProjectName = "Standalone";
+        std::string m_ProjectVersion = "N/A";
 
         Ref<Framebuffer> m_SceneFramebuffer;
         Ref<Framebuffer> m_GameFramebuffer;

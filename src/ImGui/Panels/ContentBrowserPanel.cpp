@@ -62,7 +62,7 @@ namespace S67 {
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
                 if (isDirectory) {
                     m_CurrentDirectory /= path.filename();
-                } else if (path.extension() == ".l67") {
+                } else if (path.extension() == ".s67") {
                     Application::Get().OpenScene(path.string());
                 }
             }

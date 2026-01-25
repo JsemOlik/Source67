@@ -247,45 +247,60 @@ namespace S67 {
     }
 
     void Application::OnNewProject() {
-        std::string path = FileDialogs::SaveFile("Source67 Project (*.s67)\0*.s67\0", "project", "s67");
+        std::string path = FileDialogs::SaveFile("Source67 Manifest (manifest.json)\0manifest.json\0", "manifest", "json");
         if (!path.empty()) {
-            std::filesystem::path projectPath(path);
-            std::filesystem::create_directories(projectPath.parent_path());
+            std::filesystem::path manifestPath(path);
+            std::filesystem::create_directories(manifestPath.parent_path());
             
-            // Create dummy project file
+            m_ProjectName = manifestPath.parent_path().stem().string();
+            m_ProjectVersion = "1.0.0";
+
+            // Save Manifest File
             std::ofstream fout(path);
-            fout << "Project: Untitled\n";
-            fout << "DefaultLevel: assets/scenes/level.l67\n";
+            fout << "ProjectName: " << m_ProjectName << "\n";
+            fout << "Version: " << m_ProjectVersion << "\n";
             fout.close();
 
-            SetProjectRoot(projectPath.parent_path());
-            S67_CORE_INFO("Created new project: {0}", path);
+            SetProjectRoot(manifestPath.parent_path());
+            m_ProjectFilePath = manifestPath;
+            S67_CORE_INFO("Created new project manifest: {0}", path);
         }
     }
 
-    void Application::OnOpenProject() {
-        std::string path = FileDialogs::OpenFile("Source67 Project (*.s67)\0*.s67\0", "s67");
-        if (!path.empty()) {
-            std::filesystem::path projectPath(path);
-            SetProjectRoot(projectPath.parent_path());
-            S67_CORE_INFO("Opened project: {0}", path);
+    void Application::DiscoverProject(const std::filesystem::path& levelPath) {
+        std::filesystem::path currentDir = levelPath.parent_path();
+        bool found = false;
 
-            // Parse Project for Default Level
-            std::ifstream fin(path);
-            std::string line;
-            while (std::getline(fin, line)) {
-                if (line.find("DefaultLevel:") != std::string::npos) {
-                    std::string levelPath = line.substr(line.find(":") + 2);
-                    if (!levelPath.empty()) {
-                        std::filesystem::path fullPath = m_ProjectRoot / levelPath;
-                        if (std::filesystem::exists(fullPath)) {
-                            OpenScene(fullPath.string());
-                            S67_CORE_INFO("Auto-loaded default level: {0}", levelPath);
-                        }
+        // Search upward for manifest.json
+        while (!currentDir.empty() && currentDir != currentDir.root_path()) {
+            std::filesystem::path manifestPath = currentDir / "manifest.json";
+            if (std::filesystem::exists(manifestPath)) {
+                m_ProjectFilePath = manifestPath;
+                SetProjectRoot(currentDir);
+                
+                // Parse Manifest
+                std::ifstream fin(manifestPath);
+                std::string line;
+                while (std::getline(fin, line)) {
+                    if (!line.empty() && line.back() == '\r') line.pop_back();
+                    if (line.find("ProjectName:") != std::string::npos) {
+                        m_ProjectName = line.substr(line.find(":") + 2);
+                    } else if (line.find("Version:") != std::string::npos) {
+                        m_ProjectVersion = line.substr(line.find(":") + 2);
                     }
-                    break;
                 }
+                S67_CORE_INFO("Discovered project: {0} (v{1}) at {2}", m_ProjectName, m_ProjectVersion, currentDir.string());
+                found = true;
+                break;
             }
+            currentDir = currentDir.parent_path();
+        }
+
+        if (!found) {
+            m_ProjectName = "Standalone";
+            m_ProjectVersion = "N/A";
+            m_ProjectFilePath = "";
+            // Keep current root or set to assets
         }
     }
 
@@ -295,10 +310,11 @@ namespace S67 {
             return;
         }
 
-        std::string filepath = FileDialogs::SaveFile("Source67 Level (*.l67)\0*.l67\0", "level", "l67");
+        std::string filepath = FileDialogs::SaveFile("Source67 Level (*.s67)\0*.s67\0", "level", "s67");
         if (!filepath.empty()) {
             SceneSerializer serializer(m_Scene.get());
             serializer.Serialize(filepath);
+            DiscoverProject(std::filesystem::path(filepath));
         }
     }
 
@@ -308,7 +324,7 @@ namespace S67 {
             return;
         }
 
-        std::string filepath = FileDialogs::OpenFile("Source67 Level (*.l67)\0*.l67\0", "l67");
+        std::string filepath = FileDialogs::OpenFile("Source67 Level (*.s67)\0*.s67\0", "s67");
         if (!filepath.empty()) {
             OpenScene(filepath);
         }
@@ -320,6 +336,7 @@ namespace S67 {
 
         SceneSerializer serializer(m_Scene.get());
         if (serializer.Deserialize(filepath)) {
+            DiscoverProject(std::filesystem::path(filepath));
             auto& bodyInterface = PhysicsSystem::GetBodyInterface();
             
             // Shared Mesh for now
@@ -574,11 +591,9 @@ namespace S67 {
 
                 ImGui::Begin("Toolbar");
                 
-                ImGui::Text("Project:");
+                ImGui::Text("Project: %s (v%s)", m_ProjectName.c_str(), m_ProjectVersion.c_str());
                 ImGui::SameLine();
                 if (ImGui::Button("New")) OnNewProject();
-                ImGui::SameLine();
-                if (ImGui::Button("Open")) OnOpenProject();
                 
                 ImGui::Separator();
                 
