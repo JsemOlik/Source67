@@ -16,6 +16,7 @@
 #include "Renderer/SceneSerializer.h"
 #include "Physics/PhysicsShapes.h"
 #include "Core/PlatformUtils.h"
+#include "Core/Input.h"
 #include "ImGui/Panels/ContentBrowserPanel.h"
 
 namespace S67 {
@@ -267,6 +268,26 @@ namespace S67 {
         }
     }
 
+    void Application::OnOpenProject() {
+        std::string path = FileDialogs::OpenFolder();
+        if (!path.empty()) {
+            std::filesystem::path folderPath(path);
+            SetProjectRoot(folderPath);
+            
+            // Try to find a manifest in this specific folder
+            std::filesystem::path manifestPath = folderPath / "manifest.json";
+            if (std::filesystem::exists(manifestPath)) {
+                // If opening a level later, it will discover properly, but let's load it now too
+                DiscoverProject(manifestPath); // Discovery takes a "level" path essentially
+            } else {
+                m_ProjectName = folderPath.stem().string();
+                m_ProjectVersion = "Developer Root";
+                m_ProjectFilePath = "";
+            }
+            S67_CORE_INFO("Opened project folder: {0}", path);
+        }
+    }
+
     void Application::DiscoverProject(const std::filesystem::path& levelPath) {
         std::filesystem::path currentDir = levelPath.parent_path();
         bool found = false;
@@ -304,16 +325,50 @@ namespace S67 {
         }
     }
 
+    void Application::OnNewScene() {
+        ResetScene();
+        m_LevelLoaded = true;
+        m_LevelFilePath = "Untitled.s67";
+        S67_CORE_INFO("Created new level");
+    }
+
+    void Application::CloseScene() {
+        ResetScene();
+        m_LevelLoaded = false;
+        m_LevelFilePath = "";
+        m_ProjectName = "Standalone";
+        m_ProjectVersion = "N/A";
+        S67_CORE_INFO("Closed level");
+    }
+
     void Application::OnSaveScene() {
         if (m_SceneState != SceneState::Edit) {
             S67_CORE_WARN("Cannot save while playing!");
             return;
         }
 
-        std::string filepath = FileDialogs::SaveFile("Source67 Level (*.s67)\0*.s67\0", "level", "s67");
+        if (m_LevelLoaded && !m_LevelFilePath.empty() && m_LevelFilePath != "Untitled.s67") {
+            SceneSerializer serializer(m_Scene.get());
+            serializer.Serialize(m_LevelFilePath);
+            S67_CORE_INFO("Quick Saved level: {0}", m_LevelFilePath);
+        } else {
+            OnSaveSceneAs();
+        }
+    }
+
+    void Application::OnSaveSceneAs() {
+        if (m_SceneState != SceneState::Edit) {
+            S67_CORE_WARN("Cannot save while playing!");
+            return;
+        }
+
+        std::string defaultName = m_LevelLoaded ? std::filesystem::path(m_LevelFilePath).stem().string() : "level";
+        std::string filepath = FileDialogs::SaveFile("Source67 Level (*.s67)\0*.s67\0", defaultName.c_str(), "s67");
         if (!filepath.empty()) {
             SceneSerializer serializer(m_Scene.get());
             serializer.Serialize(filepath);
+            m_LevelLoaded = true;
+            m_LevelFilePath = filepath;
             DiscoverProject(std::filesystem::path(filepath));
         }
     }
@@ -336,6 +391,8 @@ namespace S67 {
 
         SceneSerializer serializer(m_Scene.get());
         if (serializer.Deserialize(filepath)) {
+            m_LevelLoaded = true;
+            m_LevelFilePath = filepath;
             DiscoverProject(std::filesystem::path(filepath));
             auto& bodyInterface = PhysicsSystem::GetBodyInterface();
             
@@ -459,8 +516,17 @@ namespace S67 {
         dispatcher.Dispatch<WindowResizeEvent>(BIND_EVENT_FN(Application::OnWindowResize));
 
         if (e.GetEventType() == EventType::KeyPressed) {
-            auto& kp = (KeyPressedEvent&)e;
-            if (kp.GetKeyCode() == GLFW_KEY_ESCAPE) {
+            auto& ek = (KeyPressedEvent&)e;
+            bool control = Input::IsKeyPressed(GLFW_KEY_LEFT_CONTROL) || Input::IsKeyPressed(GLFW_KEY_RIGHT_CONTROL);
+            bool super = Input::IsKeyPressed(GLFW_KEY_LEFT_SUPER) || Input::IsKeyPressed(GLFW_KEY_RIGHT_SUPER);
+            
+            if (m_SceneState == SceneState::Edit) {
+                if (ek.GetKeyCode() == GLFW_KEY_S && (control || super)) {
+                    OnSaveScene();
+                }
+            }
+
+            if (ek.GetKeyCode() == GLFW_KEY_ESCAPE) {
                 if (m_SceneState == SceneState::Play)
                     OnScenePause();
             }
@@ -559,6 +625,35 @@ namespace S67 {
 
             m_ImGuiLayer->Begin();
             {
+                if (ImGui::BeginMainMenuBar()) {
+                    if (ImGui::BeginMenu("File")) {
+                        if (ImGui::MenuItem("New Project...")) OnNewProject();
+                        if (ImGui::MenuItem("Open Project...")) OnOpenProject();
+                        
+                        ImGui::Separator();
+                        
+                        // New Level only if none loaded
+                        if (!m_LevelLoaded) {
+                            if (ImGui::MenuItem("New Level")) OnNewScene();
+                        }
+                        
+                        if (ImGui::MenuItem("Open Level...", "Cmd+O")) OnOpenScene();
+                        
+                        if (m_LevelLoaded) {
+                            if (ImGui::MenuItem("Save Level", "Cmd+S")) OnSaveScene();
+                            if (ImGui::MenuItem("Save Level As...")) OnSaveSceneAs();
+                            if (ImGui::MenuItem("Close Level")) CloseScene();
+                        }
+
+                        ImGui::Separator();
+
+                        if (ImGui::MenuItem("Exit", "Cmd+Q")) m_Running = false;
+
+                        ImGui::EndMenu();
+                    }
+                    ImGui::EndMainMenuBar();
+                }
+
                 m_SceneHierarchyPanel->OnImGuiRender();
                 m_ContentBrowserPanel->OnImGuiRender();
 
@@ -574,7 +669,15 @@ namespace S67 {
                 
                 ImVec2 sceneSize = ImGui::GetContentRegionAvail();
                 m_SceneViewportSize = { sceneSize.x, sceneSize.y };
-                ImGui::Image((void*)(uint64_t)m_SceneFramebuffer->GetColorAttachmentRendererID(), sceneSize, { 0, 1 }, { 1, 0 });
+                
+                if (m_LevelLoaded) {
+                    ImGui::Image((void*)(uint64_t)m_SceneFramebuffer->GetColorAttachmentRendererID(), sceneSize, { 0, 1 }, { 1, 0 });
+                } else {
+                    std::string text = "No level open";
+                    ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
+                    ImGui::SetCursorPos({ (sceneSize.x - textSize.x) * 0.5f, (sceneSize.y - textSize.y) * 0.5f });
+                    ImGui::Text("%s", text.c_str());
+                }
                 ImGui::End();
 
                 // Game Viewport
@@ -586,19 +689,19 @@ namespace S67 {
 
                 ImVec2 gameSize = ImGui::GetContentRegionAvail();
                 m_GameViewportSize = { gameSize.x, gameSize.y };
-                ImGui::Image((void*)(uint64_t)m_GameFramebuffer->GetColorAttachmentRendererID(), gameSize, { 0, 1 }, { 1, 0 });
+
+                if (m_LevelLoaded) {
+                    ImGui::Image((void*)(uint64_t)m_GameFramebuffer->GetColorAttachmentRendererID(), gameSize, { 0, 1 }, { 1, 0 });
+                } else {
+                    std::string text = "No level open";
+                    ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
+                    ImGui::SetCursorPos({ (gameSize.x - textSize.x) * 0.5f, (gameSize.y - textSize.y) * 0.5f });
+                    ImGui::Text("%s", text.c_str());
+                }
                 ImGui::End();
 
                 ImGui::Begin("Toolbar");
                 
-                ImGui::Text("Project: %s (v%s)", m_ProjectName.c_str(), m_ProjectVersion.c_str());
-                ImGui::SameLine();
-                if (ImGui::Button("New")) OnNewProject();
-                
-                ImGui::Separator();
-                
-                ImGui::Text("Scene:");
-                ImGui::SameLine();
                 if (m_SceneState == SceneState::Edit) {
                     if (ImGui::Button("Play")) {
                         OnScenePlay();
@@ -618,11 +721,6 @@ namespace S67 {
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("Reset")) ResetScene();
-                
-                ImGui::SameLine();
-                if (ImGui::Button("Save Level")) OnSaveScene();
-                ImGui::SameLine();
-                if (ImGui::Button("Open Level")) OnOpenScene();
                 
                 ImGui::End();
 

@@ -18,6 +18,9 @@ namespace S67 {
         std::filesystem::path m_BaseDirectory;
         std::filesystem::path m_CurrentDirectory;
         std::unordered_map<std::string, Ref<Texture2D>> m_ThumbnailCache;
+
+        std::filesystem::path m_PathToDelete;
+        bool m_ShowDeleteModal = false;
     };
 
 }

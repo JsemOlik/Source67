@@ -66,6 +66,16 @@ namespace S67 {
                     Application::Get().OpenScene(path.string());
                 }
             }
+
+            // Right-click on item
+            if (ImGui::BeginPopupContextItem()) {
+                if (ImGui::MenuItem("Delete")) {
+                    m_PathToDelete = path;
+                    m_ShowDeleteModal = true;
+                }
+                ImGui::EndPopup();
+            }
+
             ImGui::TextWrapped("%s", filenameString.c_str());
 
             ImGui::NextColumn();
@@ -73,6 +83,45 @@ namespace S67 {
         }
 
         ImGui::Columns(1);
+
+        // Right-click on background
+        if (ImGui::BeginPopupContextWindow(0, 1, false)) {
+            if (ImGui::MenuItem("Create New Folder")) {
+                std::filesystem::path newPath = m_CurrentDirectory / "NewFolder";
+                int i = 1;
+                while (std::filesystem::exists(newPath)) {
+                    newPath = m_CurrentDirectory / ("NewFolder_" + std::to_string(i++));
+                }
+                std::filesystem::create_directory(newPath);
+            }
+            ImGui::EndPopup();
+        }
+
+        // Deletion Modal
+        if (m_ShowDeleteModal) {
+            ImGui::OpenPopup("Delete Asset?");
+            m_ShowDeleteModal = false;
+        }
+
+        if (ImGui::BeginPopupModal("Delete Asset?", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("Are you sure you want to delete '%s'?", m_PathToDelete.filename().string().c_str());
+            ImGui::TextColored({ 1.0f, 0.4f, 0.4f, 1.0f }, "This action cannot be undone!");
+            ImGui::Separator();
+
+            if (ImGui::Button("Delete", { 120, 0 })) {
+                std::filesystem::remove_all(m_PathToDelete);
+                m_PathToDelete = "";
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SetItemDefaultFocus();
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", { 120, 0 })) {
+                m_PathToDelete = "";
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+
         ImGui::End();
     }
 

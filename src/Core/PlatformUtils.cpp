@@ -49,4 +49,22 @@ namespace S67 {
         return result;
     }
 
+    std::string FileDialogs::OpenFolder() {
+        char buffer[1024];
+        std::string result = "";
+        
+        std::string cmd = "osascript -e 'POSIX path of (choose folder with prompt \"Select Project Root Folder\")' 2>/dev/null";
+        
+        FILE* pipe = popen(cmd.c_str(), "r");
+        if (!pipe) return "";
+        
+        while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
+            result += buffer;
+        }
+        pclose(pipe);
+        
+        if (!result.empty() && result.back() == '\n') result.pop_back();
+        return result;
+    }
+
 }

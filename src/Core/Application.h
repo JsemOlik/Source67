@@ -35,11 +35,15 @@ namespace S67 {
         void OnScenePause();
         void OnSceneStop();
 
-        void OnSaveScene();
+        void OnSaveScene(); // Quick Save (Shortcuts)
+        void OnSaveSceneAs(); // Dialog version
         void OnOpenScene(); // Dialog version
         void OpenScene(const std::string& filepath); // Direct version
+        void OnNewScene();
+        void CloseScene();
 
         void OnNewProject();
+        void OnOpenProject();
         void DiscoverProject(const std::filesystem::path& levelPath);
 
         void CreateTestScene();
@@ -76,6 +80,8 @@ namespace S67 {
         std::filesystem::path m_ProjectFilePath;
         std::string m_ProjectName = "Standalone";
         std::string m_ProjectVersion = "N/A";
+        bool m_LevelLoaded = false;
+        std::string m_LevelFilePath = "";
 
         Ref<Framebuffer> m_SceneFramebuffer;
         Ref<Framebuffer> m_GameFramebuffer;
