@@ -282,14 +282,21 @@ namespace S67 {
 
             for (auto& entity : m_Scene->GetEntities()) {
                 if (!entity->PhysicsBody.IsInvalid()) {
-                    JPH::RVec3 position;
-                    JPH::Quat rotation;
-                    bodyInterface.GetPositionAndRotation(entity->PhysicsBody, position, rotation);
+                    if (m_SceneState == SceneState::Play) {
+                        // Sync Physics -> Transform
+                        JPH::RVec3 position;
+                        JPH::Quat rotation;
+                        bodyInterface.GetPositionAndRotation(entity->PhysicsBody, position, rotation);
 
-                    entity->Transform.Position = { position.GetX(), position.GetY(), position.GetZ() };
-                    // Convert Quat to Euler for our simple Transform struct
-                    glm::quat q = { rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ() };
-                    entity->Transform.Rotation = glm::degrees(glm::eulerAngles(q));
+                        entity->Transform.Position = { position.GetX(), position.GetY(), position.GetZ() };
+                        glm::quat q = { rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ() };
+                        entity->Transform.Rotation = glm::degrees(glm::eulerAngles(q));
+                    } else {
+                        // Sync Transform -> Physics (So manual edits in Inspector apply to physics)
+                        glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
+                        JPH::Quat jRotate(q.x, q.y, q.z, q.w);
+                        bodyInterface.SetPositionAndRotation(entity->PhysicsBody, JPH::RVec3(entity->Transform.Position.x, entity->Transform.Position.y, entity->Transform.Position.z), jRotate, JPH::EActivation::DontActivate);
+                    }
                 }
 
                 if (entity == selectedEntity) {
@@ -313,14 +320,19 @@ namespace S67 {
                 glDisable(GL_DEPTH_TEST);
 
                 m_OutlineShader->Bind();
-                m_OutlineShader->SetFloat3("u_Color", { 1.0f, 0.5f, 0.0f }); // Orange outline
+                m_OutlineShader->SetFloat3("u_Color", { 1.0f, 0.5f, 0.0f });
+
+                // Use Wireframe for a proper "outline" look
+                glLineWidth(4.0f);
+                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
                 glm::mat4 transform = selectedEntity->Transform.GetTransform();
-                // Sligthly scale up for outline
-                transform = glm::scale(transform, glm::vec3(1.03f));
+                // Sligthly scale up to ensure lines are outside the mesh boundary
+                transform = glm::scale(transform, glm::vec3(1.01f));
 
                 Renderer::Submit(m_OutlineShader, selectedEntity->Mesh, transform);
 
+                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
                 glStencilMask(0xFF);
                 glEnable(GL_DEPTH_TEST);
                 glDisable(GL_STENCIL_TEST);
