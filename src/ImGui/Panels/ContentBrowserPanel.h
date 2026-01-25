@@ -21,6 +21,10 @@ namespace S67 {
 
         std::filesystem::path m_PathToDelete;
         bool m_ShowDeleteModal = false;
+
+        std::filesystem::path m_PathToRename;
+        char m_RenameBuffer[256];
+        bool m_ShowRenameModal = false;
     };
 
 }

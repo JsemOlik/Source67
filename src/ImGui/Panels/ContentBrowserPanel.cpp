@@ -69,6 +69,14 @@ namespace S67 {
 
             // Right-click on item
             if (ImGui::BeginPopupContextItem()) {
+                if (isDirectory) {
+                    if (ImGui::MenuItem("Rename")) {
+                        m_PathToRename = path;
+                        std::strncpy(m_RenameBuffer, path.filename().string().c_str(), sizeof(m_RenameBuffer));
+                        m_ShowRenameModal = true;
+                    }
+                }
+                
                 if (ImGui::MenuItem("Delete")) {
                     m_PathToDelete = path;
                     m_ShowDeleteModal = true;
@@ -85,7 +93,7 @@ namespace S67 {
         ImGui::Columns(1);
 
         // Right-click on background
-        if (ImGui::BeginPopupContextWindow(nullptr, ImGuiPopupFlags_MouseButtonRight)) {
+        if (ImGui::BeginPopupContextWindow(nullptr, ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
             if (ImGui::MenuItem("Create New Folder")) {
                 std::filesystem::path newPath = m_CurrentDirectory / "NewFolder";
                 int i = 1;
@@ -117,6 +125,34 @@ namespace S67 {
             ImGui::SameLine();
             if (ImGui::Button("Cancel", { 120, 0 })) {
                 m_PathToDelete = "";
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+
+        // Rename Modal
+        if (m_ShowRenameModal) {
+            ImGui::OpenPopup("Rename Folder");
+            m_ShowRenameModal = false;
+        }
+
+        if (ImGui::BeginPopupModal("Rename Folder", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::InputText("New Name", m_RenameBuffer, sizeof(m_RenameBuffer));
+            ImGui::Separator();
+
+            if (ImGui::Button("Rename", { 120, 0 })) {
+                std::filesystem::path newPath = m_PathToRename.parent_path() / m_RenameBuffer;
+                if (!std::filesystem::exists(newPath)) {
+                    std::filesystem::rename(m_PathToRename, newPath);
+                    m_PathToRename = "";
+                    ImGui::CloseCurrentPopup();
+                } else {
+                   // Optional: Simple warning if name exists? I'll let it fail or just let user try again.
+                }
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", { 120, 0 })) {
+                m_PathToRename = "";
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
