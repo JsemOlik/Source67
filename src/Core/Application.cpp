@@ -314,20 +314,18 @@ namespace S67 {
 
                 ImGui::Begin("Toolbar");
                 if (m_SceneState == SceneState::Edit) {
-                    if (ImGui::Button("Play"))
-                        OnScenePlay();
-                } else {
-                    if (ImGui::Button("Stop"))
-                        OnSceneStop();
-                    
+                    if (ImGui::Button("Play")) OnScenePlay();
+                } else if (m_SceneState == SceneState::Pause) {
+                    if (ImGui::Button("Resume")) OnScenePlay();
                     ImGui::SameLine();
-                    if (ImGui::Button(m_SceneState == SceneState::Play ? "Pause" : "Resume")) {
-                        m_SceneState = (m_SceneState == SceneState::Play) ? SceneState::Pause : SceneState::Play;
-                    }
+                    if (ImGui::Button("Stop")) OnSceneStop();
+                } else if (m_SceneState == SceneState::Play) {
+                    if (ImGui::Button("Pause")) OnScenePause();
+                    ImGui::SameLine();
+                    if (ImGui::Button("Stop")) OnSceneStop();
                 }
                 ImGui::SameLine();
-                if (ImGui::Button("Reset"))
-                    ResetScene();
+                if (ImGui::Button("Reset")) ResetScene();
                 ImGui::End();
 
                 ImGui::Begin("Engine Statistics");

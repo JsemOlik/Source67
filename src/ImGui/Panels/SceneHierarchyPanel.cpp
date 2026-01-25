@@ -44,7 +44,7 @@ namespace S67 {
         }
 
         if (opened) {
-            DrawProperties(entity);
+            // No inline children/properties anymore
             ImGui::TreePop();
         }
     }
