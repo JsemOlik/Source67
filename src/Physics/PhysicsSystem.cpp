@@ -2,6 +2,9 @@
 #include "Core/Logger.h"
 #include "Core/Assert.h"
 #include <Jolt/Physics/Collision/BroadPhase/BroadPhaseLayer.h>
+#include <Jolt/Physics/Collision/RayCast.h>
+#include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Collision/NarrowPhaseQuery.h>
 
 namespace S67 {
 
@@ -96,6 +99,17 @@ namespace S67 {
     void PhysicsSystem::OnUpdate(Timestep ts) {
         const float physicsDeltaTime = 1.0f / 60.0f;
         s_PhysicsSystem->Update(physicsDeltaTime, 1, s_TempAllocator, s_JobSystem);
+    }
+
+    JPH::BodyID PhysicsSystem::Raycast(const glm::vec3& origin, const glm::vec3& direction, float distance) {
+        JPH::RRayCast ray(JPH::RVec3(origin.x, origin.y, origin.z), JPH::Vec3(direction.x * distance, direction.y * distance, direction.z * distance));
+        JPH::RayCastResult result;
+
+        if (s_PhysicsSystem->GetNarrowPhaseQuery().CastRay(ray, result)) {
+            return result.mBodyID;
+        }
+
+        return JPH::BodyID();
     }
 
 }

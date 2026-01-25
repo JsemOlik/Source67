@@ -249,6 +249,42 @@ namespace S67 {
                         m_EditorCameraController->SetRotationEnabled(true);
                         m_EditorCameraController->SetFirstMouse(true);
                     }
+                } else if (mb.GetMouseButton() == 0) { // Left Click
+                    if (m_SceneViewportHovered && m_SceneState != SceneState::Play) {
+                        // Mouse Picking
+                        ImVec2 mousePos = ImGui::GetMousePos();
+                        float x = mousePos.x - m_SceneViewportPos.x;
+                        float y = mousePos.y - m_SceneViewportPos.y;
+
+                        // NDC (-1 to 1)
+                        float ndcX = (2.0f * x) / m_SceneViewportSize.x - 1.0f;
+                        float ndcY = 1.0f - (2.0f * y) / m_SceneViewportSize.y;
+
+                        glm::mat4 invVP = glm::inverse(m_EditorCamera->GetViewProjectionMatrix());
+                        glm::vec4 ndcRayNear = { ndcX, ndcY, -1.0f, 1.0f };
+                        glm::vec4 ndcRayFar = { ndcX, ndcY, 1.0f, 1.0f };
+
+                        glm::vec4 worldRayNear = invVP * ndcRayNear;
+                        glm::vec4 worldRayFar = invVP * ndcRayFar;
+
+                        worldRayNear /= worldRayNear.w;
+                        worldRayFar /= worldRayFar.w;
+
+                        glm::vec3 rayOrigin = glm::vec3(worldRayNear);
+                        glm::vec3 rayDirection = glm::normalize(glm::vec3(worldRayFar - worldRayNear));
+
+                        JPH::BodyID hitID = PhysicsSystem::Raycast(rayOrigin, rayDirection, 1000.0f);
+                        if (!hitID.IsInvalid()) {
+                            for (auto& entity : m_Scene->GetEntities()) {
+                                if (entity->PhysicsBody == hitID) {
+                                    m_SceneHierarchyPanel->SetSelectedEntity(entity);
+                                    break;
+                                }
+                            }
+                        } else {
+                             m_SceneHierarchyPanel->SetSelectedEntity(nullptr);
+                        }
+                    }
                 }
             } else if (e.GetEventType() == EventType::MouseButtonReleased) {
                 auto& mb = (MouseButtonReleasedEvent&)e;
@@ -372,6 +408,9 @@ namespace S67 {
                 ImGui::Begin("Scene");
                 m_SceneViewportFocused = ImGui::IsWindowFocused();
                 m_SceneViewportHovered = ImGui::IsWindowHovered();
+
+                ImVec2 viewportOffset = ImGui::GetCursorScreenPos();
+                m_SceneViewportPos = { viewportOffset.x, viewportOffset.y };
                 if (m_SceneState != SceneState::Play)
                     m_ImGuiLayer->SetBlockEvents(!m_SceneViewportFocused || !m_SceneViewportHovered);
                 

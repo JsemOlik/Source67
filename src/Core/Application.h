@@ -65,6 +65,8 @@ namespace S67 {
         glm::vec2 m_SceneViewportSize = { 0, 0 };
         glm::vec2 m_GameViewportSize = { 0, 0 };
 
+        glm::vec2 m_SceneViewportPos = { 0, 0 };
+
         bool m_SceneViewportFocused = false, m_SceneViewportHovered = false;
         bool m_GameViewportFocused = false, m_GameViewportHovered = false;
 

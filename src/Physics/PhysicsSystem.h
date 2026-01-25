@@ -12,6 +12,7 @@
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Body/BodyActivationListener.h>
 
+#include <glm/glm.hpp>
 #include "Core/Base.h"
 #include "Core/Timestep.h"
 
@@ -32,6 +33,8 @@ namespace S67 {
 
         static JPH::PhysicsSystem& GetPhysicsSystem() { return *s_PhysicsSystem; }
         static JPH::BodyInterface& GetBodyInterface() { return s_PhysicsSystem->GetBodyInterface(); }
+
+        static JPH::BodyID Raycast(const glm::vec3& origin, const glm::vec3& direction, float distance);
 
     private:
         static JPH::PhysicsSystem* s_PhysicsSystem;
