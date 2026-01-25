@@ -3,6 +3,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "Core/Application.h"
 #include "Core/UndoSystem.h"
+#include "Core/Logger.h"
 
 namespace S67 {
 
@@ -43,6 +44,25 @@ namespace S67 {
         bool opened = ImGui::TreeNodeEx((void*)(uint64_t)entity.get(), flags, "%s", name.c_str());
         if (ImGui::IsItemClicked()) {
             m_SelectionContext = entity;
+        }
+
+        if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                const char* path = (const char*)payload->Data;
+                std::filesystem::path assetPath = path;
+
+                std::string ext = assetPath.extension().string();
+                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                bool isImage = ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga";
+
+                if (isImage) {
+                    auto newTexture = Texture2D::Create(assetPath.string());
+                    S67_CORE_INFO("Dropped texture {0} onto {1}", assetPath.string(), entity->Name);
+                    Application::Get().GetUndoSystem().AddCommand(CreateScope<TextureCommand>(entity, entity->MaterialTexture, newTexture));
+                    entity->MaterialTexture = newTexture;
+                }
+            }
+            ImGui::EndDragDropTarget();
         }
 
         if (opened) {

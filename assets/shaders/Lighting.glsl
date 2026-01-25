@@ -50,5 +50,5 @@ void main() {
     vec3 diffuse = diff * u_DirLight.Color;
     
     vec4 texColor = texture(u_Texture, v_TexCoord);
-    color = vec4(ambient + diffuse, 1.0) * texColor * u_DirLight.Intensity;
+    color = vec4((ambient + diffuse) * texColor.rgb, 1.0) * u_DirLight.Intensity;
 }

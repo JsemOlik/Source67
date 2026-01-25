@@ -112,6 +112,7 @@ add_executable(Source67 ${SOURCES})
 target_include_directories(Source67 PUBLIC 
     ${INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb_image
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/tinyobjloader
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor
     ${jolt_SOURCE_DIR}
     ${IMGUI_DIR}

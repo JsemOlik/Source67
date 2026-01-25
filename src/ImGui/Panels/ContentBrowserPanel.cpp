@@ -54,6 +54,7 @@ namespace S67 {
 
             bool isImage = ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga";
             bool isLevel = ext == ".s67";
+            bool isMesh = ext == ".obj";
             
             ImTextureID iconID = 0; // Use dummy or fallback
             if (isImage) {
@@ -68,8 +69,16 @@ namespace S67 {
             if (iconID) {
                 ImGui::ImageButton(filenameString.c_str(), iconID, { thumbnailSize, thumbnailSize }, { 0, 1 }, { 1, 0 });
             } else {
-                std::string label = isDirectory ? "[D]" : (isLevel ? "[L]" : "[F]");
+                std::string label = isDirectory ? "[D]" : (isLevel ? "[L]" : (isMesh ? "[M]" : "[F]"));
                 ImGui::Button(label.c_str(), { thumbnailSize, thumbnailSize });
+            }
+
+            if (ImGui::BeginDragDropSource()) {
+                std::string pathString = path.string();
+                const char* itemPath = pathString.c_str();
+                ImGui::SetDragDropPayload("CONTENT_BROWSER_ITEM", itemPath, (strlen(itemPath) + 1) * sizeof(char));
+                ImGui::Text("%s", filenameString.c_str());
+                ImGui::EndDragDropSource();
             }
 
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {

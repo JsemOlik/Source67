@@ -103,6 +103,9 @@ namespace S67 {
         bool m_SceneViewportFocused = false, m_SceneViewportHovered = false;
         bool m_GameViewportFocused = false, m_GameViewportHovered = false;
 
+        Ref<Shader> m_DefaultShader;
+        Ref<Texture2D> m_DefaultTexture;
+
         SceneState m_SceneState = SceneState::Edit;
 
         static Application* s_Instance;

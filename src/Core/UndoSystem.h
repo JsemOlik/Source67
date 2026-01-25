@@ -33,6 +33,25 @@ namespace S67 {
         Transform m_NewTransform;
     };
 
+    class TextureCommand : public Command {
+    public:
+        TextureCommand(Ref<Entity> entity, Ref<Texture2D> oldTexture, Ref<Texture2D> newTexture)
+            : m_Entity(entity), m_OldTexture(oldTexture), m_NewTexture(newTexture) {}
+
+        void Undo() override {
+            m_Entity->MaterialTexture = m_OldTexture;
+        }
+
+        void Redo() override {
+            m_Entity->MaterialTexture = m_NewTexture;
+        }
+
+    private:
+        Ref<Entity> m_Entity;
+        Ref<Texture2D> m_OldTexture;
+        Ref<Texture2D> m_NewTexture;
+    };
+
     class UndoSystem {
     public:
         void Push(Scope<Command> command) {

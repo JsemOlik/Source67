@@ -24,6 +24,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtx/transform.hpp>
+#include "Renderer/Mesh.h"
 
 namespace S67 {
 
@@ -143,6 +144,8 @@ namespace S67 {
 
         auto shader = Shader::Create("assets/shaders/Lighting.glsl");
         auto texture = Texture2D::Create("assets/textures/Checkerboard.png");
+        m_DefaultShader = shader;
+        m_DefaultTexture = texture;
 
         auto& bodyInterface = PhysicsSystem::GetBodyInterface();
 
@@ -708,6 +711,29 @@ namespace S67 {
                 
                 if (m_LevelLoaded) {
                     ImGui::Image((void*)(uint64_t)m_SceneFramebuffer->GetColorAttachmentRendererID(), sceneSize, { 0, 1 }, { 1, 0 });
+
+                    // Drag & Drop
+                    if (ImGui::BeginDragDropTarget()) {
+                        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                            const char* path = (const char*)payload->Data;
+                            std::filesystem::path assetPath = path;
+
+                            if (assetPath.extension() == ".obj") {
+                                auto mesh = MeshLoader::LoadOBJ(assetPath.string());
+                                if (mesh) {
+                                    auto entity = CreateRef<Entity>(assetPath.stem().string(), mesh, m_DefaultShader, m_DefaultTexture);
+                                    glm::vec3 dropPos = m_EditorCamera->GetPosition() + m_EditorCamera->GetForward() * 5.0f;
+                                    entity->Transform.Position = dropPos;
+                                    auto& bodyInterface = PhysicsSystem::GetBodyInterface();
+                                    JPH::BodyCreationSettings settings(PhysicsShapes::CreateBox({ 1.0f, 1.0f, 1.0f }), JPH::RVec3(dropPos.x, dropPos.y, dropPos.z), JPH::Quat::sIdentity(), JPH::EMotionType::Static, Layers::NON_MOVING);
+                                    entity->PhysicsBody = bodyInterface.CreateAndAddBody(settings, JPH::EActivation::DontActivate);
+                                    m_Scene->AddEntity(entity);
+                                    m_SceneHierarchyPanel->SetSelectedEntity(entity);
+                                }
+                            }
+                        }
+                        ImGui::EndDragDropTarget();
+                    }
 
                     // Gizmos
                     Ref<Entity> selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
