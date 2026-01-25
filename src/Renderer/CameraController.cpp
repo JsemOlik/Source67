@@ -33,6 +33,9 @@ namespace S67 {
     }
 
     bool CameraController::OnMouseMoved(MouseMovedEvent& e) {
+        if (!m_RotationEnabled)
+            return false;
+
         if (m_FirstMouse) {
             m_LastMouseX = e.GetX();
             m_LastMouseY = e.GetY();

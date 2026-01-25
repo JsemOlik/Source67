@@ -1,6 +1,7 @@
 #include "Application.h"
 #include "Logger.h"
 #include "Events/KeyEvent.h"
+#include "Events/MouseEvent.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/Shader.h"
 #include "Renderer/Buffer.h"
@@ -43,6 +44,9 @@ namespace S67 {
         m_Camera = CreateRef<PerspectiveCamera>(45.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
         m_Camera->SetPosition({ 0.0f, 2.0f, 8.0f });
 
+        m_EditorCamera = CreateRef<PerspectiveCamera>(45.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
+        m_EditorCamera->SetPosition({ 5.0f, 5.0f, 15.0f });
+
         m_Scene = CreateScope<Scene>();
         m_Sun.Direction = { -0.5f, -1.0f, -0.2f };
         m_Sun.Color = { 1.0f, 0.95f, 0.8f }; // Warm sun color
@@ -51,6 +55,8 @@ namespace S67 {
         CreateTestScene();
 
         m_CameraController = CreateRef<CameraController>(m_Camera);
+        m_EditorCameraController = CreateRef<CameraController>(m_EditorCamera);
+        m_EditorCameraController->SetRotationEnabled(false); // Only via Right-Click
         m_Window->SetCursorLocked(false);
 
         m_ImGuiLayer = CreateScope<ImGuiLayer>();
@@ -61,7 +67,8 @@ namespace S67 {
         FramebufferSpecification fbSpec;
         fbSpec.Width = 1280;
         fbSpec.Height = 720;
-        m_Framebuffer = Framebuffer::Create(fbSpec);
+        m_SceneFramebuffer = Framebuffer::Create(fbSpec);
+        m_GameFramebuffer = Framebuffer::Create(fbSpec);
         m_OutlineShader = Shader::Create("assets/shaders/FlatColor.glsl");
 
         S67_CORE_INFO("Application initialized successfully");
@@ -230,8 +237,29 @@ namespace S67 {
     void Application::OnEvent(Event& e) {
         m_ImGuiLayer->OnEvent(e);
         
-        if (m_SceneState == SceneState::Play)
+        if (m_SceneState == SceneState::Play) {
             m_CameraController->OnEvent(e);
+        } else {
+            // Editor Navigation logic
+            if (e.GetEventType() == EventType::MouseButtonPressed) {
+                auto& mb = (MouseButtonPressedEvent&)e;
+                if (mb.GetMouseButton() == 1) { // Right Click
+                    if (m_SceneViewportHovered) {
+                        m_Window->SetCursorLocked(true);
+                        m_EditorCameraController->SetRotationEnabled(true);
+                        m_EditorCameraController->SetFirstMouse(true);
+                    }
+                }
+            } else if (e.GetEventType() == EventType::MouseButtonReleased) {
+                auto& mb = (MouseButtonReleasedEvent&)e;
+                if (mb.GetMouseButton() == 1) { // Right Click
+                    m_Window->SetCursorLocked(false);
+                    m_EditorCameraController->SetRotationEnabled(false);
+                }
+            }
+            
+            m_EditorCameraController->OnEvent(e);
+        }
 
         EventDispatcher dispatcher(e);
         dispatcher.Dispatch<WindowCloseEvent>(BIND_EVENT_FN(Application::OnWindowClose));
@@ -253,49 +281,46 @@ namespace S67 {
             m_LastFrameTime = time;
 
             // Viewport Resize
-            if (FramebufferSpecification spec = m_Framebuffer->GetSpecification();
-                m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f &&
-                (spec.Width != (uint32_t)m_ViewportSize.x || spec.Height != (uint32_t)m_ViewportSize.y)) {
-                m_Framebuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
-                m_Camera->SetProjection(45.0f, m_ViewportSize.x / m_ViewportSize.y, 0.1f, 100.0f);
+            if (FramebufferSpecification spec = m_SceneFramebuffer->GetSpecification();
+                m_SceneViewportSize.x > 0.0f && m_SceneViewportSize.y > 0.0f &&
+                (spec.Width != (uint32_t)m_SceneViewportSize.x || spec.Height != (uint32_t)m_SceneViewportSize.y)) {
+                m_SceneFramebuffer->Resize((uint32_t)m_SceneViewportSize.x, (uint32_t)m_SceneViewportSize.y);
+                m_EditorCamera->SetProjection(45.0f, m_SceneViewportSize.x / m_SceneViewportSize.y, 0.1f, 100.0f);
             }
-
-            m_Framebuffer->Bind();
-            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            if (FramebufferSpecification spec = m_GameFramebuffer->GetSpecification();
+                m_GameViewportSize.x > 0.0f && m_GameViewportSize.y > 0.0f &&
+                (spec.Width != (uint32_t)m_GameViewportSize.x || spec.Height != (uint32_t)m_GameViewportSize.y)) {
+                m_GameFramebuffer->Resize((uint32_t)m_GameViewportSize.x, (uint32_t)m_GameViewportSize.y);
+                m_Camera->SetProjection(45.0f, m_GameViewportSize.x / m_GameViewportSize.y, 0.1f, 100.0f);
+            }
 
             if (m_SceneState == SceneState::Play) {
                 m_CameraController->OnUpdate(timestep);
                 PhysicsSystem::OnUpdate(timestep);
-            } else if (m_ViewportFocused && m_ViewportHovered) {
-                // Allow camera movement in editor?? Let's keep it locked for now unless in Play
-                // Actually most engines allow movement. Let's add a "Free cam" later.
+            } else if (m_SceneViewportFocused) {
+                m_EditorCameraController->OnUpdate(timestep);
             }
-
-            Renderer::BeginScene(*m_Camera, m_Sun);
 
             auto& bodyInterface = PhysicsSystem::GetBodyInterface();
             Ref<Entity> selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
 
-            // Stencil clear
-            glClear(GL_STENCIL_BUFFER_BIT);
+            // 1. Scene View Pass
+            m_SceneFramebuffer->Bind();
+            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+            Renderer::BeginScene(*m_EditorCamera, m_Sun);
             for (auto& entity : m_Scene->GetEntities()) {
                 if (!entity->PhysicsBody.IsInvalid()) {
                     if (m_SceneState == SceneState::Play) {
-                        // Sync Physics -> Transform
-                        JPH::RVec3 position;
-                        JPH::Quat rotation;
+                        JPH::RVec3 position; JPH::Quat rotation;
                         bodyInterface.GetPositionAndRotation(entity->PhysicsBody, position, rotation);
-
                         entity->Transform.Position = { position.GetX(), position.GetY(), position.GetZ() };
                         glm::quat q = { rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ() };
                         entity->Transform.Rotation = glm::degrees(glm::eulerAngles(q));
                     } else {
-                        // Sync Transform -> Physics (So manual edits in Inspector apply to physics)
                         glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
-                        JPH::Quat jRotate(q.x, q.y, q.z, q.w);
-                        bodyInterface.SetPositionAndRotation(entity->PhysicsBody, JPH::RVec3(entity->Transform.Position.x, entity->Transform.Position.y, entity->Transform.Position.z), jRotate, JPH::EActivation::DontActivate);
+                        bodyInterface.SetPositionAndRotation(entity->PhysicsBody, JPH::RVec3(entity->Transform.Position.x, entity->Transform.Position.y, entity->Transform.Position.z), JPH::Quat(q.x, q.y, q.z, q.w), JPH::EActivation::DontActivate);
                     }
                 }
 
@@ -305,69 +330,82 @@ namespace S67 {
                     glStencilFunc(GL_ALWAYS, 1, 0xFF);
                     glStencilMask(0xFF);
                 }
-
                 entity->MaterialTexture->Bind();
                 Renderer::Submit(entity->MaterialShader, entity->Mesh, entity->Transform.GetTransform());
-
-                if (entity == selectedEntity) {
-                    glStencilMask(0x00);
-                }
+                if (entity == selectedEntity) glStencilMask(0x00);
             }
 
-            // Outline Pass
             if (selectedEntity) {
                 glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
                 glDisable(GL_DEPTH_TEST);
-
                 m_OutlineShader->Bind();
                 m_OutlineShader->SetFloat3("u_Color", { 1.0f, 0.5f, 0.0f });
-
-                // Use Wireframe for a proper "outline" look
                 glLineWidth(4.0f);
                 glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-                glm::mat4 transform = selectedEntity->Transform.GetTransform();
-                // Sligthly scale up to ensure lines are outside the mesh boundary
-                transform = glm::scale(transform, glm::vec3(1.01f));
-
+                glm::mat4 transform = glm::scale(selectedEntity->Transform.GetTransform(), glm::vec3(1.01f));
                 Renderer::Submit(m_OutlineShader, selectedEntity->Mesh, transform);
-
                 glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
                 glStencilMask(0xFF);
                 glEnable(GL_DEPTH_TEST);
                 glDisable(GL_STENCIL_TEST);
-                glClear(GL_STENCIL_BUFFER_BIT);
             }
-
             Renderer::EndScene();
-            m_Framebuffer->Unbind();
+            m_SceneFramebuffer->Unbind();
+
+            // 2. Game View Pass
+            m_GameFramebuffer->Bind();
+            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            Renderer::BeginScene(*m_Camera, m_Sun);
+            for (auto& entity : m_Scene->GetEntities()) {
+                entity->MaterialTexture->Bind();
+                Renderer::Submit(entity->MaterialShader, entity->Mesh, entity->Transform.GetTransform());
+            }
+            Renderer::EndScene();
+            m_GameFramebuffer->Unbind();
 
             m_ImGuiLayer->Begin();
             {
                 m_SceneHierarchyPanel->OnImGuiRender();
 
-                ImGui::Begin("Viewport");
-                m_ViewportFocused = ImGui::IsWindowFocused();
-                m_ViewportHovered = ImGui::IsWindowHovered();
-                
+                // Scene Viewport
+                ImGui::Begin("Scene");
+                m_SceneViewportFocused = ImGui::IsWindowFocused();
+                m_SceneViewportHovered = ImGui::IsWindowHovered();
                 if (m_SceneState != SceneState::Play)
-                    m_ImGuiLayer->SetBlockEvents(!m_ViewportFocused || !m_ViewportHovered);
+                    m_ImGuiLayer->SetBlockEvents(!m_SceneViewportFocused || !m_SceneViewportHovered);
+                
+                ImVec2 sceneSize = ImGui::GetContentRegionAvail();
+                m_SceneViewportSize = { sceneSize.x, sceneSize.y };
+                ImGui::Image((void*)(uint64_t)m_SceneFramebuffer->GetColorAttachmentRendererID(), sceneSize, { 0, 1 }, { 1, 0 });
+                ImGui::End();
 
-                ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-                m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };
+                // Game Viewport
+                ImGui::Begin("Game");
+                m_GameViewportFocused = ImGui::IsWindowFocused();
+                m_GameViewportHovered = ImGui::IsWindowHovered();
+                if (m_SceneState == SceneState::Play)
+                    m_ImGuiLayer->SetBlockEvents(!m_GameViewportFocused || !m_GameViewportHovered);
 
-                uint32_t textureID = m_Framebuffer->GetColorAttachmentRendererID();
-                ImGui::Image((void*)(uint64_t)textureID, ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, ImVec2{ 0, 1 }, ImVec2{ 1, 0 });
+                ImVec2 gameSize = ImGui::GetContentRegionAvail();
+                m_GameViewportSize = { gameSize.x, gameSize.y };
+                ImGui::Image((void*)(uint64_t)m_GameFramebuffer->GetColorAttachmentRendererID(), gameSize, { 0, 1 }, { 1, 0 });
                 ImGui::End();
 
                 ImGui::Begin("Toolbar");
                 if (m_SceneState == SceneState::Edit) {
-                    if (ImGui::Button("Play")) OnScenePlay();
+                    if (ImGui::Button("Play")) {
+                        OnScenePlay();
+                        ImGui::SetWindowFocus("Game");
+                    }
                 } else if (m_SceneState == SceneState::Pause) {
-                    if (ImGui::Button("Resume")) OnScenePlay();
+                    if (ImGui::Button("Resume")) {
+                        OnScenePlay();
+                        ImGui::SetWindowFocus("Game");
+                    }
                     ImGui::SameLine();
                     if (ImGui::Button("Stop")) OnSceneStop();
-                } else if (m_SceneState == SceneState::Play) {
+                } else {
                     if (ImGui::Button("Pause")) OnScenePause();
                     ImGui::SameLine();
                     if (ImGui::Button("Stop")) OnSceneStop();
@@ -377,7 +415,7 @@ namespace S67 {
                 ImGui::End();
 
                 ImGui::Begin("Engine Statistics");
-                ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+                ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
                 ImGui::End();
             }
             m_ImGuiLayer->End();

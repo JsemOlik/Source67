@@ -46,8 +46,10 @@ namespace S67 {
         std::unique_ptr<Window> m_Window;
         bool m_Running = true;
 
-        Ref<PerspectiveCamera> m_Camera;
-        Ref<CameraController> m_CameraController;
+        Ref<PerspectiveCamera> m_Camera; // Game Camera
+        Ref<PerspectiveCamera> m_EditorCamera;
+        Ref<CameraController> m_CameraController; // Game Camera Controller
+        Ref<CameraController> m_EditorCameraController;
         Scope<Scene> m_Scene;
         DirectionalLight m_Sun;
 
@@ -56,10 +58,15 @@ namespace S67 {
         Scope<ImGuiLayer> m_ImGuiLayer;
         Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
 
-        Ref<Framebuffer> m_Framebuffer;
+        Ref<Framebuffer> m_SceneFramebuffer;
+        Ref<Framebuffer> m_GameFramebuffer;
         Ref<Shader> m_OutlineShader;
-        glm::vec2 m_ViewportSize = { 0, 0 };
-        bool m_ViewportFocused = false, m_ViewportHovered = false;
+
+        glm::vec2 m_SceneViewportSize = { 0, 0 };
+        glm::vec2 m_GameViewportSize = { 0, 0 };
+
+        bool m_SceneViewportFocused = false, m_SceneViewportHovered = false;
+        bool m_GameViewportFocused = false, m_GameViewportHovered = false;
 
         SceneState m_SceneState = SceneState::Edit;
 

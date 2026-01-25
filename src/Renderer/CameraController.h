@@ -14,6 +14,9 @@ namespace S67 {
         void OnUpdate(Timestep ts);
         void OnEvent(Event& e);
 
+        void SetRotationEnabled(bool enabled) { m_RotationEnabled = enabled; }
+        void SetFirstMouse(bool first) { m_FirstMouse = first; }
+
         Ref<PerspectiveCamera> GetCamera() { return m_Camera; }
 
     private:
@@ -29,6 +32,7 @@ namespace S67 {
 
         float m_LastMouseX = 0.0f, m_LastMouseY = 0.0f;
         bool m_FirstMouse = true;
+        bool m_RotationEnabled = true;
     };
 
 }
