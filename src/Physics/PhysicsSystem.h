@@ -36,6 +36,9 @@ namespace S67 {
 
         static JPH::BodyID Raycast(const glm::vec3& origin, const glm::vec3& direction, float distance);
 
+        static const JPH::BroadPhaseLayerFilter& GetBroadPhaseLayerFilter();
+        static const JPH::ObjectLayerFilter& GetObjectLayerFilter();
+
     private:
         static JPH::PhysicsSystem* s_PhysicsSystem;
         static JPH::TempAllocatorImpl* s_TempAllocator;

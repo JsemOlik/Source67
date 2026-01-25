@@ -13,6 +13,7 @@
 #include "ImGui/ImGuiLayer.h"
 #include "ImGui/Panels/SceneHierarchyPanel.h"
 #include "Core/UndoSystem.h"
+#include "Physics/PlayerController.h"
 #include <filesystem>
 
 namespace S67 {
@@ -42,6 +43,8 @@ namespace S67 {
         void OpenScene(const std::string& filepath); // Direct version
         void OnNewScene();
         void CloseScene();
+
+        void OnEntityCollidableChanged(Ref<Entity> entity);
 
         void OnNewProject();
         void OnOpenProject();
@@ -74,6 +77,8 @@ namespace S67 {
         DirectionalLight m_Sun;
 
         float m_LastFrameTime = 0.0f;
+        
+        Scope<PlayerController> m_PlayerController;
 
         Scope<ImGuiLayer> m_ImGuiLayer;
         Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;

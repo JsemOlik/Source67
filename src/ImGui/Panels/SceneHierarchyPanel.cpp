@@ -211,6 +211,10 @@ namespace S67 {
                 if (changed && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
                     Application::Get().GetUndoSystem().AddCommand(CreateScope<TransformCommand>(entity, oldTransform, entity->Transform));
                 }
+                
+                if (ImGui::Checkbox("Collidable", &entity->Collidable)) {
+                    Application::Get().OnEntityCollidableChanged(entity);
+                }
                 ImGui::Spacing();
             }
 

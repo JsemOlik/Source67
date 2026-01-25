@@ -54,6 +54,7 @@ namespace S67 {
 
         m_Camera = CreateRef<PerspectiveCamera>(45.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
         m_Camera->SetPosition({ 0.0f, 2.0f, 8.0f });
+        m_PlayerController = CreateScope<PlayerController>(m_Camera);
 
         m_EditorCamera = CreateRef<PerspectiveCamera>(45.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
         m_EditorCamera->SetPosition({ 5.0f, 5.0f, 15.0f });
@@ -156,6 +157,7 @@ namespace S67 {
         floor->Transform.Scale = { 20.0f, 1.0f, 20.0f };
         
         JPH::BodyCreationSettings floorSettings(PhysicsShapes::CreateBox({ 20.0f, 1.0f, 20.0f }), JPH::RVec3(0, -2, 0), JPH::Quat::sIdentity(), JPH::EMotionType::Static, Layers::NON_MOVING);
+        if (!floor->Collidable) floorSettings.mIsSensor = true;
         floor->PhysicsBody = bodyInterface.CreateAndAddBody(floorSettings, JPH::EActivation::DontActivate);
         m_Scene->AddEntity(floor);
 
@@ -166,6 +168,7 @@ namespace S67 {
             cube->Transform.Position = { (float)i * 2.0f - 4.0f, 10.0f + (float)i * 2.0f, 0.0f };
             
             JPH::BodyCreationSettings cubeSettings(PhysicsShapes::CreateBox({ 1.0f, 1.0f, 1.0f }), JPH::RVec3(cube->Transform.Position.x, cube->Transform.Position.y, cube->Transform.Position.z), JPH::Quat::sIdentity(), JPH::EMotionType::Dynamic, Layers::MOVING);
+            if (!cube->Collidable) cubeSettings.mIsSensor = true;
             cube->PhysicsBody = bodyInterface.CreateAndAddBody(cubeSettings, JPH::EActivation::Activate);
             m_Scene->AddEntity(cube);
         }
@@ -214,6 +217,7 @@ namespace S67 {
 
         ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
         m_ImGuiLayer->SetBlockEvents(false);
+        m_PlayerController->Reset({ 0.0f, 2.0f, 8.0f });
     }
 
     void Application::OnScenePause() {
@@ -459,11 +463,37 @@ namespace S67 {
         }
     }
 
+    void Application::OnEntityCollidableChanged(Ref<Entity> entity) {
+        if (!entity) return;
+
+        auto& bodyInterface = PhysicsSystem::GetBodyInterface();
+        if (!entity->PhysicsBody.IsInvalid()) {
+            bodyInterface.RemoveBody(entity->PhysicsBody);
+            bodyInterface.DestroyBody(entity->PhysicsBody);
+        }
+
+        glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
+        bool isStatic = (entity->Name == "Static Floor");
+        
+        JPH::BodyCreationSettings settings(PhysicsShapes::CreateBox({ entity->Transform.Scale.x, entity->Transform.Scale.y, entity->Transform.Scale.z }), 
+            JPH::RVec3(entity->Transform.Position.x, entity->Transform.Position.y, entity->Transform.Position.z), 
+            JPH::Quat(q.x, q.y, q.z, q.w), 
+            isStatic ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic, 
+            isStatic ? Layers::NON_MOVING : Layers::MOVING);
+        
+        if (!entity->Collidable) {
+            settings.mIsSensor = true;
+        }
+
+        entity->PhysicsBody = bodyInterface.CreateAndAddBody(settings, JPH::EActivation::Activate);
+    }
+
     void Application::OnEvent(Event& e) {
         m_ImGuiLayer->OnEvent(e);
         
         if (m_SceneState == SceneState::Play) {
-            m_CameraController->OnEvent(e);
+            // m_CameraController->OnEvent(e);
+            m_PlayerController->OnEvent(e);
         } else {
             // Editor Navigation logic
             if (e.GetEventType() == EventType::MouseButtonPressed) {
@@ -607,7 +637,8 @@ namespace S67 {
             }
 
             if (m_SceneState == SceneState::Play) {
-                m_CameraController->OnUpdate(timestep);
+                // m_CameraController->OnUpdate(timestep); // Disable default fly cam movement
+                m_PlayerController->OnUpdate(timestep);
                 PhysicsSystem::OnUpdate(timestep);
             } else if (m_SceneViewportFocused) {
                 m_EditorCameraController->OnUpdate(timestep);

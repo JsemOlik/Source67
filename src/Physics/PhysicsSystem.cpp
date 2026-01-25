@@ -112,4 +112,26 @@ namespace S67 {
         return JPH::BodyID();
     }
 
+    // --- Default Filters ---
+    class DefaultBroadPhaseLayerFilter : public JPH::BroadPhaseLayerFilter {
+    public:
+        virtual bool ShouldCollide(JPH::BroadPhaseLayer inLayer) const override { return true; }
+    };
+
+    class DefaultObjectLayerFilter : public JPH::ObjectLayerFilter {
+    public:
+        virtual bool ShouldCollide(JPH::ObjectLayer inLayer) const override { return true; }
+    };
+
+    static DefaultBroadPhaseLayerFilter s_DefaultBroadPhaseLayerFilter;
+    static DefaultObjectLayerFilter s_DefaultObjectLayerFilter;
+
+    const JPH::BroadPhaseLayerFilter& PhysicsSystem::GetBroadPhaseLayerFilter() {
+        return s_DefaultBroadPhaseLayerFilter;
+    }
+
+    const JPH::ObjectLayerFilter& PhysicsSystem::GetObjectLayerFilter() {
+        return s_DefaultObjectLayerFilter;
+    }
+
 }

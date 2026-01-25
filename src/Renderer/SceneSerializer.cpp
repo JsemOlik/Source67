@@ -28,6 +28,7 @@ namespace S67 {
             ss << "    MeshPath: " << entity->MeshPath << "\n";
             ss << "    ShaderPath: " << entity->MaterialShader->GetPath() << "\n";
             ss << "    TexturePath: " << entity->Material.AlbedoMap->GetPath() << "\n";
+            ss << "    Collidable: " << (entity->Collidable ? "true" : "false") << "\n";
         }
 
         std::ofstream fout(filepath);
@@ -79,6 +80,9 @@ namespace S67 {
                 } else if (line.find("TexturePath:") != std::string::npos) {
                     std::string path = line.substr(line.find(":") + 2);
                     currentEntity->Material.AlbedoMap = Texture2D::Create(path);
+                } else if (line.find("Collidable:") != std::string::npos) {
+                    std::string val = line.substr(line.find(":") + 2);
+                    currentEntity->Collidable = (val.find("true") != std::string::npos);
                 }
             }
         }
