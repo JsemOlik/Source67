@@ -78,7 +78,7 @@ set(UNITTESTS OFF CACHE BOOL "" FORCE)
 set(SAMPLES OFF CACHE BOOL "" FORCE)
 set(PERFORMANCE_TEST OFF CACHE BOOL "" FORCE)
 
-FetchContent_MakeAvailable(glfw glm spdlog jolt imgui)
+FetchContent_MakeAvailable(glfw glm spdlog jolt imgui json)
 
 # GLAD
 FetchContent_Declare(
