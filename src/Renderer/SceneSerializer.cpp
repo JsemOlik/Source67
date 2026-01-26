@@ -26,17 +26,9 @@ namespace S67 {
             ss << "      Rotation: [" << entity->Transform.Rotation.x << ", " << entity->Transform.Rotation.y << ", " << entity->Transform.Rotation.z << "]\n";
             ss << "      Scale: [" << entity->Transform.Scale.x << ", " << entity->Transform.Scale.y << ", " << entity->Transform.Scale.z << "]\n";
             ss << "    MeshPath: " << entity->MeshPath << "\n";
-            ss << "    ShaderPath: " << (entity->MaterialShader ? entity->MaterialShader->GetPath() : "None") << "\n";
-            ss << "    TexturePath: " << (entity->Material.AlbedoMap ? entity->Material.AlbedoMap->GetPath() : "None") << "\n";
+            ss << "    ShaderPath: " << entity->MaterialShader->GetPath() << "\n";
+            ss << "    TexturePath: " << entity->Material.AlbedoMap->GetPath() << "\n";
             ss << "    Collidable: " << (entity->Collidable ? "true" : "false") << "\n";
-            ss << "    IsPlayer: " << (entity->IsPlayer ? "true" : "false") << "\n";
-            if (entity->IsPlayer) {
-                ss << "    PlayerData:\n";
-                ss << "      Sensitivity: " << entity->PlayerData.MouseSensitivity << "\n";
-                ss << "      FOV: " << entity->PlayerData.FOV << "\n";
-                ss << "      WalkSpeed: " << entity->PlayerData.WalkSpeed << "\n";
-                ss << "      SprintSpeed: " << entity->PlayerData.SprintSpeed << "\n";
-            }
         }
 
         std::ofstream fout(filepath);
@@ -84,24 +76,13 @@ namespace S67 {
                     currentEntity->MeshPath = line.substr(line.find(":") + 2);
                 } else if (line.find("ShaderPath:") != std::string::npos) {
                     std::string path = line.substr(line.find(":") + 2);
-                    if (path != "None") currentEntity->MaterialShader = Shader::Create(path);
+                    currentEntity->MaterialShader = Shader::Create(path);
                 } else if (line.find("TexturePath:") != std::string::npos) {
                     std::string path = line.substr(line.find(":") + 2);
-                    if (path != "None") currentEntity->Material.AlbedoMap = Texture2D::Create(path);
+                    currentEntity->Material.AlbedoMap = Texture2D::Create(path);
                 } else if (line.find("Collidable:") != std::string::npos) {
                     std::string val = line.substr(line.find(":") + 2);
                     currentEntity->Collidable = (val.find("true") != std::string::npos);
-                } else if (line.find("IsPlayer:") != std::string::npos) {
-                    std::string val = line.substr(line.find(":") + 2);
-                    currentEntity->IsPlayer = (val.find("true") != std::string::npos);
-                } else if (line.find("Sensitivity:") != std::string::npos) {
-                    sscanf(line.c_str(), "      Sensitivity: %f", &currentEntity->PlayerData.MouseSensitivity);
-                } else if (line.find("FOV:") != std::string::npos) {
-                    sscanf(line.c_str(), "      FOV: %f", &currentEntity->PlayerData.FOV);
-                } else if (line.find("WalkSpeed:") != std::string::npos) {
-                    sscanf(line.c_str(), "      WalkSpeed: %f", &currentEntity->PlayerData.WalkSpeed);
-                } else if (line.find("SprintSpeed:") != std::string::npos) {
-                    sscanf(line.c_str(), "      SprintSpeed: %f", &currentEntity->PlayerData.SprintSpeed);
                 }
             }
         }

@@ -30,13 +30,6 @@ namespace S67 {
         glm::vec2 Tiling = { 1.0f, 1.0f };
     };
 
-    struct PlayerSettings {
-        float MouseSensitivity = 0.1f;
-        float FOV = 45.0f;
-        float WalkSpeed = 6.0f;
-        float SprintSpeed = 10.0f;
-    };
-
     class Entity {
     public:
         Entity() = default;
@@ -54,8 +47,6 @@ namespace S67 {
         std::string Name = "Entity";
         std::string MeshPath = "Cube";
         bool Collidable = true;
-        bool IsPlayer = false;
-        PlayerSettings PlayerData;
     };
 
 }

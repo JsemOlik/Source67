@@ -27,22 +27,6 @@ namespace S67 {
         if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered())
             m_SelectionContext = nullptr;
 
-        // Context menu
-        if (ImGui::BeginPopupContextWindow(nullptr, ImGuiPopupFlags_MouseButtonRight)) {
-            if (ImGui::MenuItem("Create Entity")) {
-                auto entity = CreateRef<Entity>("Entity", nullptr, nullptr, nullptr);
-                (*m_Context)->AddEntity(entity);
-            }
-            if (ImGui::MenuItem("Create Player")) {
-                auto entity = CreateRef<Entity>("Player", nullptr, nullptr, nullptr);
-                entity->IsPlayer = true;
-                entity->Collidable = false; // Player spawn object shouldn't have physics
-                (*m_Context)->AddEntity(entity);
-                S67_CORE_INFO("Created Player Spawn Entity: {0}", entity->Name);
-            }
-            ImGui::EndPopup();
-        }
-
         ImGui::End();
 
         ImGui::Begin("Inspector");
@@ -57,9 +41,7 @@ namespace S67 {
 
         ImGuiTreeNodeFlags flags = ((m_SelectionContext == entity && !m_SelectionIsMaterial) ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnArrow;
         flags |= ImGuiTreeNodeFlags_SpanAvailWidth;
-        
-        std::string label = entity->IsPlayer ? "[Player] " + name : name;
-        bool opened = ImGui::TreeNodeEx((void*)(uint64_t)entity.get(), flags, "%s", label.c_str());
+        bool opened = ImGui::TreeNodeEx((void*)(uint64_t)entity.get(), flags, "%s", name.c_str());
         if (ImGui::IsItemClicked()) {
             m_SelectionContext = entity;
             m_SelectionIsMaterial = false;
@@ -83,14 +65,6 @@ namespace S67 {
                 }
             }
             ImGui::EndDragDropTarget();
-        }
-
-        if (ImGui::BeginPopupContextItem()) {
-            if (ImGui::MenuItem("Delete Entity", nullptr, false, !entity->IsPlayer)) {
-                Application::Get().OnEntityDeleted(entity);
-                if (m_SelectionContext == entity) m_SelectionContext = nullptr;
-            }
-            ImGui::EndPopup();
         }
 
         if (opened) {
@@ -232,34 +206,19 @@ namespace S67 {
                     changed = true;
                 }
 
-                if (entity->IsPlayer) {
-                    entity->Transform.Scale = { 1.0f, 1.0f, 1.0f };
-                    ImGui::Text("Scale: [Locked at 1.0]");
-                } else {
-                    if (DrawVec3Control("Scale", entity->Transform.Scale, 1.0f)) changed = true;
-                }
+                if (DrawVec3Control("Scale", entity->Transform.Scale, 1.0f)) changed = true;
 
                 if (changed && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
                     Application::Get().GetUndoSystem().AddCommand(CreateScope<TransformCommand>(entity, oldTransform, entity->Transform));
                 }
                 
-                if (entity->IsPlayer) {
-                    ImGui::Spacing();
-                    ImGui::Separator();
-                    ImGui::Text("Player Settings");
-                    ImGui::DragFloat("Mouse Sensitivity", &entity->PlayerData.MouseSensitivity, 0.01f, 0.01f, 5.0f);
-                    ImGui::DragFloat("FOV", &entity->PlayerData.FOV, 1.0f, 10.0f, 120.0f);
-                    ImGui::DragFloat("Walk Speed", &entity->PlayerData.WalkSpeed, 0.1f, 0.1f, 50.0f);
-                    ImGui::DragFloat("Sprint Speed", &entity->PlayerData.SprintSpeed, 0.1f, 0.1f, 100.0f);
-                } else {
-                    if (ImGui::Checkbox("Collidable", &entity->Collidable)) {
-                        Application::Get().OnEntityCollidableChanged(entity);
-                    }
+                if (ImGui::Checkbox("Collidable", &entity->Collidable)) {
+                    Application::Get().OnEntityCollidableChanged(entity);
                 }
                 ImGui::Spacing();
             }
 
-            if (!entity->IsPlayer && entity->Material.AlbedoMap) {
+            if (entity->Material.AlbedoMap) {
                 if (ImGui::CollapsingHeader("Material Properties", ImGuiTreeNodeFlags_DefaultOpen)) {
                     ImGui::Text("Texture: %s", std::filesystem::path(entity->Material.AlbedoMap->GetPath()).filename().string().c_str());
                     DrawVec2Control("Tiling", entity->Material.Tiling, 1.0f);
