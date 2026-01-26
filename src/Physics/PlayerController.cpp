@@ -63,9 +63,8 @@ namespace S67 {
             m_LastMouseX = me.GetX();
             m_LastMouseY = me.GetY();
 
-            float sensitivity = 0.1f;
-            xoffset *= sensitivity;
-            yoffset *= sensitivity;
+            xoffset *= m_Sensitivity;
+            yoffset *= m_Sensitivity;
 
             m_Yaw += xoffset; 
             m_Pitch += yoffset;
@@ -138,6 +137,14 @@ namespace S67 {
 
     void PlayerController::SetPosition(const glm::vec3& position) {
         m_Character->SetPosition(JPH::RVec3(position.x, position.y, position.z));
+    }
+
+    void PlayerController::SetRotation(const glm::vec3& eulerDegrees) {
+        m_Yaw = eulerDegrees.y - 90.0f;
+        m_Pitch = glm::clamp(eulerDegrees.x, -89.0f, 89.0f);
+        
+        m_Camera->SetYaw(m_Yaw);
+        m_Camera->SetPitch(m_Pitch);
     }
 
     glm::vec3 PlayerController::GetPosition() const {

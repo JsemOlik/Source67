@@ -36,6 +36,8 @@ namespace S67 {
         float GetPitch() const { return m_Pitch; }
         void SetPitch(float pitch) { m_Pitch = pitch; UpdateViewMatrix(); }
 
+        float GetAspectRatio() const { return m_AspectRatio; }
+
         void UpdateViewMatrix();
 
     private:
@@ -47,6 +49,7 @@ namespace S67 {
 
         float m_Yaw = -90.0f;
         float m_Pitch = 0.0f;
+        float m_AspectRatio = 1.778f;
     };
 
 }

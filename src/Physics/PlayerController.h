@@ -20,8 +20,14 @@ namespace S67 {
         void Reset(const glm::vec3& startPos);
         
         void SetPosition(const glm::vec3& position);
+        void SetRotation(const glm::vec3& eulerDegrees); // Added
         glm::vec3 GetPosition() const;
         float GetSpeed() const;
+
+        void SetWalkSpeed(float speed) { m_WalkSpeed = speed; }
+        void SetSprintSpeed(float speed) { m_SprintSpeed = speed; }
+        void SetSensitivity(float sensitivity) { m_Sensitivity = sensitivity; }
+        void SetFOV(float fov) { m_FOV = fov; m_Camera->SetProjection(fov, m_Camera->GetAspectRatio(), 0.1f, 1000.0f); }
 
     private:
         void HandleInput(float dt);
@@ -35,6 +41,8 @@ namespace S67 {
         float m_JumpForce = 8.0f; 
         float m_Acceleration = 30.0f;
         float m_Friction = 15.0f;
+        float m_Sensitivity = 0.1f;
+        float m_FOV = 45.0f;
         
         float m_LastMouseX = 0.0f, m_LastMouseY = 0.0f;
         bool m_FirstMouse = true;

@@ -244,7 +244,25 @@ namespace S67 {
 
         ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
         m_ImGuiLayer->SetBlockEvents(false);
-        m_PlayerController->Reset({ 0.0f, 2.0f, 8.0f });
+
+        Ref<Entity> playerEntity = nullptr;
+        for (auto& entity : m_Scene->GetEntities()) {
+            if (entity->IsPlayer) {
+                playerEntity = entity;
+                break;
+            }
+        }
+
+        if (playerEntity) {
+            m_PlayerController->SetPosition(playerEntity->Transform.Position);
+            m_PlayerController->SetRotation(playerEntity->Transform.Rotation);
+            m_PlayerController->SetFOV(playerEntity->PlayerData.FOV);
+            m_PlayerController->SetSensitivity(playerEntity->PlayerData.MouseSensitivity);
+            m_PlayerController->SetWalkSpeed(playerEntity->PlayerData.WalkSpeed);
+            m_PlayerController->SetSprintSpeed(playerEntity->PlayerData.SprintSpeed);
+        } else {
+            m_PlayerController->Reset({ 0.0f, 2.0f, 8.0f });
+        }
     }
 
     void Application::OnScenePause() {
@@ -682,29 +700,36 @@ namespace S67 {
             Renderer::BeginScene(*m_EditorCamera, m_Sun);
             m_Skybox->Draw(*m_EditorCamera);
             for (auto& entity : m_Scene->GetEntities()) {
+                if (entity->IsPlayer && entity != selectedEntity) continue;
+
                 if (!entity->PhysicsBody.IsInvalid()) {
                     if (m_SceneState == SceneState::Play) {
+                        // ... Sync physics (kept logic) ...
                         JPH::RVec3 position; JPH::Quat rotation;
                         bodyInterface.GetPositionAndRotation(entity->PhysicsBody, position, rotation);
                         entity->Transform.Position = { position.GetX(), position.GetY(), position.GetZ() };
                         glm::quat q = { rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ() };
                         entity->Transform.Rotation = glm::degrees(glm::eulerAngles(q));
-                    } else {
+                    } else if (!entity->IsPlayer) {
                         glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
                         bodyInterface.SetPositionAndRotation(entity->PhysicsBody, JPH::RVec3(entity->Transform.Position.x, entity->Transform.Position.y, entity->Transform.Position.z), JPH::Quat(q.x, q.y, q.z, q.w), JPH::EActivation::DontActivate);
                     }
                 }
 
-                if (entity == selectedEntity) {
+                if (entity == selectedEntity && entity->Mesh) {
                     glEnable(GL_STENCIL_TEST);
                     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
                     glStencilFunc(GL_ALWAYS, 1, 0xFF);
                     glStencilMask(0xFF);
                 }
-                if (entity->Material.AlbedoMap)
-                    entity->Material.AlbedoMap->Bind();
-                Renderer::Submit(entity->MaterialShader, entity->Mesh, entity->Transform.GetTransform(), entity->Material.Tiling);
-                if (entity == selectedEntity) glStencilMask(0x00);
+
+                if (entity->Mesh) {
+                    if (entity->Material.AlbedoMap)
+                        entity->Material.AlbedoMap->Bind();
+                    Renderer::Submit(entity->MaterialShader, entity->Mesh, entity->Transform.GetTransform(), entity->Material.Tiling);
+                }
+
+                if (entity == selectedEntity && entity->Mesh) glStencilMask(0x00);
             }
 
             if (selectedEntity) {
@@ -715,7 +740,8 @@ namespace S67 {
                 glLineWidth(4.0f);
                 glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
                 glm::mat4 transform = glm::scale(selectedEntity->Transform.GetTransform(), glm::vec3(1.01f));
-                Renderer::Submit(m_OutlineShader, selectedEntity->Mesh, transform);
+                if (selectedEntity->Mesh)
+                    Renderer::Submit(m_OutlineShader, selectedEntity->Mesh, transform);
                 glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
                 glStencilMask(0xFF);
                 glEnable(GL_DEPTH_TEST);
@@ -731,6 +757,7 @@ namespace S67 {
             Renderer::BeginScene(*m_Camera, m_Sun);
             m_Skybox->Draw(*m_Camera);
             for (auto& entity : m_Scene->GetEntities()) {
+                if (entity->IsPlayer) continue;
                 if (entity->Material.AlbedoMap)
                     entity->Material.AlbedoMap->Bind();
                 Renderer::Submit(entity->MaterialShader, entity->Mesh, entity->Transform.GetTransform(), entity->Material.Tiling);
