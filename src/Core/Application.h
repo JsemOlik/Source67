@@ -53,12 +53,13 @@ namespace S67 {
         void CloseScene();
 
         void OnEntityCollidableChanged(Ref<Entity> entity);
+        void OnEntityDeleted(Ref<Entity> entity); // Added
 
         void OnNewProject();
         void OnOpenProject();
         void DiscoverProject(const std::filesystem::path& levelPath);
 
-        void CreateTestScene();
+        void ClearSelectionAndBackup();
         void ResetScene();
 
         inline Window& GetWindow() { return *m_Window; }

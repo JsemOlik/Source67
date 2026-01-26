@@ -85,6 +85,14 @@ namespace S67 {
             ImGui::EndDragDropTarget();
         }
 
+        if (ImGui::BeginPopupContextItem()) {
+            if (ImGui::MenuItem("Delete Entity", nullptr, false, !entity->IsPlayer)) {
+                Application::Get().OnEntityDeleted(entity);
+                if (m_SelectionContext == entity) m_SelectionContext = nullptr;
+            }
+            ImGui::EndPopup();
+        }
+
         if (opened) {
             if (entity->Material.AlbedoMap) {
                 ImGuiTreeNodeFlags leafFlags = (m_SelectionContext == entity && m_SelectionIsMaterial) ? ImGuiTreeNodeFlags_Selected : 0;

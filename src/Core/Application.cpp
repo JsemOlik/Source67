@@ -89,7 +89,11 @@ namespace S67 {
         m_Sun.Color = { 1.0f, 0.95f, 0.8f }; // Warm sun color
         m_Sun.Intensity = 1.0f;
 
-        CreateTestScene();
+        // Create Mandatory Player Entity
+        auto player = CreateRef<Entity>("Player Spawn", nullptr, nullptr, nullptr);
+        player->IsPlayer = true;
+        player->Transform.Position = { 0.0f, 2.0f, 8.0f };
+        m_Scene->AddEntity(player);
 
         m_CameraController = CreateRef<CameraController>(m_Camera);
         m_EditorCameraController = CreateRef<CameraController>(m_EditorCamera);
@@ -114,96 +118,10 @@ namespace S67 {
         S67_CORE_INFO("Application initialized successfully");
     }
 
-    void Application::CreateTestScene() {
-        S67_CORE_INFO("Setting up test scene...");
-        auto vertexArray = VertexArray::Create();
-
-        float vertices[] = {
-            // Position           // Normals           // TexCoords
-            // Front
-            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f, 0.0f,
-             1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f,  1.0f, 0.0f,
-             1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f,  1.0f, 1.0f,
-            -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f, 1.0f,
-            // Back
-            -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
-             1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-             1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
-            -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-            // Top
-            -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
-             1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-             1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
-            -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
-            // Bottom
-            -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-             1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
-             1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-            -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
-            // Left
-            -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-            -1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-            -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-            -1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-            // Right
-             1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-             1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-             1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-             1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f
-        };
-
-        Ref<VertexBuffer> vertexBuffer = VertexBuffer::Create(vertices, sizeof(vertices));
-        vertexBuffer->SetLayout({
-            { ShaderDataType::Float3, "a_Position" },
-            { ShaderDataType::Float3, "a_Normal" },
-            { ShaderDataType::Float2, "a_TexCoord" }
-        });
-        vertexArray->AddVertexBuffer(vertexBuffer);
-
-        uint32_t indices[] = {
-            0,  1,  2,  2,  3,  0,
-            4,  5,  6,  6,  7,  4,
-            8,  9,  10, 10, 11, 8,
-            12, 13, 14, 14, 15, 12,
-            16, 17, 18, 18, 19, 16,
-            20, 21, 22, 22, 23, 20
-        };
-        vertexArray->SetIndexBuffer(IndexBuffer::Create(indices, sizeof(indices) / sizeof(uint32_t)));
-
-        auto shader = Shader::Create("assets/shaders/Lighting.glsl");
-        auto texture = Texture2D::Create("assets/textures/Checkerboard.png");
-        m_DefaultShader = shader;
-        m_DefaultTexture = texture;
-
-        auto& bodyInterface = PhysicsSystem::GetBodyInterface();
-
-        // 1. Static Floor
-        auto floorVA = vertexArray; // Reusing cube for floor
-        auto floor = CreateRef<Entity>("Static Floor", floorVA, shader, texture);
-        floor->Transform.Position = { 0.0f, -2.0f, 0.0f };
-        floor->Transform.Scale = { 20.0f, 1.0f, 20.0f };
-        
-        JPH::BodyCreationSettings floorSettings(PhysicsShapes::CreateBox({ 20.0f, 1.0f, 20.0f }), JPH::RVec3(0, -2, 0), JPH::Quat::sIdentity(), JPH::EMotionType::Static, Layers::NON_MOVING);
-        floorSettings.mUserData = (uint64_t)floor.get();
-        floor->PhysicsBody = bodyInterface.CreateAndAddBody(floorSettings, JPH::EActivation::DontActivate);
-        m_Scene->AddEntity(floor);
-
-        // 2. Dynamic Cubes
-        for (int i = 0; i < 5; i++) {
-            std::string name = "Cube " + std::to_string(i);
-            auto cube = CreateRef<Entity>(name, vertexArray, shader, texture);
-            cube->Transform.Position = { (float)i * 2.0f - 4.0f, 10.0f + (float)i * 2.0f, 0.0f };
-            
-            JPH::BodyCreationSettings cubeSettings(PhysicsShapes::CreateBox({ 1.0f, 1.0f, 1.0f }), JPH::RVec3(cube->Transform.Position.x, cube->Transform.Position.y, cube->Transform.Position.z), JPH::Quat::sIdentity(), JPH::EMotionType::Dynamic, Layers::MOVING);
-            cubeSettings.mUserData = (uint64_t)cube.get();
-            cube->PhysicsBody = bodyInterface.CreateAndAddBody(cubeSettings, JPH::EActivation::Activate);
-            m_Scene->AddEntity(cube);
-        }
-    }
-
     void Application::ResetScene() {
         S67_CORE_INFO("Resetting scene...");
         OnSceneStop();
+        ClearSelectionAndBackup();
 
         // Clear Physics
         auto& bodyInterface = PhysicsSystem::GetBodyInterface();
@@ -218,11 +136,24 @@ namespace S67 {
         m_Scene = CreateScope<Scene>();
         m_UndoSystem.Clear();
         m_IsDraggingGizmo = false;
-        CreateTestScene();
-
+        s_SceneBackup.Data.clear();
+        
         if (m_SceneHierarchyPanel) {
+            m_SceneHierarchyPanel->SetSelectedEntity(nullptr);
             m_SceneHierarchyPanel->SetContext(m_Scene);
         }
+
+        // Create Mandatory Player Entity
+        auto player = CreateRef<Entity>("Player Spawn", nullptr, nullptr, nullptr);
+        player->IsPlayer = true;
+        player->Transform.Position = { 0.0f, 2.0f, 8.0f };
+        m_Scene->AddEntity(player);
+    }
+
+    void Application::ClearSelectionAndBackup() {
+        if (m_SceneHierarchyPanel)
+            m_SceneHierarchyPanel->SetSelectedEntity(nullptr);
+        s_SceneBackup.Data.clear();
     }
 
     Application::~Application() {
@@ -386,6 +317,7 @@ namespace S67 {
     }
 
     void Application::OnNewScene() {
+        ClearSelectionAndBackup();
         ResetScene();
         m_LevelLoaded = true;
         m_LevelFilePath = "Untitled.s67";
@@ -446,6 +378,9 @@ namespace S67 {
     }
 
     void Application::OpenScene(const std::string& filepath) {
+        OnSceneStop();
+        ClearSelectionAndBackup();
+
         PhysicsSystem::Shutdown(); // Reset physics system to clear all bodies
         PhysicsSystem::Init();
         m_PlayerController = CreateScope<PlayerController>(m_Camera);
@@ -530,6 +465,18 @@ namespace S67 {
         settings.mUserData = (uint64_t)entity.get();
 
         entity->PhysicsBody = bodyInterface.CreateAndAddBody(settings, JPH::EActivation::Activate);
+    }
+
+    void Application::OnEntityDeleted(Ref<Entity> entity) {
+        if (!entity) return;
+
+        auto& bodyInterface = PhysicsSystem::GetBodyInterface();
+        if (!entity->PhysicsBody.IsInvalid()) {
+            bodyInterface.RemoveBody(entity->PhysicsBody);
+            bodyInterface.DestroyBody(entity->PhysicsBody);
+        }
+        
+        m_Scene->RemoveEntity(entity);
     }
 
     void Application::OnEvent(Event& e) {
@@ -758,9 +705,11 @@ namespace S67 {
             m_Skybox->Draw(*m_Camera);
             for (auto& entity : m_Scene->GetEntities()) {
                 if (entity->IsPlayer) continue;
-                if (entity->Material.AlbedoMap)
-                    entity->Material.AlbedoMap->Bind();
-                Renderer::Submit(entity->MaterialShader, entity->Mesh, entity->Transform.GetTransform(), entity->Material.Tiling);
+                if (entity->Mesh && entity->MaterialShader) {
+                    if (entity->Material.AlbedoMap)
+                        entity->Material.AlbedoMap->Bind();
+                    Renderer::Submit(entity->MaterialShader, entity->Mesh, entity->Transform.GetTransform(), entity->Material.Tiling);
+                }
             }
             Renderer::EndScene();
             m_GameFramebuffer->Unbind();
@@ -949,7 +898,14 @@ namespace S67 {
                     if (ImGui::Button("Stop")) OnSceneStop();
                 }
                 ImGui::SameLine();
-                if (ImGui::Button("Reset")) ResetScene();
+                if (ImGui::Button("Reset")) {
+                    if (m_SceneState != SceneState::Edit) OnSceneStop();
+                    if (m_LevelLoaded && !m_LevelFilePath.empty() && m_LevelFilePath != "Untitled.s67") {
+                        OpenScene(m_LevelFilePath);
+                    } else {
+                        ResetScene();
+                    }
+                }
                 
                 ImGui::End();
 
