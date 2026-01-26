@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD 20)
 # Nudge to pick up PlatformUtils.cpp
 # Nudge to pick up ContentBrowserPanel.cpp
 # Nudge to pick up PlayerController.cpp
+# Nudge to pick up Window.mm
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Force dynamic CRT on Windows to match Jolt and other libs if USE_STATIC_CRT is OFF
@@ -105,6 +106,7 @@ endif()
 
 file(GLOB_RECURSE SOURCES 
     "src/**/*.cpp"
+    "src/**/*.mm"
     "src/**/*.h"
     "vendor/**/*.cpp"
     "vendor/**/*.h"

@@ -33,6 +33,7 @@ namespace S67 {
         inline void SetEventCallback(const EventCallbackFn& callback) { m_Data.EventCallback = callback; }
 
         void SetCursorLocked(bool locked);
+        void SetIcon(const std::string& path);
 
         inline void* GetNativeWindow() const { return m_Window; }
 

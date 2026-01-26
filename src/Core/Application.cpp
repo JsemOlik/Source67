@@ -70,6 +70,7 @@ namespace S67 {
         S67_CORE_INFO("Initializing Window...");
         m_Window = std::unique_ptr<Window>(Window::Create());
         m_Window->SetEventCallback(BIND_EVENT_FN(Application::OnEvent));
+        m_Window->SetIcon("assets/textures/level_icon.png");
 
         S67_CORE_INFO("Initializing Renderer...");
         Renderer::Init();
