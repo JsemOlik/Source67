@@ -59,12 +59,6 @@ FetchContent_Declare(
     SOURCE_SUBDIR  Build
 )
 
-# nlohmann/json
-FetchContent_Declare(
-    json
-    URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz
-)
-
 # ImGui
 FetchContent_Declare(
     imgui
@@ -78,7 +72,7 @@ set(UNITTESTS OFF CACHE BOOL "" FORCE)
 set(SAMPLES OFF CACHE BOOL "" FORCE)
 set(PERFORMANCE_TEST OFF CACHE BOOL "" FORCE)
 
-FetchContent_MakeAvailable(glfw glm spdlog jolt imgui json)
+FetchContent_MakeAvailable(glfw glm spdlog jolt imgui)
 
 # GLAD
 FetchContent_Declare(
@@ -140,7 +134,6 @@ target_link_libraries(Source67 PUBLIC
     spdlog::spdlog
     glad
     Jolt
-    nlohmann_json::nlohmann_json
 )
 
 if(MSVC)
