@@ -1,4 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+cmake_policy(SET CMP0135 NEW)
 project(Source67)
 
 # Trigger re-scan of src/ directory
@@ -62,7 +64,8 @@ FetchContent_Declare(
 # nlohmann/json
 FetchContent_Declare(
     json
-    URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.2
 )
 
 # ImGui
