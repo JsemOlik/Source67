@@ -51,6 +51,7 @@ namespace S67 {
         void OpenScene(const std::string& filepath); // Direct version
         void OnNewScene();
         void CloseScene();
+        void CloseProject();
 
         void OnEntityCollidableChanged(Ref<Entity> entity);
 

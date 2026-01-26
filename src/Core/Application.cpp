@@ -399,6 +399,16 @@ namespace S67 {
         S67_CORE_INFO("Closed level");
     }
 
+    void Application::CloseProject() {
+        CloseScene();
+        m_ProjectRoot = "";
+        m_ProjectFilePath = "";
+        m_ProjectName = "Standalone";
+        m_ProjectVersion = "N/A";
+        m_ContentBrowserPanel->SetRoot("");
+        S67_CORE_INFO("Closed project");
+    }
+
     void Application::OnSaveScene() {
         if (m_SceneState != SceneState::Edit) {
             S67_CORE_WARN("Cannot save while playing!");
@@ -777,6 +787,10 @@ namespace S67 {
                             if (ImGui::MenuItem("Close Level")) CloseScene();
                         }
 
+                        if (!m_ProjectRoot.empty()) {
+                            if (ImGui::MenuItem("Close Project")) CloseProject();
+                        }
+
                         ImGui::Separator();
 
                         if (ImGui::MenuItem("Exit", "Cmd+Q")) m_Running = false;
@@ -792,8 +806,15 @@ namespace S67 {
                     ImGui::EndMainMenuBar();
                 }
 
-                m_SceneHierarchyPanel->OnImGuiRender();
-                m_ContentBrowserPanel->OnImGuiRender();
+                if (!m_ProjectRoot.empty()) {
+                    m_SceneHierarchyPanel->OnImGuiRender();
+                    m_ContentBrowserPanel->OnImGuiRender();
+                } else {
+                    // Blank placeholders
+                    ImGui::Begin("Inspector"); ImGui::End();
+                    ImGui::Begin("Scene Hierarchy"); ImGui::End();
+                    ImGui::Begin("Content Browser"); ImGui::End();
+                }
 
                 if (m_ShowSettingsWindow)
                     UI_SettingsWindow();
@@ -814,7 +835,7 @@ namespace S67 {
                 ImVec2 sceneSize = ImGui::GetContentRegionAvail();
                 m_SceneViewportSize = { sceneSize.x, sceneSize.y };
                 
-                if (m_LevelLoaded) {
+                if (!m_ProjectRoot.empty() && m_LevelLoaded) {
                     ImGui::Image((void*)(uint64_t)m_SceneFramebuffer->GetColorAttachmentRendererID(), sceneSize, { 0, 1 }, { 1, 0 });
 
                     // Drag & Drop
@@ -894,7 +915,7 @@ namespace S67 {
                         }
                     }
                 } else {
-                    std::string text = "No level open";
+                    std::string text = m_ProjectRoot.empty() ? "No project open" : "No level open";
                     ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
                     ImGui::SetCursorPos({ (sceneSize.x - textSize.x) * 0.5f, (sceneSize.y - textSize.y) * 0.5f });
                     ImGui::Text("%s", text.c_str());
@@ -911,10 +932,10 @@ namespace S67 {
                 ImVec2 gameSize = ImGui::GetContentRegionAvail();
                 m_GameViewportSize = { gameSize.x, gameSize.y };
 
-                if (m_LevelLoaded) {
+                if (!m_ProjectRoot.empty() && m_LevelLoaded) {
                     ImGui::Image((void*)(uint64_t)m_GameFramebuffer->GetColorAttachmentRendererID(), gameSize, { 0, 1 }, { 1, 0 });
                 } else {
-                    std::string text = "No level open";
+                    std::string text = m_ProjectRoot.empty() ? "No project open" : "No level open";
                     ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
                     ImGui::SetCursorPos({ (gameSize.x - textSize.x) * 0.5f, (gameSize.y - textSize.y) * 0.5f });
                     ImGui::Text("%s", text.c_str());
@@ -945,10 +966,15 @@ namespace S67 {
                 
                 ImGui::End();
 
-                ImGui::Begin("Engine Statistics");
-                float speed = m_PlayerController ? m_PlayerController->GetSpeed() : 0.0f;
-                ImGui::Text("%.3f ms/frame (%.1f FPS) | Speed: %.2f units/s", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate, speed);
-                ImGui::End();
+                if (!m_ProjectRoot.empty()) {
+                    ImGui::Begin("Engine Statistics");
+                    float speed = m_PlayerController ? m_PlayerController->GetSpeed() : 0.0f;
+                    ImGui::Text("%.3f ms/frame (%.1f FPS) | Speed: %.2f units/s", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate, speed);
+                    ImGui::End();
+                } else {
+                    ImGui::Begin("Engine Statistics");
+                    ImGui::End();
+                }
             }
             m_ImGuiLayer->End();
 
