@@ -57,6 +57,7 @@ namespace S67 {
         void OnNewProject();
         void OnOpenProject();
         void DiscoverProject(const std::filesystem::path& levelPath);
+        void SaveManifest();
 
         void CreateTestScene();
         void ResetScene();
@@ -76,6 +77,7 @@ namespace S67 {
         bool OnWindowDrop(WindowDropEvent& e);
 
         void UI_SettingsWindow();
+        void UI_ProjectSettingsWindow();
 
         std::unique_ptr<Window> m_Window;
         bool m_Running = true;
@@ -121,6 +123,7 @@ namespace S67 {
         bool m_GameViewportFocused = false, m_GameViewportHovered = false;
 
         bool m_ShowSettingsWindow = false;
+        bool m_ShowProjectSettingsWindow = false;
         float m_FontSize = 18.0f;
         std::string m_FontPath = "assets/fonts/Roboto-Medium.ttf";
         glm::vec4 m_CustomColor = { 0.1f, 0.105f, 0.11f, 1.0f };

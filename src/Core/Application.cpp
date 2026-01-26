@@ -306,7 +306,23 @@ namespace S67 {
 
             SetProjectRoot(manifestPath.parent_path());
             m_ProjectFilePath = manifestPath;
+            SaveManifest();
             S67_CORE_INFO("Created new project manifest: {0}", path);
+        }
+    }
+
+    void Application::SaveManifest() {
+        if (m_ProjectRoot.empty()) return;
+
+        std::filesystem::path manifestPath = m_ProjectRoot / "manifest.json";
+        std::ofstream fout(manifestPath);
+        if (fout.is_open()) {
+            fout << "ProjectName: " << m_ProjectName << "\n";
+            fout << "Version: " << m_ProjectVersion << "\n";
+            fout.close();
+            S67_CORE_INFO("Saved project manifest to {0}", manifestPath.string());
+        } else {
+            S67_CORE_ERROR("Failed to save project manifest to {0}", manifestPath.string());
         }
     }
 
@@ -770,7 +786,7 @@ namespace S67 {
 
                     if (ImGui::BeginMenu("Settings")) {
                         if (ImGui::MenuItem("Settings")) m_ShowSettingsWindow = true;
-                        if (ImGui::MenuItem("Project Settings")) { /* Dummy */ }
+                        if (ImGui::MenuItem("Project Settings")) m_ShowProjectSettingsWindow = true;
                         ImGui::EndMenu();
                     }
                     ImGui::EndMainMenuBar();
@@ -781,6 +797,9 @@ namespace S67 {
 
                 if (m_ShowSettingsWindow)
                     UI_SettingsWindow();
+                
+                if (m_ShowProjectSettingsWindow)
+                    UI_ProjectSettingsWindow();
 
                 // Scene Viewport
                 ImGui::Begin("Scene");
@@ -1028,6 +1047,31 @@ namespace S67 {
         ImGui::Separator();
         if (ImGui::Button("Apply & Save")) {
             SaveSettings();
+        }
+
+        ImGui::End();
+    }
+
+    void Application::UI_ProjectSettingsWindow() {
+        ImGui::Begin("Project Settings", &m_ShowProjectSettingsWindow);
+
+        char nameBuffer[256];
+        memset(nameBuffer, 0, sizeof(nameBuffer));
+        strncpy(nameBuffer, m_ProjectName.c_str(), sizeof(nameBuffer) - 1);
+        if (ImGui::InputText("Project Name", nameBuffer, sizeof(nameBuffer))) {
+            m_ProjectName = nameBuffer;
+        }
+
+        char versionBuffer[256];
+        memset(versionBuffer, 0, sizeof(versionBuffer));
+        strncpy(versionBuffer, m_ProjectVersion.c_str(), sizeof(versionBuffer) - 1);
+        if (ImGui::InputText("Version", versionBuffer, sizeof(versionBuffer))) {
+            m_ProjectVersion = versionBuffer;
+        }
+
+        ImGui::Separator();
+        if (ImGui::Button("Apply & Save")) {
+            SaveManifest();
         }
 
         ImGui::End();
