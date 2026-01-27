@@ -26,12 +26,6 @@ void ContentBrowserPanel::SetRoot(const std::filesystem::path &root) {
 void ContentBrowserPanel::OnImGuiRender() {
   ImGui::Begin("Content Browser");
 
-  if (m_CurrentDirectory != m_BaseDirectory) {
-    if (ImGui::Button("<-")) {
-      m_CurrentDirectory = m_CurrentDirectory.parent_path();
-    }
-  }
-
   static float padding = 16.0f;
   static float thumbnailSize = 120.0f;
   float cellSize = thumbnailSize + padding;
@@ -42,6 +36,58 @@ void ContentBrowserPanel::OnImGuiRender() {
     columnCount = 1;
 
   ImGui::Columns(columnCount, 0, false);
+
+  // Add back navigation item if not at base directory
+  if (m_CurrentDirectory != m_BaseDirectory) {
+    ImGui::PushID("##back");
+
+    // Draw back button as a folder-style item
+    ImGui::Button("<-", {thumbnailSize, thumbnailSize});
+
+    // Double-click to go back
+    if (ImGui::IsItemHovered() &&
+        ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+      m_CurrentDirectory = m_CurrentDirectory.parent_path();
+    }
+
+    // Drop target for moving items to parent directory
+    if (ImGui::BeginDragDropTarget()) {
+      if (const ImGuiPayload *payload =
+              ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+        const char *droppedPath = (const char *)payload->Data;
+        std::filesystem::path sourcePath(droppedPath);
+        std::filesystem::path parentDir = m_CurrentDirectory.parent_path();
+        std::filesystem::path destPath = parentDir / sourcePath.filename();
+
+        // Don't move to same location
+        if (sourcePath.parent_path() != parentDir) {
+          // Handle name conflicts
+          if (std::filesystem::exists(destPath)) {
+            std::string baseName = sourcePath.stem().string();
+            std::string extension = sourcePath.extension().string();
+            int counter = 1;
+            do {
+              destPath = parentDir / (baseName + "_" +
+                                      std::to_string(counter++) + extension);
+            } while (std::filesystem::exists(destPath));
+          }
+
+          try {
+            std::filesystem::rename(sourcePath, destPath);
+          } catch (const std::exception &e) {
+            // Move failed
+          }
+        }
+      }
+      ImGui::EndDragDropTarget();
+    }
+
+    // No label for back button
+    ImGui::TextWrapped("");
+
+    ImGui::NextColumn();
+    ImGui::PopID();
+  }
 
   for (auto &directoryEntry :
        std::filesystem::directory_iterator(m_CurrentDirectory)) {
