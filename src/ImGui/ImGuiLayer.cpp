@@ -5,7 +5,6 @@
 #include <filesystem>
 #include <imgui.h>
 
-
 #include "Core/Application.h"
 
 #include <GLFW/glfw3.h>
@@ -91,6 +90,9 @@ void ImGuiLayer::OnAttach() {
   io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
   io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports;
   io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
+
+  io.ConfigViewportsNoAutoMerge = false;
+  io.ConfigViewportsNoTaskBarIcon = true;
 
   // Load Font
   if (std::filesystem::exists("assets/fonts/Roboto-Medium.ttf")) {

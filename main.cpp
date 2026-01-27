@@ -1,13 +1,23 @@
 #include "Core/Application.h"
 #include "Core/Logger.h"
 
-int main(int argc, char** argv) {
-    S67::Logger::Init();
-    S67_CORE_INFO("Source67 Engine Initialized");
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
-    auto app = new S67::Application(argv[0]);
-    app->Run();
-    delete app;
+int main(int argc, char **argv) {
+#ifdef _WIN32
+  // Per-Monitor V2 awareness is supported since Windows 10, version 1703.
+  // It handles automatic scaling of non-client area (title bar), menu, and
+  // common controls.
+  SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+#endif
+  S67::Logger::Init();
+  S67_CORE_INFO("Source67 Engine Initialized");
 
-    return 0;
+  auto app = new S67::Application(argv[0]);
+  app->Run();
+  delete app;
+
+  return 0;
 }
