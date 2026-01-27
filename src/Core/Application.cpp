@@ -27,9 +27,11 @@
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtx/transform.hpp>
 
+#include <chrono>
 #include <fstream>
 #include <iomanip>
 #include <nlohmann/json.hpp>
+#include <thread>
 
 namespace S67 {
 
@@ -222,6 +224,11 @@ Application::~Application() {
 }
 
 void Application::OnScenePlay() {
+  if (m_ProjectRoot.empty() || !m_LevelLoaded) {
+    S67_CORE_WARN("Cannot enter Play Mode: No project or level loaded!");
+    return;
+  }
+
   if (m_SceneState == SceneState::Edit) {
     // Backup before first play
     s_SceneBackup.Data.clear();
@@ -509,6 +516,11 @@ void Application::OnSaveSceneAs() {
 }
 
 void Application::OnOpenScene() {
+  if (m_ProjectRoot.empty()) {
+    S67_CORE_WARN("Cannot open level without a project loaded!");
+    return;
+  }
+
   if (m_SceneState != SceneState::Edit) {
     S67_CORE_WARN("Cannot load while playing!");
     return;
@@ -757,138 +769,178 @@ void Application::OnEvent(Event &e) {
 void Application::Run() {
   while (m_Running) {
     float time = (float)glfwGetTime();
+
+    // UI Cap (Max 144Hz) or Higher if Game Cap is higher
+    {
+      float uiCap = 144.0f;
+      float targetFPS = m_FPSCap > 0 ? std::max(uiCap, (float)m_FPSCap) : 0.0f;
+      float minFrameTime = targetFPS > 0.0f ? 1.0f / targetFPS : 0.0f;
+
+      float elapsed = time - m_LastFrameTime;
+
+      if (minFrameTime > 0.0f && elapsed < minFrameTime) {
+        while ((float)glfwGetTime() - m_LastFrameTime < minFrameTime) {
+          // Spin wait
+        }
+        // Spin wait
+      }
+
+      time = (float)glfwGetTime();
+    }
+
     Timestep timestep = time - m_LastFrameTime;
     m_LastFrameTime = time;
 
-    // Viewport Resize
-    if (FramebufferSpecification spec = m_SceneFramebuffer->GetSpecification();
-        m_SceneViewportSize.x > 0.0f && m_SceneViewportSize.y > 0.0f &&
-        (spec.Width != (uint32_t)m_SceneViewportSize.x ||
-         spec.Height != (uint32_t)m_SceneViewportSize.y)) {
-      m_SceneFramebuffer->Resize((uint32_t)m_SceneViewportSize.x,
-                                 (uint32_t)m_SceneViewportSize.y);
-      m_EditorCamera->SetProjection(
-          45.0f, m_SceneViewportSize.x / m_SceneViewportSize.y, 0.1f, 100.0f);
-    }
-    if (FramebufferSpecification spec = m_GameFramebuffer->GetSpecification();
-        m_GameViewportSize.x > 0.0f && m_GameViewportSize.y > 0.0f &&
-        (spec.Width != (uint32_t)m_GameViewportSize.x ||
-         spec.Height != (uint32_t)m_GameViewportSize.y)) {
-      m_GameFramebuffer->Resize((uint32_t)m_GameViewportSize.x,
-                                (uint32_t)m_GameViewportSize.y);
-      m_Camera->SetProjection(
-          45.0f, m_GameViewportSize.x / m_GameViewportSize.y, 0.1f, 100.0f);
+    // Game/Scene Logic & Render
+    bool shouldRenderGame = true;
+    if (m_FPSCap > 0) {
+      float minGameFrameTime = 1.0f / (float)m_FPSCap;
+      if (time - m_LastGameTime < minGameFrameTime)
+        shouldRenderGame = false;
     }
 
-    if (m_SceneState == SceneState::Play) {
-      // m_CameraController->OnUpdate(timestep); // Disable default fly cam
-      // movement
-      m_PlayerController->OnUpdate(timestep);
-      PhysicsSystem::OnUpdate(timestep);
-    } else {
-      if (m_SceneViewportFocused) {
-        m_EditorCameraController->OnUpdate(timestep);
+    if (shouldRenderGame) {
+      Timestep timestep = time - m_LastGameTime; // Use game delta
+
+      // Prevent huge delta on first frame or after pause
+      if (timestep > 1.0f)
+        timestep = 1.0f / 60.0f;
+
+      m_LastGameTime = time;
+      m_GameFPS = 1.0f / (float)timestep;
+
+      // Viewport Resize
+      if (FramebufferSpecification spec =
+              m_SceneFramebuffer->GetSpecification();
+          m_SceneViewportSize.x > 0.0f && m_SceneViewportSize.y > 0.0f &&
+          (spec.Width != (uint32_t)m_SceneViewportSize.x ||
+           spec.Height != (uint32_t)m_SceneViewportSize.y)) {
+        m_SceneFramebuffer->Resize((uint32_t)m_SceneViewportSize.x,
+                                   (uint32_t)m_SceneViewportSize.y);
+        m_EditorCamera->SetProjection(
+            45.0f, m_SceneViewportSize.x / m_SceneViewportSize.y, 0.1f, 100.0f);
+      }
+      if (FramebufferSpecification spec = m_GameFramebuffer->GetSpecification();
+          m_GameViewportSize.x > 0.0f && m_GameViewportSize.y > 0.0f &&
+          (spec.Width != (uint32_t)m_GameViewportSize.x ||
+           spec.Height != (uint32_t)m_GameViewportSize.y)) {
+        m_GameFramebuffer->Resize((uint32_t)m_GameViewportSize.x,
+                                  (uint32_t)m_GameViewportSize.y);
+        m_Camera->SetProjection(
+            45.0f, m_GameViewportSize.x / m_GameViewportSize.y, 0.1f, 100.0f);
       }
 
-      // Safety: If Right Mouse is released, ensure cursor is unlocked
-      if (m_CursorLocked && !Input::IsMouseButtonPressed(1)) {
-        m_Window->SetCursorLocked(false);
-        m_CursorLocked = false;
-        m_EditorCameraController->SetRotationEnabled(false);
-      }
-    }
+      if (m_SceneState == SceneState::Play) {
+        // m_CameraController->OnUpdate(timestep); // Disable default fly cam
+        // movement
+        m_PlayerController->OnUpdate(timestep);
+        PhysicsSystem::OnUpdate(timestep);
+      } else {
+        if (m_SceneViewportFocused) {
+          m_EditorCameraController->OnUpdate(timestep);
+        }
 
-    auto &bodyInterface = PhysicsSystem::GetBodyInterface();
-    Ref<Entity> selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
-
-    // 1. Scene View Pass
-    m_SceneFramebuffer->Bind();
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-    Renderer::BeginScene(*m_EditorCamera, m_Sun);
-    m_Skybox->Draw(*m_EditorCamera);
-    for (auto &entity : m_Scene->GetEntities()) {
-      if (!entity->PhysicsBody.IsInvalid()) {
-        if (m_SceneState == SceneState::Play) {
-          JPH::RVec3 position;
-          JPH::Quat rotation;
-          bodyInterface.GetPositionAndRotation(entity->PhysicsBody, position,
-                                               rotation);
-          entity->Transform.Position = {position.GetX(), position.GetY(),
-                                        position.GetZ()};
-          glm::quat q = {rotation.GetW(), rotation.GetX(), rotation.GetY(),
-                         rotation.GetZ()};
-          entity->Transform.Rotation = glm::degrees(glm::eulerAngles(q));
-        } else {
-          glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
-          bodyInterface.SetPositionAndRotation(
-              entity->PhysicsBody,
-              JPH::RVec3(entity->Transform.Position.x,
-                         entity->Transform.Position.y,
-                         entity->Transform.Position.z),
-              JPH::Quat(q.x, q.y, q.z, q.w), JPH::EActivation::DontActivate);
+        // Safety: If Right Mouse is released, ensure cursor is unlocked
+        if (m_CursorLocked && !Input::IsMouseButtonPressed(1)) {
+          m_Window->SetCursorLocked(false);
+          m_CursorLocked = false;
+          m_EditorCameraController->SetRotationEnabled(false);
         }
       }
 
-      if (entity == selectedEntity) {
-        glEnable(GL_STENCIL_TEST);
-        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-        glStencilFunc(GL_ALWAYS, 1, 0xFF);
+      auto &bodyInterface = PhysicsSystem::GetBodyInterface();
+      Ref<Entity> selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
+
+      // 1. Scene View Pass
+      m_SceneFramebuffer->Bind();
+      glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT |
+              GL_STENCIL_BUFFER_BIT);
+
+      Renderer::BeginScene(*m_EditorCamera, m_Sun);
+      m_Skybox->Draw(*m_EditorCamera);
+      for (auto &entity : m_Scene->GetEntities()) {
+        if (!entity->PhysicsBody.IsInvalid()) {
+          if (m_SceneState == SceneState::Play) {
+            JPH::RVec3 position;
+            JPH::Quat rotation;
+            bodyInterface.GetPositionAndRotation(entity->PhysicsBody, position,
+                                                 rotation);
+            entity->Transform.Position = {position.GetX(), position.GetY(),
+                                          position.GetZ()};
+            glm::quat q = {rotation.GetW(), rotation.GetX(), rotation.GetY(),
+                           rotation.GetZ()};
+            entity->Transform.Rotation = glm::degrees(glm::eulerAngles(q));
+          } else {
+            glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
+            bodyInterface.SetPositionAndRotation(
+                entity->PhysicsBody,
+                JPH::RVec3(entity->Transform.Position.x,
+                           entity->Transform.Position.y,
+                           entity->Transform.Position.z),
+                JPH::Quat(q.x, q.y, q.z, q.w), JPH::EActivation::DontActivate);
+          }
+        }
+
+        if (entity == selectedEntity) {
+          glEnable(GL_STENCIL_TEST);
+          glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+          glStencilFunc(GL_ALWAYS, 1, 0xFF);
+          glStencilMask(0xFF);
+        }
+        if (entity->Material.AlbedoMap)
+          entity->Material.AlbedoMap->Bind();
+
+        if (entity->Mesh && entity->MaterialShader &&
+            entity->MaterialShader->IsValid()) {
+          Renderer::Submit(entity->MaterialShader, entity->Mesh,
+                           entity->Transform.GetTransform(),
+                           entity->Material.Tiling);
+        }
+
+        if (entity == selectedEntity)
+          glStencilMask(0x00);
+      }
+
+      if (selectedEntity) {
+        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+        glDisable(GL_DEPTH_TEST);
+        m_OutlineShader->Bind();
+        m_OutlineShader->SetFloat3("u_Color", {1.0f, 0.5f, 0.0f});
+        glLineWidth(4.0f);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glm::mat4 transform = glm::scale(
+            selectedEntity->Transform.GetTransform(), glm::vec3(1.01f));
+        if (selectedEntity->Mesh)
+          Renderer::Submit(m_OutlineShader, selectedEntity->Mesh, transform);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         glStencilMask(0xFF);
+        glEnable(GL_DEPTH_TEST);
+        glDisable(GL_STENCIL_TEST);
       }
-      if (entity->Material.AlbedoMap)
-        entity->Material.AlbedoMap->Bind();
+      Renderer::EndScene();
+      m_SceneFramebuffer->Unbind();
 
-      if (entity->Mesh && entity->MaterialShader &&
-          entity->MaterialShader->IsValid()) {
-        Renderer::Submit(entity->MaterialShader, entity->Mesh,
-                         entity->Transform.GetTransform(),
-                         entity->Material.Tiling);
+      // 2. Game View Pass
+      m_GameFramebuffer->Bind();
+      glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      Renderer::BeginScene(*m_Camera, m_Sun);
+      m_Skybox->Draw(*m_Camera);
+      for (auto &entity : m_Scene->GetEntities()) {
+        if (entity->Material.AlbedoMap)
+          entity->Material.AlbedoMap->Bind();
+
+        if (entity->Mesh && entity->MaterialShader &&
+            entity->MaterialShader->IsValid()) {
+          Renderer::Submit(entity->MaterialShader, entity->Mesh,
+                           entity->Transform.GetTransform(),
+                           entity->Material.Tiling);
+        }
       }
-
-      if (entity == selectedEntity)
-        glStencilMask(0x00);
+      Renderer::EndScene();
+      m_GameFramebuffer->Unbind();
     }
-
-    if (selectedEntity) {
-      glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-      glDisable(GL_DEPTH_TEST);
-      m_OutlineShader->Bind();
-      m_OutlineShader->SetFloat3("u_Color", {1.0f, 0.5f, 0.0f});
-      glLineWidth(4.0f);
-      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-      glm::mat4 transform = glm::scale(selectedEntity->Transform.GetTransform(),
-                                       glm::vec3(1.01f));
-      if (selectedEntity->Mesh)
-        Renderer::Submit(m_OutlineShader, selectedEntity->Mesh, transform);
-      glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-      glStencilMask(0xFF);
-      glEnable(GL_DEPTH_TEST);
-      glDisable(GL_STENCIL_TEST);
-    }
-    Renderer::EndScene();
-    m_SceneFramebuffer->Unbind();
-
-    // 2. Game View Pass
-    m_GameFramebuffer->Bind();
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    Renderer::BeginScene(*m_Camera, m_Sun);
-    m_Skybox->Draw(*m_Camera);
-    for (auto &entity : m_Scene->GetEntities()) {
-      if (entity->Material.AlbedoMap)
-        entity->Material.AlbedoMap->Bind();
-
-      if (entity->Mesh && entity->MaterialShader &&
-          entity->MaterialShader->IsValid()) {
-        Renderer::Submit(entity->MaterialShader, entity->Mesh,
-                         entity->Transform.GetTransform(),
-                         entity->Material.Tiling);
-      }
-    }
-    Renderer::EndScene();
-    m_GameFramebuffer->Unbind();
 
     m_ImGuiLayer->Begin();
 
@@ -1254,9 +1306,10 @@ void Application::Run() {
         ImGui::Begin("Engine Statistics");
         float speed =
             m_PlayerController ? m_PlayerController->GetSpeed() : 0.0f;
-        ImGui::Text("%.3f ms/frame (%.1f FPS) | Speed: %.2f units/s",
-                    1000.0f / ImGui::GetIO().Framerate,
-                    ImGui::GetIO().Framerate, speed);
+        ImGui::Text("%.3f ms/frame (%.1f Game FPS | %.1f Engine FPS) | Speed: "
+                    "%.2f units/s",
+                    1000.0f / m_GameFPS, m_GameFPS, ImGui::GetIO().Framerate,
+                    speed);
         ImGui::End();
       } else {
         ImGui::Begin("Engine Statistics");
@@ -1363,6 +1416,10 @@ void Application::UI_SettingsWindow() {
       colors[ImGuiCol_WindowBg] = ImVec4{m_CustomColor.r, m_CustomColor.g,
                                          m_CustomColor.b, m_CustomColor.a};
     }
+
+    ImGui::Separator();
+    ImGui::Text("Performance");
+    ImGui::DragInt("Game FPS Cap (0 = Unlimited)", &m_FPSCap, 1.0f, 0, 1000);
   }
 
   ImGui::Separator();
@@ -1401,6 +1458,7 @@ void Application::UI_ProjectSettingsWindow() {
 void Application::SaveSettings() {
   nlohmann::json j;
   j["FontSize"] = m_FontSize;
+  j["FPSCap"] = m_FPSCap;
   j["Theme"] = (int)m_EditorTheme;
   j["CustomColor"] = {m_CustomColor.r, m_CustomColor.g, m_CustomColor.b,
                       m_CustomColor.a};
@@ -1425,6 +1483,8 @@ void Application::LoadSettings() {
       nlohmann::json j;
       i >> j;
       m_FontSize = j.at("FontSize").get<float>();
+      if (j.contains("FPSCap"))
+        m_FPSCap = j["FPSCap"];
       m_EditorTheme = (EditorTheme)j.at("Theme").get<int>();
 
       if (j.contains("CustomColor")) {

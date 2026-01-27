@@ -133,6 +133,7 @@ private:
   std::string m_FontPath = "assets/fonts/Roboto-Medium.ttf";
   glm::vec4 m_CustomColor = {0.1f, 0.105f, 0.11f, 1.0f};
   EditorTheme m_EditorTheme = EditorTheme::Dracula;
+  int m_FPSCap = 0; // 0 = Unlimited
 
   bool m_ShowInspector = true;
   bool m_ShowHierarchy = true;
@@ -153,6 +154,9 @@ private:
   // Save notification
   bool m_ShowSaveNotification = false;
   float m_SaveNotificationTime = 0.0f;
+
+  float m_LastGameTime = 0.0f;
+  float m_GameFPS = 0.0f;
 
   static Application *s_Instance;
 };
