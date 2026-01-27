@@ -912,6 +912,18 @@ void Application::Run() {
             SaveLayout();
           if (ImGui::MenuItem("Load Layout"))
             LoadLayout();
+          if (ImGui::MenuItem("Save Layout As...")) {
+            std::string filepath = FileDialogs::SaveFile(
+                "ImGui Layout (*.ini)\0*.ini\0", "layout.ini", ".ini");
+            if (!filepath.empty())
+              SaveLayout(filepath);
+          }
+          if (ImGui::MenuItem("Load Layout From...")) {
+            std::string filepath =
+                FileDialogs::OpenFile("ImGui Layout (*.ini)\0*.ini\0", ".ini");
+            if (!filepath.empty())
+              LoadLayout(filepath);
+          }
           if (ImGui::MenuItem("Default Layout"))
             ResetLayout();
 
@@ -1383,6 +1395,16 @@ void Application::LoadLayout() {
   ImGui::LoadIniSettingsFromDisk("imgui.ini");
   S67_CORE_INFO("Loaded window layout from imgui.ini");
   LoadSettings(); // Load visibility flags too
+}
+
+void Application::SaveLayout(const std::string &path) {
+  ImGui::SaveIniSettingsToDisk(path.c_str());
+  S67_CORE_INFO("Saved window layout to {0}", path);
+}
+
+void Application::LoadLayout(const std::string &path) {
+  ImGui::LoadIniSettingsFromDisk(path.c_str());
+  S67_CORE_INFO("Loaded window layout from {0}", path);
 }
 
 void Application::ResetLayout() {

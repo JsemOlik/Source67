@@ -40,6 +40,8 @@ public:
 
   void SaveLayout();
   void LoadLayout();
+  void SaveLayout(const std::string &path);
+  void LoadLayout(const std::string &path);
   void ResetLayout();
 
   void OnScenePlay();
