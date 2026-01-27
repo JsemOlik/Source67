@@ -733,6 +733,17 @@ void Application::OnEvent(Event &e) {
       }
     }
   }
+
+  // ESC handler - runs in ALL modes, including Play
+  if (e.GetEventType() == EventType::KeyPressed) {
+    auto &ek = (KeyPressedEvent &)e;
+    if (ek.GetKeyCode() == GLFW_KEY_ESCAPE) {
+      S67_CORE_INFO("[ESC] ESC key pressed (global handler), state: {0}",
+                    m_SceneState == SceneState::Play ? "PLAY" : "EDIT/PAUSE");
+      if (m_SceneState == SceneState::Play)
+        OnScenePause();
+    }
+  }
 }
 
 void Application::Run() {
