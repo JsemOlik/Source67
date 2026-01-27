@@ -64,7 +64,6 @@ public:
   void SaveManifest();
 
   void CreateTestScene();
-  void CreateTestScene();
 
   inline Window &GetWindow() { return *m_Window; }
   ImGuiLayer &GetImGuiLayer() { return *m_ImGuiLayer; }
@@ -146,6 +145,7 @@ private:
   Ref<Texture2D> m_DefaultTexture;
 
   SceneState m_SceneState = SceneState::Edit;
+  bool m_CursorLocked = false;
 
   static Application *s_Instance;
 };

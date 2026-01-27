@@ -103,6 +103,7 @@ Application::Application(const std::string &executablePath) {
   m_EditorCameraController = CreateRef<CameraController>(m_EditorCamera);
   m_EditorCameraController->SetRotationEnabled(false); // Only via Right-Click
   m_Window->SetCursorLocked(false);
+  m_CursorLocked = false;
 
   m_ImGuiLayer = CreateScope<ImGuiLayer>();
   m_ImGuiLayer->OnAttach();
@@ -228,6 +229,7 @@ void Application::OnScenePlay() {
 
   m_SceneState = SceneState::Play;
   m_Window->SetCursorLocked(true);
+  m_CursorLocked = true;
 
   ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
   m_ImGuiLayer->SetBlockEvents(false);
@@ -239,8 +241,8 @@ void Application::OnScenePause() {
     return;
 
   m_SceneState = SceneState::Pause;
-  m_Window->SetCursorLocked(false);
-
+  m_Window->SetCursorLocked(true);
+  m_CursorLocked = true;
   ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
   m_ImGuiLayer->SetBlockEvents(true);
 }
@@ -248,6 +250,7 @@ void Application::OnScenePause() {
 void Application::OnSceneStop() {
   m_SceneState = SceneState::Edit;
   m_Window->SetCursorLocked(false);
+  m_CursorLocked = false;
 
   ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
   m_ImGuiLayer->SetBlockEvents(true);
@@ -383,14 +386,25 @@ void Application::DiscoverProject(const std::filesystem::path &levelPath) {
 }
 
 void Application::OnNewScene() {
-  ResetScene();
+  m_Scene->Clear();
+  m_SceneHierarchyPanel->SetSelectedEntity(nullptr);
+
+  PhysicsSystem::Shutdown();
+  PhysicsSystem::Init();
+
+  CreateTestScene();
+
   m_LevelLoaded = true;
   m_LevelFilePath = "Untitled.s67";
+  m_Window->SetCursorLocked(false);
+  m_CursorLocked = false;
+  ImGui::SetWindowFocus("Scene");
   S67_CORE_INFO("Created new level");
 }
 
 void Application::CloseScene() {
-  ResetScene();
+  m_Scene->Clear();
+  m_SceneHierarchyPanel->SetSelectedEntity(nullptr);
   m_LevelLoaded = false;
   m_LevelFilePath = "";
   m_ProjectName = "Standalone";
@@ -416,7 +430,7 @@ void Application::OnSaveScene() {
 
   if (m_LevelLoaded && !m_LevelFilePath.empty() &&
       m_LevelFilePath != "Untitled.s67") {
-    SceneSerializer serializer(m_Scene.get());
+    SceneSerializer serializer(m_Scene.get(), m_ProjectRoot.string());
     serializer.Serialize(m_LevelFilePath);
     S67_CORE_INFO("Quick Saved level: {0}", m_LevelFilePath);
   } else {
@@ -436,7 +450,7 @@ void Application::OnSaveSceneAs() {
   std::string filepath = FileDialogs::SaveFile(
       "Source67 Level (*.s67)\0*.s67\0", defaultName.c_str(), "s67");
   if (!filepath.empty()) {
-    SceneSerializer serializer(m_Scene.get());
+    SceneSerializer serializer(m_Scene.get(), m_ProjectRoot.string());
     serializer.Serialize(filepath);
     m_LevelLoaded = true;
     m_LevelFilePath = filepath;
@@ -462,49 +476,17 @@ void Application::OpenScene(const std::string &filepath) {
   PhysicsSystem::Init();
   m_PlayerController = CreateScope<PlayerController>(m_Camera);
 
-  SceneSerializer serializer(m_Scene.get());
+  SceneSerializer serializer(m_Scene.get(), m_ProjectRoot.string());
   if (serializer.Deserialize(filepath)) {
     m_LevelLoaded = true;
     m_LevelFilePath = filepath;
+    m_Window->SetCursorLocked(false);
+    m_CursorLocked = false;
+    ImGui::SetWindowFocus("Scene");
     DiscoverProject(std::filesystem::path(filepath));
     auto &bodyInterface = PhysicsSystem::GetBodyInterface();
 
-    // Shared Mesh for now
-    auto vertexArray = VertexArray::Create();
-    float vertices[] = {
-        -1.0f, -1.0f, 1.0f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f,  -1.0f,
-        1.0f,  0.0f,  0.0f,  1.0f,  1.0f,  0.0f,  1.0f,  1.0f,  1.0f,  0.0f,
-        0.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  1.0f,  0.0f,  0.0f,  1.0f,
-        0.0f,  1.0f,  -1.0f, -1.0f, -1.0f, 0.0f,  0.0f,  -1.0f, 1.0f,  0.0f,
-        1.0f,  -1.0f, -1.0f, 0.0f,  0.0f,  -1.0f, 0.0f,  0.0f,  1.0f,  1.0f,
-        -1.0f, 0.0f,  0.0f,  -1.0f, 0.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, 0.0f,
-        0.0f,  -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,  1.0f,  0.0f,  1.0f,  0.0f,
-        0.0f,  0.0f,  1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
-        1.0f,  1.0f,  -1.0f, 0.0f,  1.0f,  0.0f,  1.0f,  1.0f,  -1.0f, 1.0f,
-        -1.0f, 0.0f,  1.0f,  0.0f,  0.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  0.0f,
-        -1.0f, 0.0f,  1.0f,  0.0f,  1.0f,  -1.0f, 1.0f,  0.0f,  -1.0f, 0.0f,
-        0.0f,  0.0f,  1.0f,  -1.0f, -1.0f, 0.0f,  -1.0f, 0.0f,  0.0f,  1.0f,
-        -1.0f, -1.0f, -1.0f, 0.0f,  -1.0f, 0.0f,  1.0f,  1.0f,  -1.0f, -1.0f,
-        -1.0f, -1.0f, 0.0f,  0.0f,  0.0f,  0.0f,  -1.0f, -1.0f, 1.0f,  -1.0f,
-        0.0f,  0.0f,  1.0f,  0.0f,  -1.0f, 1.0f,  1.0f,  -1.0f, 0.0f,  0.0f,
-        1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f, 0.0f,  0.0f,  0.0f,  1.0f,
-        1.0f,  -1.0f, -1.0f, 1.0f,  0.0f,  0.0f,  1.0f,  0.0f,  1.0f,  -1.0f,
-        1.0f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,  1.0f,
-        0.0f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  0.0f,  0.0f,
-        1.0f,  1.0f};
-    auto vbo = VertexBuffer::Create(vertices, sizeof(vertices));
-    vbo->SetLayout({{ShaderDataType::Float3, "a_Position"},
-                    {ShaderDataType::Float3, "a_Normal"},
-                    {ShaderDataType::Float2, "a_TexCoord"}});
-    vertexArray->AddVertexBuffer(vbo);
-    uint32_t indices[] = {0,  1,  2,  2,  3,  0,  4,  5,  6,  6,  7,  4,
-                          8,  9,  10, 10, 11, 8,  12, 13, 14, 14, 15, 12,
-                          16, 17, 18, 18, 19, 16, 20, 21, 22, 22, 23, 20};
-    auto ibo = IndexBuffer::Create(indices, 36);
-    vertexArray->SetIndexBuffer(ibo);
-
     for (auto &entity : m_Scene->GetEntities()) {
-      entity->Mesh = vertexArray;
 
       // Recreate Physics Body
       glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
@@ -567,6 +549,7 @@ void Application::OnEvent(Event &e) {
       if (mb.GetMouseButton() == 1) { // Right Click
         if (m_SceneViewportHovered) {
           m_Window->SetCursorLocked(true);
+          m_CursorLocked = true;
           m_EditorCameraController->SetRotationEnabled(true);
           m_EditorCameraController->SetFirstMouse(true);
         }
@@ -616,6 +599,7 @@ void Application::OnEvent(Event &e) {
         auto &mb = (MouseButtonReleasedEvent &)e;
         if (mb.GetMouseButton() == 1) { // Right Click
           m_Window->SetCursorLocked(false);
+          m_CursorLocked = false;
           m_EditorCameraController->SetRotationEnabled(false);
         }
       }
@@ -688,461 +672,489 @@ void Application::OnEvent(Event &e) {
       if (ek.GetKeyCode() == GLFW_KEY_ESCAPE) {
         if (m_SceneState == SceneState::Play)
           OnScenePause();
+        else {
+          m_Window->SetCursorLocked(false);
+          m_CursorLocked = false;
+        }
       }
     }
   }
+}
 
-  void Application::Run() {
-    while (m_Running) {
-      float time = (float)glfwGetTime();
-      Timestep timestep = time - m_LastFrameTime;
-      m_LastFrameTime = time;
+void Application::Run() {
+  while (m_Running) {
+    float time = (float)glfwGetTime();
+    Timestep timestep = time - m_LastFrameTime;
+    m_LastFrameTime = time;
 
-      // Viewport Resize
-      if (FramebufferSpecification spec =
-              m_SceneFramebuffer->GetSpecification();
-          m_SceneViewportSize.x > 0.0f && m_SceneViewportSize.y > 0.0f &&
-          (spec.Width != (uint32_t)m_SceneViewportSize.x ||
-           spec.Height != (uint32_t)m_SceneViewportSize.y)) {
-        m_SceneFramebuffer->Resize((uint32_t)m_SceneViewportSize.x,
-                                   (uint32_t)m_SceneViewportSize.y);
-        m_EditorCamera->SetProjection(
-            45.0f, m_SceneViewportSize.x / m_SceneViewportSize.y, 0.1f, 100.0f);
-      }
-      if (FramebufferSpecification spec = m_GameFramebuffer->GetSpecification();
-          m_GameViewportSize.x > 0.0f && m_GameViewportSize.y > 0.0f &&
-          (spec.Width != (uint32_t)m_GameViewportSize.x ||
-           spec.Height != (uint32_t)m_GameViewportSize.y)) {
-        m_GameFramebuffer->Resize((uint32_t)m_GameViewportSize.x,
-                                  (uint32_t)m_GameViewportSize.y);
-        m_Camera->SetProjection(
-            45.0f, m_GameViewportSize.x / m_GameViewportSize.y, 0.1f, 100.0f);
-      }
+    // Viewport Resize
+    if (FramebufferSpecification spec = m_SceneFramebuffer->GetSpecification();
+        m_SceneViewportSize.x > 0.0f && m_SceneViewportSize.y > 0.0f &&
+        (spec.Width != (uint32_t)m_SceneViewportSize.x ||
+         spec.Height != (uint32_t)m_SceneViewportSize.y)) {
+      m_SceneFramebuffer->Resize((uint32_t)m_SceneViewportSize.x,
+                                 (uint32_t)m_SceneViewportSize.y);
+      m_EditorCamera->SetProjection(
+          45.0f, m_SceneViewportSize.x / m_SceneViewportSize.y, 0.1f, 100.0f);
+    }
+    if (FramebufferSpecification spec = m_GameFramebuffer->GetSpecification();
+        m_GameViewportSize.x > 0.0f && m_GameViewportSize.y > 0.0f &&
+        (spec.Width != (uint32_t)m_GameViewportSize.x ||
+         spec.Height != (uint32_t)m_GameViewportSize.y)) {
+      m_GameFramebuffer->Resize((uint32_t)m_GameViewportSize.x,
+                                (uint32_t)m_GameViewportSize.y);
+      m_Camera->SetProjection(
+          45.0f, m_GameViewportSize.x / m_GameViewportSize.y, 0.1f, 100.0f);
+    }
 
-      if (m_SceneState == SceneState::Play) {
-        // m_CameraController->OnUpdate(timestep); // Disable default fly cam
-        // movement
-        m_PlayerController->OnUpdate(timestep);
-        PhysicsSystem::OnUpdate(timestep);
-      } else if (m_SceneViewportFocused) {
+    if (m_SceneState == SceneState::Play) {
+      // m_CameraController->OnUpdate(timestep); // Disable default fly cam
+      // movement
+      m_PlayerController->OnUpdate(timestep);
+      PhysicsSystem::OnUpdate(timestep);
+    } else {
+      if (m_SceneViewportFocused) {
         m_EditorCameraController->OnUpdate(timestep);
       }
 
-      auto &bodyInterface = PhysicsSystem::GetBodyInterface();
-      Ref<Entity> selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
-
-      // 1. Scene View Pass
-      m_SceneFramebuffer->Bind();
-      glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT |
-              GL_STENCIL_BUFFER_BIT);
-
-      Renderer::BeginScene(*m_EditorCamera, m_Sun);
-      m_Skybox->Draw(*m_EditorCamera);
-      for (auto &entity : m_Scene->GetEntities()) {
-        if (!entity->PhysicsBody.IsInvalid()) {
-          if (m_SceneState == SceneState::Play) {
-            JPH::RVec3 position;
-            JPH::Quat rotation;
-            bodyInterface.GetPositionAndRotation(entity->PhysicsBody, position,
-                                                 rotation);
-            entity->Transform.Position = {position.GetX(), position.GetY(),
-                                          position.GetZ()};
-            glm::quat q = {rotation.GetW(), rotation.GetX(), rotation.GetY(),
-                           rotation.GetZ()};
-            entity->Transform.Rotation = glm::degrees(glm::eulerAngles(q));
-          } else {
-            glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
-            bodyInterface.SetPositionAndRotation(
-                entity->PhysicsBody,
-                JPH::RVec3(entity->Transform.Position.x,
-                           entity->Transform.Position.y,
-                           entity->Transform.Position.z),
-                JPH::Quat(q.x, q.y, q.z, q.w), JPH::EActivation::DontActivate);
-          }
-        }
-
-        if (entity == selectedEntity) {
-          glEnable(GL_STENCIL_TEST);
-          glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-          glStencilFunc(GL_ALWAYS, 1, 0xFF);
-          glStencilMask(0xFF);
-        }
-        if (entity->Material.AlbedoMap)
-          entity->Material.AlbedoMap->Bind();
-        Renderer::Submit(entity->MaterialShader, entity->Mesh,
-                         entity->Transform.GetTransform(),
-                         entity->Material.Tiling);
-        if (entity == selectedEntity)
-          glStencilMask(0x00);
+      // Safety: If Right Mouse is released, ensure cursor is unlocked
+      if (m_CursorLocked && !Input::IsMouseButtonPressed(1)) {
+        m_Window->SetCursorLocked(false);
+        m_CursorLocked = false;
+        m_EditorCameraController->SetRotationEnabled(false);
       }
-
-      if (selectedEntity) {
-        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-        glDisable(GL_DEPTH_TEST);
-        m_OutlineShader->Bind();
-        m_OutlineShader->SetFloat3("u_Color", {1.0f, 0.5f, 0.0f});
-        glLineWidth(4.0f);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        glm::mat4 transform = glm::scale(
-            selectedEntity->Transform.GetTransform(), glm::vec3(1.01f));
-        Renderer::Submit(m_OutlineShader, selectedEntity->Mesh, transform);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        glStencilMask(0xFF);
-        glEnable(GL_DEPTH_TEST);
-        glDisable(GL_STENCIL_TEST);
-      }
-      Renderer::EndScene();
-      m_SceneFramebuffer->Unbind();
-
-      // 2. Game View Pass
-      m_GameFramebuffer->Bind();
-      glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-      Renderer::BeginScene(*m_Camera, m_Sun);
-      m_Skybox->Draw(*m_Camera);
-      for (auto &entity : m_Scene->GetEntities()) {
-        if (entity->Material.AlbedoMap)
-          entity->Material.AlbedoMap->Bind();
-        Renderer::Submit(entity->MaterialShader, entity->Mesh,
-                         entity->Transform.GetTransform(),
-                         entity->Material.Tiling);
-      }
-      Renderer::EndScene();
-      m_GameFramebuffer->Unbind();
-
-      m_ImGuiLayer->Begin();
-
-      if (m_ResetLayoutOnNextFrame) {
-        ResetLayout();
-        m_ResetLayoutOnNextFrame = false;
-      }
-
-      ImGuizmo::BeginFrame();
-      {
-        if (ImGui::BeginMainMenuBar()) {
-          if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("New Project..."))
-              OnNewProject();
-            if (ImGui::MenuItem("Open Project..."))
-              OnOpenProject();
-
-            ImGui::Separator();
-
-            // New Level only if none loaded
-            if (!m_LevelLoaded) {
-              if (ImGui::MenuItem("New Level"))
-                OnNewScene();
-            }
-
-            if (ImGui::MenuItem("Open Level...", "Cmd+O"))
-              OnOpenScene();
-
-            if (m_LevelLoaded) {
-              if (ImGui::MenuItem("Save Level", "Cmd+S"))
-                OnSaveScene();
-              if (ImGui::MenuItem("Save Level As..."))
-                OnSaveSceneAs();
-              if (ImGui::MenuItem("Close Level"))
-                CloseScene();
-            }
-
-            if (!m_ProjectRoot.empty()) {
-              if (ImGui::MenuItem("Close Project"))
-                CloseProject();
-            }
-
-            ImGui::Separator();
-
-            if (ImGui::MenuItem("Exit", "Cmd+Q"))
-              m_Running = false;
-
-            ImGui::EndMenu();
-          }
-
-          if (ImGui::BeginMenu("Settings")) {
-            if (ImGui::MenuItem("Settings"))
-              m_ShowSettingsWindow = true;
-            if (ImGui::MenuItem("Project Settings"))
-              m_ShowProjectSettingsWindow = true;
-            ImGui::EndMenu();
-          }
-
-          if (ImGui::BeginMenu("Window")) {
-            if (ImGui::MenuItem("Scene Hierarchy", nullptr, m_ShowHierarchy))
-              m_ShowHierarchy = !m_ShowHierarchy;
-            if (ImGui::MenuItem("Inspector", nullptr, m_ShowInspector))
-              m_ShowInspector = !m_ShowInspector;
-            if (ImGui::MenuItem("Content Browser", nullptr,
-                                m_ShowContentBrowser))
-              m_ShowContentBrowser = !m_ShowContentBrowser;
-            if (ImGui::MenuItem("Scene Viewport", nullptr, m_ShowScene))
-              m_ShowScene = !m_ShowScene;
-            if (ImGui::MenuItem("Game Viewport", nullptr, m_ShowGame))
-              m_ShowGame = !m_ShowGame;
-            if (ImGui::MenuItem("Toolbar", nullptr, m_ShowToolbar))
-              m_ShowToolbar = !m_ShowToolbar;
-            if (ImGui::MenuItem("Statistics", nullptr, m_ShowStats))
-              m_ShowStats = !m_ShowStats;
-
-            ImGui::Separator();
-            if (ImGui::MenuItem("Save Layout"))
-              SaveLayout();
-            if (ImGui::MenuItem("Load Layout"))
-              LoadLayout();
-            if (ImGui::MenuItem("Save Layout As...")) {
-              std::string filepath = FileDialogs::SaveFile(
-                  "ImGui Layout (*.ini)\0*.ini\0", "layout.ini", ".ini");
-              if (!filepath.empty())
-                SaveLayout(filepath);
-            }
-            if (ImGui::MenuItem("Load Layout From...")) {
-              std::string filepath = FileDialogs::OpenFile(
-                  "ImGui Layout (*.ini)\0*.ini\0", ".ini");
-              if (!filepath.empty())
-                LoadLayout(filepath);
-            }
-            if (ImGui::MenuItem("Default Layout"))
-              ResetLayout();
-
-            ImGui::EndMenu();
-          }
-          ImGui::EndMainMenuBar();
-        }
-
-        if (!m_ProjectRoot.empty()) {
-          if (m_ShowHierarchy)
-            m_SceneHierarchyPanel->OnImGuiRender();
-          if (m_ShowContentBrowser)
-            m_ContentBrowserPanel->OnImGuiRender();
-
-          // Inspector is handled inside SceneHierarchyPanel usually,
-          // but if it's separate, we'd wrap it here.
-          // Looking at line 815, it seems it's just a placeholder for now if no
-          // project.
-        } else {
-          // Blank placeholders
-          if (m_ShowInspector) {
-            ImGui::Begin("Inspector");
-            ImGui::End();
-          }
-          if (m_ShowHierarchy) {
-            ImGui::Begin("Scene Hierarchy");
-            ImGui::End();
-          }
-          if (m_ShowContentBrowser) {
-            ImGui::Begin("Content Browser");
-            ImGui::End();
-          }
-        }
-
-        if (m_ShowSettingsWindow)
-          UI_SettingsWindow();
-
-        if (m_ShowProjectSettingsWindow)
-          UI_ProjectSettingsWindow();
-
-        // Scene Viewport
-        if (m_ShowScene) {
-          ImGui::Begin("Scene");
-          m_SceneViewportFocused = ImGui::IsWindowFocused();
-          m_SceneViewportHovered = ImGui::IsWindowHovered();
-
-          ImVec2 viewportOffset = ImGui::GetCursorScreenPos();
-          m_SceneViewportPos = {viewportOffset.x, viewportOffset.y};
-          if (m_SceneState != SceneState::Play)
-            m_ImGuiLayer->SetBlockEvents(
-                (!m_SceneViewportFocused || !m_SceneViewportHovered) &&
-                !ImGuizmo::IsOver());
-
-          ImVec2 sceneSize = ImGui::GetContentRegionAvail();
-          m_SceneViewportSize = {sceneSize.x, sceneSize.y};
-
-          if (!m_ProjectRoot.empty() && m_LevelLoaded) {
-            ImGui::Image((void *)(uint64_t)
-                             m_SceneFramebuffer->GetColorAttachmentRendererID(),
-                         sceneSize, {0, 1}, {1, 0});
-
-            // Drag & Drop
-            if (ImGui::BeginDragDropTarget()) {
-              if (const ImGuiPayload *payload =
-                      ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
-                const char *path = (const char *)payload->Data;
-                std::filesystem::path assetPath = path;
-
-                if (assetPath.extension() == ".obj" ||
-                    assetPath.extension() == ".stl") {
-                  Ref<VertexArray> mesh = nullptr;
-                  if (assetPath.extension() == ".obj")
-                    mesh = MeshLoader::LoadOBJ(assetPath.string());
-                  else if (assetPath.extension() == ".stl")
-                    mesh = MeshLoader::LoadSTL(assetPath.string());
-
-                  if (mesh) {
-                    auto entity =
-                        CreateRef<Entity>(assetPath.stem().string(), mesh,
-                                          m_DefaultShader, m_DefaultTexture);
-                    glm::vec3 dropPos = m_EditorCamera->GetPosition() +
-                                        m_EditorCamera->GetForward() * 5.0f;
-                    entity->Transform.Position = dropPos;
-
-                    auto &bodyInterface = PhysicsSystem::GetBodyInterface();
-                    JPH::BodyCreationSettings settings(
-                        PhysicsShapes::CreateBox({1.0f, 1.0f, 1.0f}),
-                        JPH::RVec3(dropPos.x, dropPos.y, dropPos.z),
-                        JPH::Quat::sIdentity(), JPH::EMotionType::Static,
-                        Layers::NON_MOVING);
-                    entity->PhysicsBody = bodyInterface.CreateAndAddBody(
-                        settings, JPH::EActivation::DontActivate);
-
-                    m_Scene->AddEntity(entity);
-                    m_SceneHierarchyPanel->SetSelectedEntity(entity);
-                  }
-                }
-              }
-              ImGui::EndDragDropTarget();
-            }
-
-            // Gizmos
-            Ref<Entity> selectedEntity =
-                m_SceneHierarchyPanel->GetSelectedEntity();
-            if (selectedEntity && m_GizmoType != -1) {
-              ImGuizmo::SetOrthographic(false);
-              ImGuizmo::SetDrawlist();
-
-              ImGuizmo::SetRect(m_SceneViewportPos.x, m_SceneViewportPos.y,
-                                m_SceneViewportSize.x, m_SceneViewportSize.y);
-
-              // Editor camera
-              const glm::mat4 &cameraProjection =
-                  m_EditorCamera->GetProjectionMatrix();
-              glm::mat4 cameraView = m_EditorCamera->GetViewMatrix();
-
-              // Entity transform
-              glm::mat4 transform = selectedEntity->Transform.GetTransform();
-
-              // Snapping
-              bool snap = Input::IsKeyPressed(GLFW_KEY_LEFT_CONTROL) ||
-                          Input::IsKeyPressed(GLFW_KEY_LEFT_SUPER);
-              float snapValue = 0.5f; // Snap to 0.5m for translation/scale
-              if (m_GizmoType == (int)ImGuizmo::OPERATION::ROTATE)
-                snapValue = 45.0f;
-
-              float snapValues[3] = {snapValue, snapValue, snapValue};
-
-              ImGuizmo::Manipulate(glm::value_ptr(cameraView),
-                                   glm::value_ptr(cameraProjection),
-                                   (ImGuizmo::OPERATION)m_GizmoType,
-                                   ImGuizmo::LOCAL, glm::value_ptr(transform),
-                                   nullptr, snap ? snapValues : nullptr);
-
-              if (ImGuizmo::IsUsing()) {
-                if (!m_IsDraggingGizmo) {
-                  m_IsDraggingGizmo = true;
-                  m_InitialGizmoTransform = selectedEntity->Transform;
-                }
-
-                float translation[3], rotation[3], scale[3];
-                ImGuizmo::DecomposeMatrixToComponents(
-                    glm::value_ptr(transform), translation, rotation, scale);
-
-                selectedEntity->Transform.Position = {
-                    translation[0], translation[1], translation[2]};
-                selectedEntity->Transform.Rotation = {rotation[0], rotation[1],
-                                                      rotation[2]};
-                selectedEntity->Transform.Scale = {scale[0], scale[1],
-                                                   scale[2]};
-              } else {
-                if (m_IsDraggingGizmo) {
-                  m_IsDraggingGizmo = false;
-                  m_UndoSystem.AddCommand(CreateScope<TransformCommand>(
-                      selectedEntity, m_InitialGizmoTransform,
-                      selectedEntity->Transform));
-                }
-              }
-            }
-          } else {
-            std::string text =
-                m_ProjectRoot.empty() ? "No project open" : "No level open";
-            ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
-            ImGui::SetCursorPos({(sceneSize.x - textSize.x) * 0.5f,
-                                 (sceneSize.y - textSize.y) * 0.5f});
-            ImGui::Text("%s", text.c_str());
-          }
-          ImGui::End();
-        }
-
-        // Game Viewport
-        if (m_ShowGame) {
-          ImGui::Begin("Game");
-          m_GameViewportFocused = ImGui::IsWindowFocused();
-          m_GameViewportHovered = ImGui::IsWindowHovered();
-          if (m_SceneState == SceneState::Play)
-            m_ImGuiLayer->SetBlockEvents(!m_GameViewportFocused ||
-                                         !m_GameViewportHovered);
-
-          ImVec2 gameSize = ImGui::GetContentRegionAvail();
-          m_GameViewportSize = {gameSize.x, gameSize.y};
-
-          if (!m_ProjectRoot.empty() && m_LevelLoaded) {
-            ImGui::Image((void *)(uint64_t)
-                             m_GameFramebuffer->GetColorAttachmentRendererID(),
-                         gameSize, {0, 1}, {1, 0});
-          } else {
-            std::string text =
-                m_ProjectRoot.empty() ? "No project open" : "No level open";
-            ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
-            ImGui::SetCursorPos({(gameSize.x - textSize.x) * 0.5f,
-                                 (gameSize.y - textSize.y) * 0.5f});
-            ImGui::Text("%s", text.c_str());
-          }
-          ImGui::End();
-        }
-
-        if (m_ShowToolbar) {
-          ImGui::Begin("Toolbar");
-
-          if (m_SceneState == SceneState::Edit) {
-            if (ImGui::Button("Play")) {
-              OnScenePlay();
-              ImGui::SetWindowFocus("Game");
-            }
-          } else if (m_SceneState == SceneState::Pause) {
-            if (ImGui::Button("Resume")) {
-              OnScenePlay();
-              ImGui::SetWindowFocus("Game");
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Stop"))
-              OnSceneStop();
-          } else {
-            if (ImGui::Button("Pause"))
-              OnScenePause();
-            ImGui::SameLine();
-            if (ImGui::Button("Stop"))
-              OnSceneStop();
-          }
-        }
-      }
-
-      if (m_ShowStats) {
-        if (!m_ProjectRoot.empty()) {
-          ImGui::Begin("Engine Statistics");
-          float speed =
-              m_PlayerController ? m_PlayerController->GetSpeed() : 0.0f;
-          ImGui::Text("%.3f ms/frame (%.1f FPS) | Speed: %.2f units/s",
-                      1000.0f / ImGui::GetIO().Framerate,
-                      ImGui::GetIO().Framerate, speed);
-          ImGui::End();
-        } else {
-          ImGui::Begin("Engine Statistics");
-          ImGui::End();
-        }
-      }
-      m_ImGuiLayer->End();
-
-      m_Window->OnUpdate();
     }
+
+    // Safety: If Right Mouse is released, ensure cursor is unlocked
+    if (m_CursorLocked && !Input::IsMouseButtonPressed(1)) {
+      m_Window->SetCursorLocked(false);
+      m_CursorLocked = false;
+      m_EditorCameraController->SetRotationEnabled(false);
+    }
+
+    auto &bodyInterface = PhysicsSystem::GetBodyInterface();
+    Ref<Entity> selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
+
+    // 1. Scene View Pass
+    m_SceneFramebuffer->Bind();
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    Renderer::BeginScene(*m_EditorCamera, m_Sun);
+    m_Skybox->Draw(*m_EditorCamera);
+    for (auto &entity : m_Scene->GetEntities()) {
+      if (!entity->PhysicsBody.IsInvalid()) {
+        if (m_SceneState == SceneState::Play) {
+          JPH::RVec3 position;
+          JPH::Quat rotation;
+          bodyInterface.GetPositionAndRotation(entity->PhysicsBody, position,
+                                               rotation);
+          entity->Transform.Position = {position.GetX(), position.GetY(),
+                                        position.GetZ()};
+          glm::quat q = {rotation.GetW(), rotation.GetX(), rotation.GetY(),
+                         rotation.GetZ()};
+          entity->Transform.Rotation = glm::degrees(glm::eulerAngles(q));
+        } else {
+          glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
+          bodyInterface.SetPositionAndRotation(
+              entity->PhysicsBody,
+              JPH::RVec3(entity->Transform.Position.x,
+                         entity->Transform.Position.y,
+                         entity->Transform.Position.z),
+              JPH::Quat(q.x, q.y, q.z, q.w), JPH::EActivation::DontActivate);
+        }
+      }
+
+      if (entity == selectedEntity) {
+        glEnable(GL_STENCIL_TEST);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+        glStencilFunc(GL_ALWAYS, 1, 0xFF);
+        glStencilMask(0xFF);
+      }
+      if (entity->Material.AlbedoMap)
+        entity->Material.AlbedoMap->Bind();
+
+      if (entity->Mesh && entity->MaterialShader &&
+          entity->MaterialShader->IsValid()) {
+        Renderer::Submit(entity->MaterialShader, entity->Mesh,
+                         entity->Transform.GetTransform(),
+                         entity->Material.Tiling);
+      }
+
+      if (entity == selectedEntity)
+        glStencilMask(0x00);
+    }
+
+    if (selectedEntity) {
+      glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+      glDisable(GL_DEPTH_TEST);
+      m_OutlineShader->Bind();
+      m_OutlineShader->SetFloat3("u_Color", {1.0f, 0.5f, 0.0f});
+      glLineWidth(4.0f);
+      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+      glm::mat4 transform = glm::scale(selectedEntity->Transform.GetTransform(),
+                                       glm::vec3(1.01f));
+      if (selectedEntity->Mesh)
+        Renderer::Submit(m_OutlineShader, selectedEntity->Mesh, transform);
+      glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+      glStencilMask(0xFF);
+      glEnable(GL_DEPTH_TEST);
+      glDisable(GL_STENCIL_TEST);
+    }
+    Renderer::EndScene();
+    m_SceneFramebuffer->Unbind();
+
+    // 2. Game View Pass
+    m_GameFramebuffer->Bind();
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    Renderer::BeginScene(*m_Camera, m_Sun);
+    m_Skybox->Draw(*m_Camera);
+    for (auto &entity : m_Scene->GetEntities()) {
+      if (entity->Material.AlbedoMap)
+        entity->Material.AlbedoMap->Bind();
+
+      if (entity->Mesh && entity->MaterialShader &&
+          entity->MaterialShader->IsValid()) {
+        Renderer::Submit(entity->MaterialShader, entity->Mesh,
+                         entity->Transform.GetTransform(),
+                         entity->Material.Tiling);
+      }
+    }
+    Renderer::EndScene();
+    m_GameFramebuffer->Unbind();
+
+    m_ImGuiLayer->Begin();
+
+    if (m_ResetLayoutOnNextFrame) {
+      ResetLayout();
+      m_ResetLayoutOnNextFrame = false;
+    }
+
+    ImGuizmo::BeginFrame();
+    {
+      if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMenu("File")) {
+          if (ImGui::MenuItem("New Project..."))
+            OnNewProject();
+          if (ImGui::MenuItem("Open Project..."))
+            OnOpenProject();
+
+          ImGui::Separator();
+
+          // New Level only if none loaded
+          if (!m_LevelLoaded) {
+            if (ImGui::MenuItem("New Level"))
+              OnNewScene();
+          }
+
+          if (ImGui::MenuItem("Open Level...", "Cmd+O"))
+            OnOpenScene();
+
+          if (m_LevelLoaded) {
+            if (ImGui::MenuItem("Save Level", "Cmd+S"))
+              OnSaveScene();
+            if (ImGui::MenuItem("Save Level As..."))
+              OnSaveSceneAs();
+            if (ImGui::MenuItem("Close Level"))
+              CloseScene();
+          }
+
+          if (!m_ProjectRoot.empty()) {
+            if (ImGui::MenuItem("Close Project"))
+              CloseProject();
+          }
+
+          ImGui::Separator();
+
+          if (ImGui::MenuItem("Exit", "Cmd+Q"))
+            m_Running = false;
+
+          ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Settings")) {
+          if (ImGui::MenuItem("Settings"))
+            m_ShowSettingsWindow = true;
+          if (ImGui::MenuItem("Project Settings"))
+            m_ShowProjectSettingsWindow = true;
+          ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Window")) {
+          if (ImGui::MenuItem("Scene Hierarchy", nullptr, m_ShowHierarchy))
+            m_ShowHierarchy = !m_ShowHierarchy;
+          if (ImGui::MenuItem("Inspector", nullptr, m_ShowInspector))
+            m_ShowInspector = !m_ShowInspector;
+          if (ImGui::MenuItem("Content Browser", nullptr, m_ShowContentBrowser))
+            m_ShowContentBrowser = !m_ShowContentBrowser;
+          if (ImGui::MenuItem("Scene Viewport", nullptr, m_ShowScene))
+            m_ShowScene = !m_ShowScene;
+          if (ImGui::MenuItem("Game Viewport", nullptr, m_ShowGame))
+            m_ShowGame = !m_ShowGame;
+          if (ImGui::MenuItem("Toolbar", nullptr, m_ShowToolbar))
+            m_ShowToolbar = !m_ShowToolbar;
+          if (ImGui::MenuItem("Statistics", nullptr, m_ShowStats))
+            m_ShowStats = !m_ShowStats;
+
+          ImGui::Separator();
+          if (ImGui::MenuItem("Save Layout"))
+            SaveLayout();
+          if (ImGui::MenuItem("Load Layout"))
+            LoadLayout();
+          if (ImGui::MenuItem("Save Layout As...")) {
+            std::string filepath = FileDialogs::SaveFile(
+                "ImGui Layout (*.ini)\0*.ini\0", "layout.ini", ".ini");
+            if (!filepath.empty())
+              SaveLayout(filepath);
+          }
+          if (ImGui::MenuItem("Load Layout From...")) {
+            std::string filepath =
+                FileDialogs::OpenFile("ImGui Layout (*.ini)\0*.ini\0", ".ini");
+            if (!filepath.empty())
+              LoadLayout(filepath);
+          }
+          if (ImGui::MenuItem("Default Layout"))
+            ResetLayout();
+
+          ImGui::EndMenu();
+        }
+        ImGui::EndMainMenuBar();
+      }
+
+      if (!m_ProjectRoot.empty()) {
+        if (m_ShowHierarchy)
+          m_SceneHierarchyPanel->OnImGuiRender();
+        if (m_ShowContentBrowser)
+          m_ContentBrowserPanel->OnImGuiRender();
+
+        // Inspector is handled inside SceneHierarchyPanel usually,
+        // but if it's separate, we'd wrap it here.
+        // Looking at line 815, it seems it's just a placeholder for now if no
+        // project.
+      } else {
+        // Blank placeholders
+        if (m_ShowInspector) {
+          ImGui::Begin("Inspector");
+          ImGui::End();
+        }
+        if (m_ShowHierarchy) {
+          ImGui::Begin("Scene Hierarchy");
+          ImGui::End();
+        }
+        if (m_ShowContentBrowser) {
+          ImGui::Begin("Content Browser");
+          ImGui::End();
+        }
+      }
+
+      if (m_ShowSettingsWindow)
+        UI_SettingsWindow();
+
+      if (m_ShowProjectSettingsWindow)
+        UI_ProjectSettingsWindow();
+
+      // Scene Viewport
+      if (m_ShowScene) {
+        ImGui::Begin("Scene");
+        m_SceneViewportFocused = ImGui::IsWindowFocused();
+        m_SceneViewportHovered = ImGui::IsWindowHovered();
+
+        ImVec2 viewportOffset = ImGui::GetCursorScreenPos();
+        m_SceneViewportPos = {viewportOffset.x, viewportOffset.y};
+        if (m_SceneState != SceneState::Play)
+          m_ImGuiLayer->SetBlockEvents(
+              (!m_SceneViewportFocused || !m_SceneViewportHovered) &&
+              !ImGuizmo::IsOver());
+
+        ImVec2 sceneSize = ImGui::GetContentRegionAvail();
+        m_SceneViewportSize = {sceneSize.x, sceneSize.y};
+
+        if (!m_ProjectRoot.empty() && m_LevelLoaded) {
+          ImGui::Image((void *)(uint64_t)
+                           m_SceneFramebuffer->GetColorAttachmentRendererID(),
+                       sceneSize, {0, 1}, {1, 0});
+
+          // Drag & Drop
+          if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload *payload =
+                    ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+              const char *path = (const char *)payload->Data;
+              std::filesystem::path assetPath = path;
+
+              if (assetPath.extension() == ".obj" ||
+                  assetPath.extension() == ".stl") {
+                Ref<VertexArray> mesh = nullptr;
+                if (assetPath.extension() == ".obj")
+                  mesh = MeshLoader::LoadOBJ(assetPath.string());
+                else if (assetPath.extension() == ".stl")
+                  mesh = MeshLoader::LoadSTL(assetPath.string());
+
+                if (mesh) {
+                  auto entity =
+                      CreateRef<Entity>(assetPath.stem().string(), mesh,
+                                        m_DefaultShader, m_DefaultTexture);
+                  entity->MeshPath = assetPath.string();
+                  glm::vec3 dropPos = m_EditorCamera->GetPosition() +
+                                      m_EditorCamera->GetForward() * 5.0f;
+                  entity->Transform.Position = dropPos;
+
+                  auto &bodyInterface = PhysicsSystem::GetBodyInterface();
+                  JPH::BodyCreationSettings settings(
+                      PhysicsShapes::CreateBox({1.0f, 1.0f, 1.0f}),
+                      JPH::RVec3(dropPos.x, dropPos.y, dropPos.z),
+                      JPH::Quat::sIdentity(), JPH::EMotionType::Static,
+                      Layers::NON_MOVING);
+                  entity->PhysicsBody = bodyInterface.CreateAndAddBody(
+                      settings, JPH::EActivation::DontActivate);
+
+                  m_Scene->AddEntity(entity);
+                  m_SceneHierarchyPanel->SetSelectedEntity(entity);
+                }
+              }
+            }
+            ImGui::EndDragDropTarget();
+          }
+
+          // Gizmos
+          Ref<Entity> selectedEntity =
+              m_SceneHierarchyPanel->GetSelectedEntity();
+          if (selectedEntity && m_GizmoType != -1) {
+            ImGuizmo::SetOrthographic(false);
+            ImGuizmo::SetDrawlist();
+
+            ImGuizmo::SetRect(m_SceneViewportPos.x, m_SceneViewportPos.y,
+                              m_SceneViewportSize.x, m_SceneViewportSize.y);
+
+            // Editor camera
+            const glm::mat4 &cameraProjection =
+                m_EditorCamera->GetProjectionMatrix();
+            glm::mat4 cameraView = m_EditorCamera->GetViewMatrix();
+
+            // Entity transform
+            glm::mat4 transform = selectedEntity->Transform.GetTransform();
+
+            // Snapping
+            bool snap = Input::IsKeyPressed(GLFW_KEY_LEFT_CONTROL) ||
+                        Input::IsKeyPressed(GLFW_KEY_LEFT_SUPER);
+            float snapValue = 0.5f; // Snap to 0.5m for translation/scale
+            if (m_GizmoType == (int)ImGuizmo::OPERATION::ROTATE)
+              snapValue = 45.0f;
+
+            float snapValues[3] = {snapValue, snapValue, snapValue};
+
+            ImGuizmo::Manipulate(glm::value_ptr(cameraView),
+                                 glm::value_ptr(cameraProjection),
+                                 (ImGuizmo::OPERATION)m_GizmoType,
+                                 ImGuizmo::LOCAL, glm::value_ptr(transform),
+                                 nullptr, snap ? snapValues : nullptr);
+
+            if (ImGuizmo::IsUsing()) {
+              if (!m_IsDraggingGizmo) {
+                m_IsDraggingGizmo = true;
+                m_InitialGizmoTransform = selectedEntity->Transform;
+              }
+
+              float translation[3], rotation[3], scale[3];
+              ImGuizmo::DecomposeMatrixToComponents(
+                  glm::value_ptr(transform), translation, rotation, scale);
+
+              selectedEntity->Transform.Position = {
+                  translation[0], translation[1], translation[2]};
+              selectedEntity->Transform.Rotation = {rotation[0], rotation[1],
+                                                    rotation[2]};
+              selectedEntity->Transform.Scale = {scale[0], scale[1], scale[2]};
+            } else {
+              if (m_IsDraggingGizmo) {
+                m_IsDraggingGizmo = false;
+                m_UndoSystem.AddCommand(CreateScope<TransformCommand>(
+                    selectedEntity, m_InitialGizmoTransform,
+                    selectedEntity->Transform));
+              }
+            }
+          }
+        } else {
+          std::string text =
+              m_ProjectRoot.empty() ? "No project open" : "No level open";
+          ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
+          ImGui::SetCursorPos({(sceneSize.x - textSize.x) * 0.5f,
+                               (sceneSize.y - textSize.y) * 0.5f});
+          ImGui::Text("%s", text.c_str());
+        }
+        ImGui::End();
+      }
+
+      // Game Viewport
+      if (m_ShowGame) {
+        ImGui::Begin("Game");
+        m_GameViewportFocused = ImGui::IsWindowFocused();
+        m_GameViewportHovered = ImGui::IsWindowHovered();
+        if (m_SceneState == SceneState::Play)
+          m_ImGuiLayer->SetBlockEvents(!m_GameViewportFocused ||
+                                       !m_GameViewportHovered);
+
+        ImVec2 gameSize = ImGui::GetContentRegionAvail();
+        m_GameViewportSize = {gameSize.x, gameSize.y};
+
+        if (!m_ProjectRoot.empty() && m_LevelLoaded) {
+          ImGui::Image((void *)(uint64_t)
+                           m_GameFramebuffer->GetColorAttachmentRendererID(),
+                       gameSize, {0, 1}, {1, 0});
+        } else {
+          std::string text =
+              m_ProjectRoot.empty() ? "No project open" : "No level open";
+          ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
+          ImGui::SetCursorPos({(gameSize.x - textSize.x) * 0.5f,
+                               (gameSize.y - textSize.y) * 0.5f});
+          ImGui::Text("%s", text.c_str());
+        }
+        ImGui::End();
+      }
+
+      if (m_ShowToolbar) {
+        ImGui::Begin("Toolbar");
+
+        if (m_SceneState == SceneState::Edit) {
+          if (ImGui::Button("Play")) {
+            OnScenePlay();
+            ImGui::SetWindowFocus("Game");
+          }
+        } else if (m_SceneState == SceneState::Pause) {
+          if (ImGui::Button("Resume")) {
+            OnScenePlay();
+            ImGui::SetWindowFocus("Game");
+          }
+          ImGui::SameLine();
+          if (ImGui::Button("Stop"))
+            OnSceneStop();
+        } else {
+          if (ImGui::Button("Pause"))
+            OnScenePause();
+          ImGui::SameLine();
+          if (ImGui::Button("Stop"))
+            OnSceneStop();
+        }
+        ImGui::End();
+      }
+    }
+
+    if (m_ShowStats) {
+      if (!m_ProjectRoot.empty()) {
+        ImGui::Begin("Engine Statistics");
+        float speed =
+            m_PlayerController ? m_PlayerController->GetSpeed() : 0.0f;
+        ImGui::Text("%.3f ms/frame (%.1f FPS) | Speed: %.2f units/s",
+                    1000.0f / ImGui::GetIO().Framerate,
+                    ImGui::GetIO().Framerate, speed);
+        ImGui::End();
+      } else {
+        ImGui::Begin("Engine Statistics");
+        ImGui::End();
+      }
+    }
+    m_ImGuiLayer->End();
+
+    m_Window->OnUpdate();
   }
 }
 
