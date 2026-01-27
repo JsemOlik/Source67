@@ -64,7 +64,7 @@ public:
   void SaveManifest();
 
   void CreateTestScene();
-  void ResetScene();
+  void CreateTestScene();
 
   inline Window &GetWindow() { return *m_Window; }
   ImGuiLayer &GetImGuiLayer() { return *m_ImGuiLayer; }

@@ -210,30 +210,6 @@ void Application::CreateTestScene() {
   }
 }
 
-void Application::ResetScene() {
-  S67_CORE_INFO("Resetting scene...");
-  OnSceneStop();
-
-  // Clear Physics
-  auto &bodyInterface = PhysicsSystem::GetBodyInterface();
-  for (auto &entity : m_Scene->GetEntities()) {
-    if (!entity->PhysicsBody.IsInvalid()) {
-      bodyInterface.RemoveBody(entity->PhysicsBody);
-      bodyInterface.DestroyBody(entity->PhysicsBody);
-    }
-  }
-
-  // Re-create
-  m_Scene = CreateScope<Scene>();
-  m_UndoSystem.Clear();
-  m_IsDraggingGizmo = false;
-  CreateTestScene();
-
-  if (m_SceneHierarchyPanel) {
-    m_SceneHierarchyPanel->SetContext(m_Scene);
-  }
-}
-
 Application::~Application() {
   m_ImGuiLayer->OnDetach();
   PhysicsSystem::Shutdown();
@@ -636,518 +612,517 @@ void Application::OnEvent(Event &e) {
             m_SceneHierarchyPanel->SetSelectedEntity(nullptr);
           }
         }
+      } else if (e.GetEventType() == EventType::MouseButtonReleased) {
+        auto &mb = (MouseButtonReleasedEvent &)e;
+        if (mb.GetMouseButton() == 1) { // Right Click
+          m_Window->SetCursorLocked(false);
+          m_EditorCameraController->SetRotationEnabled(false);
+        }
       }
-    } else if (e.GetEventType() == EventType::MouseButtonReleased) {
-      auto &mb = (MouseButtonReleasedEvent &)e;
-      if (mb.GetMouseButton() == 1) { // Right Click
-        m_Window->SetCursorLocked(false);
-        m_EditorCameraController->SetRotationEnabled(false);
-      }
+
+      m_EditorCameraController->OnEvent(e);
     }
 
-    m_EditorCameraController->OnEvent(e);
-  }
+    EventDispatcher dispatcher(e);
+    dispatcher.Dispatch<WindowCloseEvent>(
+        BIND_EVENT_FN(Application::OnWindowClose));
+    dispatcher.Dispatch<WindowResizeEvent>(
+        BIND_EVENT_FN(Application::OnWindowResize));
+    dispatcher.Dispatch<WindowDropEvent>(
+        BIND_EVENT_FN(Application::OnWindowDrop));
 
-  EventDispatcher dispatcher(e);
-  dispatcher.Dispatch<WindowCloseEvent>(
-      BIND_EVENT_FN(Application::OnWindowClose));
-  dispatcher.Dispatch<WindowResizeEvent>(
-      BIND_EVENT_FN(Application::OnWindowResize));
-  dispatcher.Dispatch<WindowDropEvent>(
-      BIND_EVENT_FN(Application::OnWindowDrop));
+    if (e.GetEventType() == EventType::KeyPressed) {
+      auto &ek = (KeyPressedEvent &)e;
+      bool control = Input::IsKeyPressed(GLFW_KEY_LEFT_CONTROL) ||
+                     Input::IsKeyPressed(GLFW_KEY_RIGHT_CONTROL);
+      bool super = Input::IsKeyPressed(GLFW_KEY_LEFT_SUPER) ||
+                   Input::IsKeyPressed(GLFW_KEY_RIGHT_SUPER);
 
-  if (e.GetEventType() == EventType::KeyPressed) {
-    auto &ek = (KeyPressedEvent &)e;
-    bool control = Input::IsKeyPressed(GLFW_KEY_LEFT_CONTROL) ||
-                   Input::IsKeyPressed(GLFW_KEY_RIGHT_CONTROL);
-    bool super = Input::IsKeyPressed(GLFW_KEY_LEFT_SUPER) ||
-                 Input::IsKeyPressed(GLFW_KEY_RIGHT_SUPER);
+      if (m_SceneState == SceneState::Edit) {
+        if (ek.GetKeyCode() == GLFW_KEY_S && (control || super)) {
+          OnSaveScene();
+        }
 
-    if (m_SceneState == SceneState::Edit) {
-      if (ek.GetKeyCode() == GLFW_KEY_S && (control || super)) {
-        OnSaveScene();
-      }
-
-      // Undo/Redo
-      if (control || super) {
-        if (ek.GetKeyCode() == GLFW_KEY_Z) {
-          if (Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT) ||
-              Input::IsKeyPressed(GLFW_KEY_RIGHT_SHIFT))
+        // Undo/Redo
+        if (control || super) {
+          if (ek.GetKeyCode() == GLFW_KEY_Z) {
+            if (Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT) ||
+                Input::IsKeyPressed(GLFW_KEY_RIGHT_SHIFT))
+              m_UndoSystem.Redo();
+            else
+              m_UndoSystem.Undo();
+          }
+          if (ek.GetKeyCode() == GLFW_KEY_Y) {
             m_UndoSystem.Redo();
-          else
-            m_UndoSystem.Undo();
+          }
         }
-        if (ek.GetKeyCode() == GLFW_KEY_Y) {
-          m_UndoSystem.Redo();
+
+        // Gizmo shortcuts
+        if (!m_EditorCameraController->IsRotationEnabled()) {
+          if (ek.GetKeyCode() == GLFW_KEY_Q)
+            m_GizmoType = -1;
+          if (ek.GetKeyCode() == GLFW_KEY_W)
+            m_GizmoType = (int)ImGuizmo::OPERATION::TRANSLATE;
+          if (ek.GetKeyCode() == GLFW_KEY_E)
+            m_GizmoType = (int)ImGuizmo::OPERATION::ROTATE;
+          if (ek.GetKeyCode() == GLFW_KEY_R)
+            m_GizmoType = (int)ImGuizmo::OPERATION::SCALE;
         }
-      }
 
-      // Gizmo shortcuts
-      if (!m_EditorCameraController->IsRotationEnabled()) {
-        if (ek.GetKeyCode() == GLFW_KEY_Q)
-          m_GizmoType = -1;
-        if (ek.GetKeyCode() == GLFW_KEY_W)
-          m_GizmoType = (int)ImGuizmo::OPERATION::TRANSLATE;
-        if (ek.GetKeyCode() == GLFW_KEY_E)
-          m_GizmoType = (int)ImGuizmo::OPERATION::ROTATE;
-        if (ek.GetKeyCode() == GLFW_KEY_R)
-          m_GizmoType = (int)ImGuizmo::OPERATION::SCALE;
-      }
+        if (ek.GetKeyCode() == GLFW_KEY_F) {
+          auto selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
+          if (selectedEntity) {
+            glm::vec3 pos = selectedEntity->Transform.Position;
+            glm::vec3 scale = selectedEntity->Transform.Scale;
+            float maxScale = std::max({scale.x, scale.y, scale.z});
 
-      if (ek.GetKeyCode() == GLFW_KEY_F) {
-        auto selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
-        if (selectedEntity) {
-          glm::vec3 pos = selectedEntity->Transform.Position;
-          glm::vec3 scale = selectedEntity->Transform.Scale;
-          float maxScale = std::max({scale.x, scale.y, scale.z});
+            // Move camera to look at object
+            glm::vec3 offset = {0.0f, maxScale * 2.0f, maxScale * 5.0f};
+            m_EditorCamera->SetPosition(pos + offset);
 
-          // Move camera to look at object
-          glm::vec3 offset = {0.0f, maxScale * 2.0f, maxScale * 5.0f};
-          m_EditorCamera->SetPosition(pos + offset);
-
-          // We could also set rotation here, but let's keep it simple first
+            // We could also set rotation here, but let's keep it simple first
+          }
         }
       }
-    }
 
-    if (ek.GetKeyCode() == GLFW_KEY_ESCAPE) {
-      if (m_SceneState == SceneState::Play)
-        OnScenePause();
+      if (ek.GetKeyCode() == GLFW_KEY_ESCAPE) {
+        if (m_SceneState == SceneState::Play)
+          OnScenePause();
+      }
     }
   }
-}
 
-void Application::Run() {
-  while (m_Running) {
-    float time = (float)glfwGetTime();
-    Timestep timestep = time - m_LastFrameTime;
-    m_LastFrameTime = time;
+  void Application::Run() {
+    while (m_Running) {
+      float time = (float)glfwGetTime();
+      Timestep timestep = time - m_LastFrameTime;
+      m_LastFrameTime = time;
 
-    // Viewport Resize
-    if (FramebufferSpecification spec = m_SceneFramebuffer->GetSpecification();
-        m_SceneViewportSize.x > 0.0f && m_SceneViewportSize.y > 0.0f &&
-        (spec.Width != (uint32_t)m_SceneViewportSize.x ||
-         spec.Height != (uint32_t)m_SceneViewportSize.y)) {
-      m_SceneFramebuffer->Resize((uint32_t)m_SceneViewportSize.x,
-                                 (uint32_t)m_SceneViewportSize.y);
-      m_EditorCamera->SetProjection(
-          45.0f, m_SceneViewportSize.x / m_SceneViewportSize.y, 0.1f, 100.0f);
-    }
-    if (FramebufferSpecification spec = m_GameFramebuffer->GetSpecification();
-        m_GameViewportSize.x > 0.0f && m_GameViewportSize.y > 0.0f &&
-        (spec.Width != (uint32_t)m_GameViewportSize.x ||
-         spec.Height != (uint32_t)m_GameViewportSize.y)) {
-      m_GameFramebuffer->Resize((uint32_t)m_GameViewportSize.x,
-                                (uint32_t)m_GameViewportSize.y);
-      m_Camera->SetProjection(
-          45.0f, m_GameViewportSize.x / m_GameViewportSize.y, 0.1f, 100.0f);
-    }
-
-    if (m_SceneState == SceneState::Play) {
-      // m_CameraController->OnUpdate(timestep); // Disable default fly cam
-      // movement
-      m_PlayerController->OnUpdate(timestep);
-      PhysicsSystem::OnUpdate(timestep);
-    } else if (m_SceneViewportFocused) {
-      m_EditorCameraController->OnUpdate(timestep);
-    }
-
-    auto &bodyInterface = PhysicsSystem::GetBodyInterface();
-    Ref<Entity> selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
-
-    // 1. Scene View Pass
-    m_SceneFramebuffer->Bind();
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-    Renderer::BeginScene(*m_EditorCamera, m_Sun);
-    m_Skybox->Draw(*m_EditorCamera);
-    for (auto &entity : m_Scene->GetEntities()) {
-      if (!entity->PhysicsBody.IsInvalid()) {
-        if (m_SceneState == SceneState::Play) {
-          JPH::RVec3 position;
-          JPH::Quat rotation;
-          bodyInterface.GetPositionAndRotation(entity->PhysicsBody, position,
-                                               rotation);
-          entity->Transform.Position = {position.GetX(), position.GetY(),
-                                        position.GetZ()};
-          glm::quat q = {rotation.GetW(), rotation.GetX(), rotation.GetY(),
-                         rotation.GetZ()};
-          entity->Transform.Rotation = glm::degrees(glm::eulerAngles(q));
-        } else {
-          glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
-          bodyInterface.SetPositionAndRotation(
-              entity->PhysicsBody,
-              JPH::RVec3(entity->Transform.Position.x,
-                         entity->Transform.Position.y,
-                         entity->Transform.Position.z),
-              JPH::Quat(q.x, q.y, q.z, q.w), JPH::EActivation::DontActivate);
-        }
+      // Viewport Resize
+      if (FramebufferSpecification spec =
+              m_SceneFramebuffer->GetSpecification();
+          m_SceneViewportSize.x > 0.0f && m_SceneViewportSize.y > 0.0f &&
+          (spec.Width != (uint32_t)m_SceneViewportSize.x ||
+           spec.Height != (uint32_t)m_SceneViewportSize.y)) {
+        m_SceneFramebuffer->Resize((uint32_t)m_SceneViewportSize.x,
+                                   (uint32_t)m_SceneViewportSize.y);
+        m_EditorCamera->SetProjection(
+            45.0f, m_SceneViewportSize.x / m_SceneViewportSize.y, 0.1f, 100.0f);
+      }
+      if (FramebufferSpecification spec = m_GameFramebuffer->GetSpecification();
+          m_GameViewportSize.x > 0.0f && m_GameViewportSize.y > 0.0f &&
+          (spec.Width != (uint32_t)m_GameViewportSize.x ||
+           spec.Height != (uint32_t)m_GameViewportSize.y)) {
+        m_GameFramebuffer->Resize((uint32_t)m_GameViewportSize.x,
+                                  (uint32_t)m_GameViewportSize.y);
+        m_Camera->SetProjection(
+            45.0f, m_GameViewportSize.x / m_GameViewportSize.y, 0.1f, 100.0f);
       }
 
-      if (entity == selectedEntity) {
-        glEnable(GL_STENCIL_TEST);
-        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-        glStencilFunc(GL_ALWAYS, 1, 0xFF);
+      if (m_SceneState == SceneState::Play) {
+        // m_CameraController->OnUpdate(timestep); // Disable default fly cam
+        // movement
+        m_PlayerController->OnUpdate(timestep);
+        PhysicsSystem::OnUpdate(timestep);
+      } else if (m_SceneViewportFocused) {
+        m_EditorCameraController->OnUpdate(timestep);
+      }
+
+      auto &bodyInterface = PhysicsSystem::GetBodyInterface();
+      Ref<Entity> selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
+
+      // 1. Scene View Pass
+      m_SceneFramebuffer->Bind();
+      glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT |
+              GL_STENCIL_BUFFER_BIT);
+
+      Renderer::BeginScene(*m_EditorCamera, m_Sun);
+      m_Skybox->Draw(*m_EditorCamera);
+      for (auto &entity : m_Scene->GetEntities()) {
+        if (!entity->PhysicsBody.IsInvalid()) {
+          if (m_SceneState == SceneState::Play) {
+            JPH::RVec3 position;
+            JPH::Quat rotation;
+            bodyInterface.GetPositionAndRotation(entity->PhysicsBody, position,
+                                                 rotation);
+            entity->Transform.Position = {position.GetX(), position.GetY(),
+                                          position.GetZ()};
+            glm::quat q = {rotation.GetW(), rotation.GetX(), rotation.GetY(),
+                           rotation.GetZ()};
+            entity->Transform.Rotation = glm::degrees(glm::eulerAngles(q));
+          } else {
+            glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
+            bodyInterface.SetPositionAndRotation(
+                entity->PhysicsBody,
+                JPH::RVec3(entity->Transform.Position.x,
+                           entity->Transform.Position.y,
+                           entity->Transform.Position.z),
+                JPH::Quat(q.x, q.y, q.z, q.w), JPH::EActivation::DontActivate);
+          }
+        }
+
+        if (entity == selectedEntity) {
+          glEnable(GL_STENCIL_TEST);
+          glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+          glStencilFunc(GL_ALWAYS, 1, 0xFF);
+          glStencilMask(0xFF);
+        }
+        if (entity->Material.AlbedoMap)
+          entity->Material.AlbedoMap->Bind();
+        Renderer::Submit(entity->MaterialShader, entity->Mesh,
+                         entity->Transform.GetTransform(),
+                         entity->Material.Tiling);
+        if (entity == selectedEntity)
+          glStencilMask(0x00);
+      }
+
+      if (selectedEntity) {
+        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+        glDisable(GL_DEPTH_TEST);
+        m_OutlineShader->Bind();
+        m_OutlineShader->SetFloat3("u_Color", {1.0f, 0.5f, 0.0f});
+        glLineWidth(4.0f);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glm::mat4 transform = glm::scale(
+            selectedEntity->Transform.GetTransform(), glm::vec3(1.01f));
+        Renderer::Submit(m_OutlineShader, selectedEntity->Mesh, transform);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         glStencilMask(0xFF);
+        glEnable(GL_DEPTH_TEST);
+        glDisable(GL_STENCIL_TEST);
       }
-      if (entity->Material.AlbedoMap)
-        entity->Material.AlbedoMap->Bind();
-      Renderer::Submit(entity->MaterialShader, entity->Mesh,
-                       entity->Transform.GetTransform(),
-                       entity->Material.Tiling);
-      if (entity == selectedEntity)
-        glStencilMask(0x00);
-    }
+      Renderer::EndScene();
+      m_SceneFramebuffer->Unbind();
 
-    if (selectedEntity) {
-      glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-      glDisable(GL_DEPTH_TEST);
-      m_OutlineShader->Bind();
-      m_OutlineShader->SetFloat3("u_Color", {1.0f, 0.5f, 0.0f});
-      glLineWidth(4.0f);
-      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-      glm::mat4 transform = glm::scale(selectedEntity->Transform.GetTransform(),
-                                       glm::vec3(1.01f));
-      Renderer::Submit(m_OutlineShader, selectedEntity->Mesh, transform);
-      glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-      glStencilMask(0xFF);
-      glEnable(GL_DEPTH_TEST);
-      glDisable(GL_STENCIL_TEST);
-    }
-    Renderer::EndScene();
-    m_SceneFramebuffer->Unbind();
+      // 2. Game View Pass
+      m_GameFramebuffer->Bind();
+      glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      Renderer::BeginScene(*m_Camera, m_Sun);
+      m_Skybox->Draw(*m_Camera);
+      for (auto &entity : m_Scene->GetEntities()) {
+        if (entity->Material.AlbedoMap)
+          entity->Material.AlbedoMap->Bind();
+        Renderer::Submit(entity->MaterialShader, entity->Mesh,
+                         entity->Transform.GetTransform(),
+                         entity->Material.Tiling);
+      }
+      Renderer::EndScene();
+      m_GameFramebuffer->Unbind();
 
-    // 2. Game View Pass
-    m_GameFramebuffer->Bind();
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    Renderer::BeginScene(*m_Camera, m_Sun);
-    m_Skybox->Draw(*m_Camera);
-    for (auto &entity : m_Scene->GetEntities()) {
-      if (entity->Material.AlbedoMap)
-        entity->Material.AlbedoMap->Bind();
-      Renderer::Submit(entity->MaterialShader, entity->Mesh,
-                       entity->Transform.GetTransform(),
-                       entity->Material.Tiling);
-    }
-    Renderer::EndScene();
-    m_GameFramebuffer->Unbind();
+      m_ImGuiLayer->Begin();
 
-    m_ImGuiLayer->Begin();
-
-    if (m_ResetLayoutOnNextFrame) {
-      ResetLayout();
-      m_ResetLayoutOnNextFrame = false;
-    }
-
-    ImGuizmo::BeginFrame();
-    {
-      if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("File")) {
-          if (ImGui::MenuItem("New Project..."))
-            OnNewProject();
-          if (ImGui::MenuItem("Open Project..."))
-            OnOpenProject();
-
-          ImGui::Separator();
-
-          // New Level only if none loaded
-          if (!m_LevelLoaded) {
-            if (ImGui::MenuItem("New Level"))
-              OnNewScene();
-          }
-
-          if (ImGui::MenuItem("Open Level...", "Cmd+O"))
-            OnOpenScene();
-
-          if (m_LevelLoaded) {
-            if (ImGui::MenuItem("Save Level", "Cmd+S"))
-              OnSaveScene();
-            if (ImGui::MenuItem("Save Level As..."))
-              OnSaveSceneAs();
-            if (ImGui::MenuItem("Close Level"))
-              CloseScene();
-          }
-
-          if (!m_ProjectRoot.empty()) {
-            if (ImGui::MenuItem("Close Project"))
-              CloseProject();
-          }
-
-          ImGui::Separator();
-
-          if (ImGui::MenuItem("Exit", "Cmd+Q"))
-            m_Running = false;
-
-          ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Settings")) {
-          if (ImGui::MenuItem("Settings"))
-            m_ShowSettingsWindow = true;
-          if (ImGui::MenuItem("Project Settings"))
-            m_ShowProjectSettingsWindow = true;
-          ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Window")) {
-          if (ImGui::MenuItem("Scene Hierarchy", nullptr, m_ShowHierarchy))
-            m_ShowHierarchy = !m_ShowHierarchy;
-          if (ImGui::MenuItem("Inspector", nullptr, m_ShowInspector))
-            m_ShowInspector = !m_ShowInspector;
-          if (ImGui::MenuItem("Content Browser", nullptr, m_ShowContentBrowser))
-            m_ShowContentBrowser = !m_ShowContentBrowser;
-          if (ImGui::MenuItem("Scene Viewport", nullptr, m_ShowScene))
-            m_ShowScene = !m_ShowScene;
-          if (ImGui::MenuItem("Game Viewport", nullptr, m_ShowGame))
-            m_ShowGame = !m_ShowGame;
-          if (ImGui::MenuItem("Toolbar", nullptr, m_ShowToolbar))
-            m_ShowToolbar = !m_ShowToolbar;
-          if (ImGui::MenuItem("Statistics", nullptr, m_ShowStats))
-            m_ShowStats = !m_ShowStats;
-
-          ImGui::Separator();
-          if (ImGui::MenuItem("Save Layout"))
-            SaveLayout();
-          if (ImGui::MenuItem("Load Layout"))
-            LoadLayout();
-          if (ImGui::MenuItem("Save Layout As...")) {
-            std::string filepath = FileDialogs::SaveFile(
-                "ImGui Layout (*.ini)\0*.ini\0", "layout.ini", ".ini");
-            if (!filepath.empty())
-              SaveLayout(filepath);
-          }
-          if (ImGui::MenuItem("Load Layout From...")) {
-            std::string filepath =
-                FileDialogs::OpenFile("ImGui Layout (*.ini)\0*.ini\0", ".ini");
-            if (!filepath.empty())
-              LoadLayout(filepath);
-          }
-          if (ImGui::MenuItem("Default Layout"))
-            ResetLayout();
-
-          ImGui::EndMenu();
-        }
-        ImGui::EndMainMenuBar();
+      if (m_ResetLayoutOnNextFrame) {
+        ResetLayout();
+        m_ResetLayoutOnNextFrame = false;
       }
 
-      if (!m_ProjectRoot.empty()) {
-        if (m_ShowHierarchy)
-          m_SceneHierarchyPanel->OnImGuiRender();
-        if (m_ShowContentBrowser)
-          m_ContentBrowserPanel->OnImGuiRender();
+      ImGuizmo::BeginFrame();
+      {
+        if (ImGui::BeginMainMenuBar()) {
+          if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("New Project..."))
+              OnNewProject();
+            if (ImGui::MenuItem("Open Project..."))
+              OnOpenProject();
 
-        // Inspector is handled inside SceneHierarchyPanel usually,
-        // but if it's separate, we'd wrap it here.
-        // Looking at line 815, it seems it's just a placeholder for now if no
-        // project.
-      } else {
-        // Blank placeholders
-        if (m_ShowInspector) {
-          ImGui::Begin("Inspector");
-          ImGui::End();
+            ImGui::Separator();
+
+            // New Level only if none loaded
+            if (!m_LevelLoaded) {
+              if (ImGui::MenuItem("New Level"))
+                OnNewScene();
+            }
+
+            if (ImGui::MenuItem("Open Level...", "Cmd+O"))
+              OnOpenScene();
+
+            if (m_LevelLoaded) {
+              if (ImGui::MenuItem("Save Level", "Cmd+S"))
+                OnSaveScene();
+              if (ImGui::MenuItem("Save Level As..."))
+                OnSaveSceneAs();
+              if (ImGui::MenuItem("Close Level"))
+                CloseScene();
+            }
+
+            if (!m_ProjectRoot.empty()) {
+              if (ImGui::MenuItem("Close Project"))
+                CloseProject();
+            }
+
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("Exit", "Cmd+Q"))
+              m_Running = false;
+
+            ImGui::EndMenu();
+          }
+
+          if (ImGui::BeginMenu("Settings")) {
+            if (ImGui::MenuItem("Settings"))
+              m_ShowSettingsWindow = true;
+            if (ImGui::MenuItem("Project Settings"))
+              m_ShowProjectSettingsWindow = true;
+            ImGui::EndMenu();
+          }
+
+          if (ImGui::BeginMenu("Window")) {
+            if (ImGui::MenuItem("Scene Hierarchy", nullptr, m_ShowHierarchy))
+              m_ShowHierarchy = !m_ShowHierarchy;
+            if (ImGui::MenuItem("Inspector", nullptr, m_ShowInspector))
+              m_ShowInspector = !m_ShowInspector;
+            if (ImGui::MenuItem("Content Browser", nullptr,
+                                m_ShowContentBrowser))
+              m_ShowContentBrowser = !m_ShowContentBrowser;
+            if (ImGui::MenuItem("Scene Viewport", nullptr, m_ShowScene))
+              m_ShowScene = !m_ShowScene;
+            if (ImGui::MenuItem("Game Viewport", nullptr, m_ShowGame))
+              m_ShowGame = !m_ShowGame;
+            if (ImGui::MenuItem("Toolbar", nullptr, m_ShowToolbar))
+              m_ShowToolbar = !m_ShowToolbar;
+            if (ImGui::MenuItem("Statistics", nullptr, m_ShowStats))
+              m_ShowStats = !m_ShowStats;
+
+            ImGui::Separator();
+            if (ImGui::MenuItem("Save Layout"))
+              SaveLayout();
+            if (ImGui::MenuItem("Load Layout"))
+              LoadLayout();
+            if (ImGui::MenuItem("Save Layout As...")) {
+              std::string filepath = FileDialogs::SaveFile(
+                  "ImGui Layout (*.ini)\0*.ini\0", "layout.ini", ".ini");
+              if (!filepath.empty())
+                SaveLayout(filepath);
+            }
+            if (ImGui::MenuItem("Load Layout From...")) {
+              std::string filepath = FileDialogs::OpenFile(
+                  "ImGui Layout (*.ini)\0*.ini\0", ".ini");
+              if (!filepath.empty())
+                LoadLayout(filepath);
+            }
+            if (ImGui::MenuItem("Default Layout"))
+              ResetLayout();
+
+            ImGui::EndMenu();
+          }
+          ImGui::EndMainMenuBar();
         }
-        if (m_ShowHierarchy) {
-          ImGui::Begin("Scene Hierarchy");
-          ImGui::End();
+
+        if (!m_ProjectRoot.empty()) {
+          if (m_ShowHierarchy)
+            m_SceneHierarchyPanel->OnImGuiRender();
+          if (m_ShowContentBrowser)
+            m_ContentBrowserPanel->OnImGuiRender();
+
+          // Inspector is handled inside SceneHierarchyPanel usually,
+          // but if it's separate, we'd wrap it here.
+          // Looking at line 815, it seems it's just a placeholder for now if no
+          // project.
+        } else {
+          // Blank placeholders
+          if (m_ShowInspector) {
+            ImGui::Begin("Inspector");
+            ImGui::End();
+          }
+          if (m_ShowHierarchy) {
+            ImGui::Begin("Scene Hierarchy");
+            ImGui::End();
+          }
+          if (m_ShowContentBrowser) {
+            ImGui::Begin("Content Browser");
+            ImGui::End();
+          }
         }
-        if (m_ShowContentBrowser) {
-          ImGui::Begin("Content Browser");
-          ImGui::End();
-        }
-      }
 
-      if (m_ShowSettingsWindow)
-        UI_SettingsWindow();
+        if (m_ShowSettingsWindow)
+          UI_SettingsWindow();
 
-      if (m_ShowProjectSettingsWindow)
-        UI_ProjectSettingsWindow();
+        if (m_ShowProjectSettingsWindow)
+          UI_ProjectSettingsWindow();
 
-      // Scene Viewport
-      if (m_ShowScene) {
-        ImGui::Begin("Scene");
-        m_SceneViewportFocused = ImGui::IsWindowFocused();
-        m_SceneViewportHovered = ImGui::IsWindowHovered();
+        // Scene Viewport
+        if (m_ShowScene) {
+          ImGui::Begin("Scene");
+          m_SceneViewportFocused = ImGui::IsWindowFocused();
+          m_SceneViewportHovered = ImGui::IsWindowHovered();
 
-        ImVec2 viewportOffset = ImGui::GetCursorScreenPos();
-        m_SceneViewportPos = {viewportOffset.x, viewportOffset.y};
-        if (m_SceneState != SceneState::Play)
-          m_ImGuiLayer->SetBlockEvents(
-              (!m_SceneViewportFocused || !m_SceneViewportHovered) &&
-              !ImGuizmo::IsOver());
+          ImVec2 viewportOffset = ImGui::GetCursorScreenPos();
+          m_SceneViewportPos = {viewportOffset.x, viewportOffset.y};
+          if (m_SceneState != SceneState::Play)
+            m_ImGuiLayer->SetBlockEvents(
+                (!m_SceneViewportFocused || !m_SceneViewportHovered) &&
+                !ImGuizmo::IsOver());
 
-        ImVec2 sceneSize = ImGui::GetContentRegionAvail();
-        m_SceneViewportSize = {sceneSize.x, sceneSize.y};
+          ImVec2 sceneSize = ImGui::GetContentRegionAvail();
+          m_SceneViewportSize = {sceneSize.x, sceneSize.y};
 
-        if (!m_ProjectRoot.empty() && m_LevelLoaded) {
-          ImGui::Image((void *)(uint64_t)
-                           m_SceneFramebuffer->GetColorAttachmentRendererID(),
-                       sceneSize, {0, 1}, {1, 0});
+          if (!m_ProjectRoot.empty() && m_LevelLoaded) {
+            ImGui::Image((void *)(uint64_t)
+                             m_SceneFramebuffer->GetColorAttachmentRendererID(),
+                         sceneSize, {0, 1}, {1, 0});
 
-          // Drag & Drop
-          if (ImGui::BeginDragDropTarget()) {
-            if (const ImGuiPayload *payload =
-                    ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
-              const char *path = (const char *)payload->Data;
-              std::filesystem::path assetPath = path;
+            // Drag & Drop
+            if (ImGui::BeginDragDropTarget()) {
+              if (const ImGuiPayload *payload =
+                      ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                const char *path = (const char *)payload->Data;
+                std::filesystem::path assetPath = path;
 
-              if (assetPath.extension() == ".obj" ||
-                  assetPath.extension() == ".stl") {
-                Ref<VertexArray> mesh = nullptr;
-                if (assetPath.extension() == ".obj")
-                  mesh = MeshLoader::LoadOBJ(assetPath.string());
-                else if (assetPath.extension() == ".stl")
-                  mesh = MeshLoader::LoadSTL(assetPath.string());
+                if (assetPath.extension() == ".obj" ||
+                    assetPath.extension() == ".stl") {
+                  Ref<VertexArray> mesh = nullptr;
+                  if (assetPath.extension() == ".obj")
+                    mesh = MeshLoader::LoadOBJ(assetPath.string());
+                  else if (assetPath.extension() == ".stl")
+                    mesh = MeshLoader::LoadSTL(assetPath.string());
 
-                if (mesh) {
-                  auto entity =
-                      CreateRef<Entity>(assetPath.stem().string(), mesh,
-                                        m_DefaultShader, m_DefaultTexture);
-                  glm::vec3 dropPos = m_EditorCamera->GetPosition() +
-                                      m_EditorCamera->GetForward() * 5.0f;
-                  entity->Transform.Position = dropPos;
+                  if (mesh) {
+                    auto entity =
+                        CreateRef<Entity>(assetPath.stem().string(), mesh,
+                                          m_DefaultShader, m_DefaultTexture);
+                    glm::vec3 dropPos = m_EditorCamera->GetPosition() +
+                                        m_EditorCamera->GetForward() * 5.0f;
+                    entity->Transform.Position = dropPos;
 
-                  auto &bodyInterface = PhysicsSystem::GetBodyInterface();
-                  JPH::BodyCreationSettings settings(
-                      PhysicsShapes::CreateBox({1.0f, 1.0f, 1.0f}),
-                      JPH::RVec3(dropPos.x, dropPos.y, dropPos.z),
-                      JPH::Quat::sIdentity(), JPH::EMotionType::Static,
-                      Layers::NON_MOVING);
-                  entity->PhysicsBody = bodyInterface.CreateAndAddBody(
-                      settings, JPH::EActivation::DontActivate);
+                    auto &bodyInterface = PhysicsSystem::GetBodyInterface();
+                    JPH::BodyCreationSettings settings(
+                        PhysicsShapes::CreateBox({1.0f, 1.0f, 1.0f}),
+                        JPH::RVec3(dropPos.x, dropPos.y, dropPos.z),
+                        JPH::Quat::sIdentity(), JPH::EMotionType::Static,
+                        Layers::NON_MOVING);
+                    entity->PhysicsBody = bodyInterface.CreateAndAddBody(
+                        settings, JPH::EActivation::DontActivate);
 
-                  m_Scene->AddEntity(entity);
-                  m_SceneHierarchyPanel->SetSelectedEntity(entity);
+                    m_Scene->AddEntity(entity);
+                    m_SceneHierarchyPanel->SetSelectedEntity(entity);
+                  }
+                }
+              }
+              ImGui::EndDragDropTarget();
+            }
+
+            // Gizmos
+            Ref<Entity> selectedEntity =
+                m_SceneHierarchyPanel->GetSelectedEntity();
+            if (selectedEntity && m_GizmoType != -1) {
+              ImGuizmo::SetOrthographic(false);
+              ImGuizmo::SetDrawlist();
+
+              ImGuizmo::SetRect(m_SceneViewportPos.x, m_SceneViewportPos.y,
+                                m_SceneViewportSize.x, m_SceneViewportSize.y);
+
+              // Editor camera
+              const glm::mat4 &cameraProjection =
+                  m_EditorCamera->GetProjectionMatrix();
+              glm::mat4 cameraView = m_EditorCamera->GetViewMatrix();
+
+              // Entity transform
+              glm::mat4 transform = selectedEntity->Transform.GetTransform();
+
+              // Snapping
+              bool snap = Input::IsKeyPressed(GLFW_KEY_LEFT_CONTROL) ||
+                          Input::IsKeyPressed(GLFW_KEY_LEFT_SUPER);
+              float snapValue = 0.5f; // Snap to 0.5m for translation/scale
+              if (m_GizmoType == (int)ImGuizmo::OPERATION::ROTATE)
+                snapValue = 45.0f;
+
+              float snapValues[3] = {snapValue, snapValue, snapValue};
+
+              ImGuizmo::Manipulate(glm::value_ptr(cameraView),
+                                   glm::value_ptr(cameraProjection),
+                                   (ImGuizmo::OPERATION)m_GizmoType,
+                                   ImGuizmo::LOCAL, glm::value_ptr(transform),
+                                   nullptr, snap ? snapValues : nullptr);
+
+              if (ImGuizmo::IsUsing()) {
+                if (!m_IsDraggingGizmo) {
+                  m_IsDraggingGizmo = true;
+                  m_InitialGizmoTransform = selectedEntity->Transform;
+                }
+
+                float translation[3], rotation[3], scale[3];
+                ImGuizmo::DecomposeMatrixToComponents(
+                    glm::value_ptr(transform), translation, rotation, scale);
+
+                selectedEntity->Transform.Position = {
+                    translation[0], translation[1], translation[2]};
+                selectedEntity->Transform.Rotation = {rotation[0], rotation[1],
+                                                      rotation[2]};
+                selectedEntity->Transform.Scale = {scale[0], scale[1],
+                                                   scale[2]};
+              } else {
+                if (m_IsDraggingGizmo) {
+                  m_IsDraggingGizmo = false;
+                  m_UndoSystem.AddCommand(CreateScope<TransformCommand>(
+                      selectedEntity, m_InitialGizmoTransform,
+                      selectedEntity->Transform));
                 }
               }
             }
-            ImGui::EndDragDropTarget();
+          } else {
+            std::string text =
+                m_ProjectRoot.empty() ? "No project open" : "No level open";
+            ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
+            ImGui::SetCursorPos({(sceneSize.x - textSize.x) * 0.5f,
+                                 (sceneSize.y - textSize.y) * 0.5f});
+            ImGui::Text("%s", text.c_str());
           }
+          ImGui::End();
+        }
 
-          // Gizmos
-          Ref<Entity> selectedEntity =
-              m_SceneHierarchyPanel->GetSelectedEntity();
-          if (selectedEntity && m_GizmoType != -1) {
-            ImGuizmo::SetOrthographic(false);
-            ImGuizmo::SetDrawlist();
+        // Game Viewport
+        if (m_ShowGame) {
+          ImGui::Begin("Game");
+          m_GameViewportFocused = ImGui::IsWindowFocused();
+          m_GameViewportHovered = ImGui::IsWindowHovered();
+          if (m_SceneState == SceneState::Play)
+            m_ImGuiLayer->SetBlockEvents(!m_GameViewportFocused ||
+                                         !m_GameViewportHovered);
 
-            ImGuizmo::SetRect(m_SceneViewportPos.x, m_SceneViewportPos.y,
-                              m_SceneViewportSize.x, m_SceneViewportSize.y);
+          ImVec2 gameSize = ImGui::GetContentRegionAvail();
+          m_GameViewportSize = {gameSize.x, gameSize.y};
 
-            // Editor camera
-            const glm::mat4 &cameraProjection =
-                m_EditorCamera->GetProjectionMatrix();
-            glm::mat4 cameraView = m_EditorCamera->GetViewMatrix();
+          if (!m_ProjectRoot.empty() && m_LevelLoaded) {
+            ImGui::Image((void *)(uint64_t)
+                             m_GameFramebuffer->GetColorAttachmentRendererID(),
+                         gameSize, {0, 1}, {1, 0});
+          } else {
+            std::string text =
+                m_ProjectRoot.empty() ? "No project open" : "No level open";
+            ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
+            ImGui::SetCursorPos({(gameSize.x - textSize.x) * 0.5f,
+                                 (gameSize.y - textSize.y) * 0.5f});
+            ImGui::Text("%s", text.c_str());
+          }
+          ImGui::End();
+        }
 
-            // Entity transform
-            glm::mat4 transform = selectedEntity->Transform.GetTransform();
+        if (m_ShowToolbar) {
+          ImGui::Begin("Toolbar");
 
-            // Snapping
-            bool snap = Input::IsKeyPressed(GLFW_KEY_LEFT_CONTROL) ||
-                        Input::IsKeyPressed(GLFW_KEY_LEFT_SUPER);
-            float snapValue = 0.5f; // Snap to 0.5m for translation/scale
-            if (m_GizmoType == (int)ImGuizmo::OPERATION::ROTATE)
-              snapValue = 45.0f;
-
-            float snapValues[3] = {snapValue, snapValue, snapValue};
-
-            ImGuizmo::Manipulate(glm::value_ptr(cameraView),
-                                 glm::value_ptr(cameraProjection),
-                                 (ImGuizmo::OPERATION)m_GizmoType,
-                                 ImGuizmo::LOCAL, glm::value_ptr(transform),
-                                 nullptr, snap ? snapValues : nullptr);
-
-            if (ImGuizmo::IsUsing()) {
-              if (!m_IsDraggingGizmo) {
-                m_IsDraggingGizmo = true;
-                m_InitialGizmoTransform = selectedEntity->Transform;
-              }
-
-              float translation[3], rotation[3], scale[3];
-              ImGuizmo::DecomposeMatrixToComponents(
-                  glm::value_ptr(transform), translation, rotation, scale);
-
-              selectedEntity->Transform.Position = {
-                  translation[0], translation[1], translation[2]};
-              selectedEntity->Transform.Rotation = {rotation[0], rotation[1],
-                                                    rotation[2]};
-              selectedEntity->Transform.Scale = {scale[0], scale[1], scale[2]};
-            } else {
-              if (m_IsDraggingGizmo) {
-                m_IsDraggingGizmo = false;
-                m_UndoSystem.AddCommand(CreateScope<TransformCommand>(
-                    selectedEntity, m_InitialGizmoTransform,
-                    selectedEntity->Transform));
-              }
+          if (m_SceneState == SceneState::Edit) {
+            if (ImGui::Button("Play")) {
+              OnScenePlay();
+              ImGui::SetWindowFocus("Game");
             }
+          } else if (m_SceneState == SceneState::Pause) {
+            if (ImGui::Button("Resume")) {
+              OnScenePlay();
+              ImGui::SetWindowFocus("Game");
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Stop"))
+              OnSceneStop();
+          } else {
+            if (ImGui::Button("Pause"))
+              OnScenePause();
+            ImGui::SameLine();
+            if (ImGui::Button("Stop"))
+              OnSceneStop();
           }
-        } else {
-          std::string text =
-              m_ProjectRoot.empty() ? "No project open" : "No level open";
-          ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
-          ImGui::SetCursorPos({(sceneSize.x - textSize.x) * 0.5f,
-                               (sceneSize.y - textSize.y) * 0.5f});
-          ImGui::Text("%s", text.c_str());
         }
-        ImGui::End();
-      }
-
-      // Game Viewport
-      if (m_ShowGame) {
-        ImGui::Begin("Game");
-        m_GameViewportFocused = ImGui::IsWindowFocused();
-        m_GameViewportHovered = ImGui::IsWindowHovered();
-        if (m_SceneState == SceneState::Play)
-          m_ImGuiLayer->SetBlockEvents(!m_GameViewportFocused ||
-                                       !m_GameViewportHovered);
-
-        ImVec2 gameSize = ImGui::GetContentRegionAvail();
-        m_GameViewportSize = {gameSize.x, gameSize.y};
-
-        if (!m_ProjectRoot.empty() && m_LevelLoaded) {
-          ImGui::Image((void *)(uint64_t)
-                           m_GameFramebuffer->GetColorAttachmentRendererID(),
-                       gameSize, {0, 1}, {1, 0});
-        } else {
-          std::string text =
-              m_ProjectRoot.empty() ? "No project open" : "No level open";
-          ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
-          ImGui::SetCursorPos({(gameSize.x - textSize.x) * 0.5f,
-                               (gameSize.y - textSize.y) * 0.5f});
-          ImGui::Text("%s", text.c_str());
-        }
-        ImGui::End();
-      }
-
-      if (m_ShowToolbar) {
-        ImGui::Begin("Toolbar");
-
-        if (m_SceneState == SceneState::Edit) {
-          if (ImGui::Button("Play")) {
-            OnScenePlay();
-            ImGui::SetWindowFocus("Game");
-          }
-        } else if (m_SceneState == SceneState::Pause) {
-          if (ImGui::Button("Resume")) {
-            OnScenePlay();
-            ImGui::SetWindowFocus("Game");
-          }
-          ImGui::SameLine();
-          if (ImGui::Button("Stop"))
-            OnSceneStop();
-        } else {
-          if (ImGui::Button("Pause"))
-            OnScenePause();
-          ImGui::SameLine();
-          if (ImGui::Button("Stop"))
-            OnSceneStop();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Reset"))
-          ResetScene();
-
-        ImGui::End();
       }
 
       if (m_ShowStats) {
