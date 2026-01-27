@@ -5,8 +5,6 @@
 #include <fstream>
 #include <sstream>
 
-namespace fs = std::filesystem;
-
 namespace S67 {
 
 SceneSerializer::SceneSerializer(Scene *scene, const std::string &projectRoot)
@@ -16,15 +14,20 @@ std::string SceneSerializer::MakeRelative(const std::string &path) {
   if (m_ProjectRoot.empty() || path == "Cube" || path.empty())
     return path;
 
-  fs::path p(path);
-  // If it's relative, it's relative to the engine's current working directory
+  std::filesystem::path p(path);
   if (p.is_relative()) {
-    p = fs::absolute(p);
+    p = std::filesystem::current_path() / p;
   }
+  p = std::filesystem::absolute(p);
 
-  fs::path root(m_ProjectRoot);
+  std::filesystem::path root(m_ProjectRoot);
+  if (root.is_relative()) {
+    root = std::filesystem::current_path() / root;
+  }
+  root = std::filesystem::absolute(root);
+
   try {
-    return fs::relative(p, root).generic_string();
+    return std::filesystem::relative(p, root).generic_string();
   } catch (...) {
     return path;
   }
@@ -104,33 +107,43 @@ bool SceneSerializer::Deserialize(const std::string &filepath) {
       } else if (line.find("MeshPath:") != std::string::npos) {
         std::string path = line.substr(line.find(":") + 2);
         if (path != "Cube") {
-          if (!m_ProjectRoot.empty() && fs::path(path).is_relative())
+          if (!m_ProjectRoot.empty() &&
+              std::filesystem::path(path).is_relative())
             currentEntity->MeshPath =
-                (fs::path(m_ProjectRoot) / path).make_preferred().string();
+                (std::filesystem::path(m_ProjectRoot) / path)
+                    .make_preferred()
+                    .string();
           else
-            currentEntity->MeshPath = fs::path(path).make_preferred().string();
+            currentEntity->MeshPath =
+                std::filesystem::path(path).make_preferred().string();
 
           // Actually load the mesh!
-          if (fs::path(currentEntity->MeshPath).extension() == ".obj")
+          if (std::filesystem::path(currentEntity->MeshPath).extension() ==
+              ".obj")
             currentEntity->Mesh = MeshLoader::LoadOBJ(currentEntity->MeshPath);
-          else if (fs::path(currentEntity->MeshPath).extension() == ".stl")
+          else if (std::filesystem::path(currentEntity->MeshPath).extension() ==
+                   ".stl")
             currentEntity->Mesh = MeshLoader::LoadSTL(currentEntity->MeshPath);
         } else {
           currentEntity->MeshPath = "Cube";
         }
       } else if (line.find("ShaderPath:") != std::string::npos) {
         std::string path = line.substr(line.find(":") + 2);
-        if (!m_ProjectRoot.empty() && fs::path(path).is_relative())
-          path = (fs::path(m_ProjectRoot) / path).make_preferred().string();
+        if (!m_ProjectRoot.empty() && std::filesystem::path(path).is_relative())
+          path = (std::filesystem::path(m_ProjectRoot) / path)
+                     .make_preferred()
+                     .string();
         else
-          path = fs::path(path).make_preferred().string();
+          path = std::filesystem::path(path).make_preferred().string();
         currentEntity->MaterialShader = Shader::Create(path);
       } else if (line.find("TexturePath:") != std::string::npos) {
         std::string path = line.substr(line.find(":") + 2);
-        if (!m_ProjectRoot.empty() && fs::path(path).is_relative())
-          path = (fs::path(m_ProjectRoot) / path).make_preferred().string();
+        if (!m_ProjectRoot.empty() && std::filesystem::path(path).is_relative())
+          path = (std::filesystem::path(m_ProjectRoot) / path)
+                     .make_preferred()
+                     .string();
         else
-          path = fs::path(path).make_preferred().string();
+          path = std::filesystem::path(path).make_preferred().string();
         currentEntity->Material.AlbedoMap = Texture2D::Create(path);
       } else if (line.find("Collidable:") != std::string::npos) {
         std::string val = line.substr(line.find(":") + 2);

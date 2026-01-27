@@ -1,6 +1,9 @@
 #include "CameraController.h"
 #include "Core/Input.h"
 #include "Core/KeyCodes.h"
+#include <filesystem>
+#include <utility>
+
 
 namespace S67 {
 
@@ -25,38 +28,35 @@ void CameraController::OnUpdate(Timestep ts) {
     m_CameraPosition.y += speed;
 
   m_Camera->SetPosition(m_CameraPosition);
+
+  // Rotation
+  if (m_RotationEnabled) {
+    std::pair<float, float> mousePos = Input::GetMousePosition();
+    float x = mousePos.first;
+    float y = mousePos.second;
+
+    if (m_FirstMouse) {
+      m_LastMouseX = x;
+      m_LastMouseY = y;
+      m_FirstMouse = false;
+    }
+
+    float xOffset = x - m_LastMouseX;
+    float yOffset = m_LastMouseY - y;
+    m_LastMouseX = x;
+    m_LastMouseY = y;
+
+    xOffset *= m_CameraRotationSpeed;
+    yOffset *= m_CameraRotationSpeed;
+
+    m_Camera->SetYaw(m_Camera->GetYaw() + xOffset);
+    m_Camera->SetPitch(
+        glm::clamp(m_Camera->GetPitch() + yOffset, -89.0f, 89.0f));
+  }
 }
 
 void CameraController::OnEvent(Event &e) {
-  EventDispatcher dispatcher(e);
-  dispatcher.Dispatch<MouseMovedEvent>(
-      BIND_EVENT_FN(CameraController::OnMouseMoved));
-}
-
-bool CameraController::OnMouseMoved(MouseMovedEvent &e) {
-  if (!m_RotationEnabled)
-    return false;
-
-  if (m_FirstMouse) {
-    m_LastMouseX = e.GetX();
-    m_LastMouseY = e.GetY();
-    m_FirstMouse = false;
-  }
-
-  float xOffset = e.GetX() - m_LastMouseX;
-  float yOffset =
-      m_LastMouseY -
-      e.GetY(); // Reversed since y-coordinates go from bottom to top
-  m_LastMouseX = e.GetX();
-  m_LastMouseY = e.GetY();
-
-  xOffset *= m_CameraRotationSpeed;
-  yOffset *= m_CameraRotationSpeed;
-
-  m_Camera->SetYaw(m_Camera->GetYaw() + xOffset);
-  m_Camera->SetPitch(glm::clamp(m_Camera->GetPitch() + yOffset, -89.0f, 89.0f));
-
-  return false;
+  // Events no longer used for rotation to improve robustness
 }
 
 } // namespace S67
