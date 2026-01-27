@@ -233,7 +233,7 @@ void Application::OnScenePlay() {
 
   m_SceneState = SceneState::Play;
 
-  // Disable ImGui mouse handling completely during Play mode
+  // Disable ImGui mouse handling to prevent cursor override
   ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
 
   // Lock cursor for first-person control
