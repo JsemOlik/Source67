@@ -60,6 +60,9 @@ void SceneSerializer::Serialize(const std::string &filepath) {
        << "\n";
     ss << "    TexturePath: "
        << MakeRelative(entity->Material.AlbedoMap->GetPath()) << "\n";
+    if (entity->Material.AlbedoMap)
+      ss << "    TextureTiling: [" << entity->Material.Tiling.x << ", "
+         << entity->Material.Tiling.y << "]\n";
     ss << "    Collidable: " << (entity->Collidable ? "true" : "false") << "\n";
   }
 
@@ -157,6 +160,10 @@ bool SceneSerializer::Deserialize(const std::string &filepath) {
             "[SCENE LOAD] Loading texture: '{0}' -> '{1}' (exists: {2})",
             originalPath, path, std::filesystem::exists(path));
         currentEntity->Material.AlbedoMap = Texture2D::Create(path);
+      } else if (line.find("TextureTiling:") != std::string::npos) {
+        float x, y;
+        if (sscanf(line.c_str(), "      TextureTiling: [%f, %f]", &x, &y) == 2)
+          currentEntity->Material.Tiling = {x, y};
       } else if (line.find("Collidable:") != std::string::npos) {
         std::string val = line.substr(line.find(":") + 2);
         currentEntity->Collidable = (val.find("true") != std::string::npos);

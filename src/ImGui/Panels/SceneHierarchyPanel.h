@@ -6,26 +6,28 @@
 
 namespace S67 {
 
-    class SceneHierarchyPanel {
-    public:
-        SceneHierarchyPanel() = default;
-        SceneHierarchyPanel(const Scope<Scene>& context);
+class SceneHierarchyPanel {
+public:
+  SceneHierarchyPanel() = default;
+  SceneHierarchyPanel(const Scope<Scene> &context);
 
-        void SetContext(const Scope<Scene>& context);
+  void SetContext(const Scope<Scene> &context);
 
-        void OnImGuiRender();
+  void OnImGuiRender();
 
-        Ref<Entity> GetSelectedEntity() const { return m_SelectionContext; }
-        void SetSelectedEntity(Ref<Entity> entity) { m_SelectionContext = entity; }
+  Ref<Entity> GetSelectedEntity() const { return m_SelectionContext; }
+  void SetSelectedEntity(Ref<Entity> entity) { m_SelectionContext = entity; }
 
-    private:
-        void DrawEntityNode(Ref<Entity> entity);
-        void DrawProperties(Ref<Entity> entity);
+private:
+  void DrawEntityNode(Ref<Entity> entity);
+  void DrawProperties(Ref<Entity> entity);
 
-    private:
-        const Scope<Scene>* m_Context = nullptr;
-        Ref<Entity> m_SelectionContext;
-        bool m_SelectionIsMaterial = false;
-    };
+private:
+  const Scope<Scene> *m_Context = nullptr;
+  Ref<Entity> m_SelectionContext;
+  bool m_SelectionIsMaterial = false;
+  Ref<Entity> m_EntityToDelete; // Defer deletion
+  Ref<Entity> m_RenamingEntity; // Rename state
+};
 
-}
+} // namespace S67
