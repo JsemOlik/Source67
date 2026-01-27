@@ -150,6 +150,10 @@ private:
   SceneState m_SceneState = SceneState::Edit;
   bool m_CursorLocked = false;
 
+  // Save notification
+  bool m_ShowSaveNotification = false;
+  float m_SaveNotificationTime = 0.0f;
+
   static Application *s_Instance;
 };
 

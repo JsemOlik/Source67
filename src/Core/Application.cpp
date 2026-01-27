@@ -683,6 +683,8 @@ void Application::OnEvent(Event &e) {
       if (m_SceneState == SceneState::Edit) {
         if (ek.GetKeyCode() == GLFW_KEY_S && (control || super)) {
           OnSaveScene();
+          m_ShowSaveNotification = true;
+          m_SaveNotificationTime = (float)glfwGetTime();
         }
 
         // Undo/Redo
@@ -1145,6 +1147,52 @@ void Application::Run() {
                                (sceneSize.y - textSize.y) * 0.5f});
           ImGui::Text("%s", text.c_str());
         }
+
+        // Save notification popup (bottom-left corner)
+        if (m_ShowSaveNotification) {
+          float currentTime = (float)glfwGetTime();
+          float elapsed = currentTime - m_SaveNotificationTime;
+
+          if (elapsed < 3.0f) {
+            // Position in bottom-left corner
+            ImVec2 windowPos = ImGui::GetWindowPos();
+            ImVec2 windowSize = ImGui::GetWindowSize();
+            ImVec2 notificationSize = {200.0f, 50.0f};
+            ImVec2 padding = {10.0f, 10.0f};
+
+            ImGui::SetNextWindowPos(
+                {windowPos.x + padding.x,
+                 windowPos.y + windowSize.y - notificationSize.y - padding.y});
+            ImGui::SetNextWindowSize(notificationSize);
+
+            // Fade out in the last 0.5 seconds
+            float alpha = (elapsed > 2.5f) ? (3.0f - elapsed) / 0.5f : 1.0f;
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
+            ImGui::PushStyleColor(ImGuiCol_WindowBg,
+                                  ImVec4(0.2f, 0.6f, 0.2f, 0.9f));
+
+            ImGui::Begin(
+                "##SaveNotification", nullptr,
+                ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
+                    ImGuiWindowFlags_NoInputs);
+
+            // Center text
+            const char *notifText = "Scene Saved!";
+            ImVec2 notifTextSize = ImGui::CalcTextSize(notifText);
+            ImGui::SetCursorPos(
+                {(notificationSize.x - notifTextSize.x) * 0.5f,
+                 (notificationSize.y - notifTextSize.y) * 0.5f});
+            ImGui::Text("%s", notifText);
+
+            ImGui::End();
+            ImGui::PopStyleColor();
+            ImGui::PopStyleVar();
+          } else {
+            m_ShowSaveNotification = false;
+          }
+        }
+
         ImGui::End();
       }
 
