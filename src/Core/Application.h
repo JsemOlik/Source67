@@ -1,141 +1,151 @@
 #include "Base.h"
-#include "Window.h"
+#include "Core/UndoSystem.h"
 #include "Events/WindowEvent.h"
-#include "Renderer/Shader.h"
-#include "Renderer/VertexArray.h"
-#include "Renderer/Texture.h"
-#include "Renderer/Camera.h"
-#include "Renderer/Scene.h"
-#include "Renderer/Light.h"
-#include "Renderer/CameraController.h"
-#include "Physics/PhysicsSystem.h"
-#include "Renderer/Framebuffer.h"
 #include "ImGui/ImGuiLayer.h"
 #include "ImGui/Panels/SceneHierarchyPanel.h"
-#include "Core/UndoSystem.h"
+#include "Physics/PhysicsSystem.h"
 #include "Physics/PlayerController.h"
+#include "Renderer/Camera.h"
+#include "Renderer/CameraController.h"
+#include "Renderer/Framebuffer.h"
+#include "Renderer/Light.h"
+#include "Renderer/Scene.h"
+#include "Renderer/Shader.h"
 #include "Renderer/Skybox.h"
+#include "Renderer/Texture.h"
+#include "Renderer/VertexArray.h"
+#include "Window.h"
 #include <filesystem>
+#include <glad/glad.h>
 
 namespace S67 {
 
-    class ContentBrowserPanel;
+class ContentBrowserPanel;
 
-    enum class SceneState {
-        Edit = 0, Play = 1, Pause = 2
-    };
+enum class SceneState { Edit = 0, Play = 1, Pause = 2 };
 
-    enum class EditorTheme {
-        Unity = 0, Dracula = 1, Classic = 2, Light = 3
-    };
+enum class EditorTheme { Unity = 0, Dracula = 1, Classic = 2, Light = 3 };
 
-    class Application {
-    public:
-        Application(const std::string& executablePath);
-        virtual ~Application();
+class Application {
+public:
+  Application(const std::string &executablePath);
+  virtual ~Application();
 
-        void Run();
+  void Run();
 
-        void OnEvent(Event& e);
+  void OnEvent(Event &e);
 
-        void SaveSettings();
-        void LoadSettings();
+  void SaveSettings();
+  void LoadSettings();
 
-        void OnScenePlay();
-        void OnScenePause();
-        void OnSceneStop();
+  void SaveLayout();
+  void LoadLayout();
+  void ResetLayout();
 
-        void OnSaveScene(); // Quick Save (Shortcuts)
-        void OnSaveSceneAs(); // Dialog version
-        void OnOpenScene(); // Dialog version
-        void OpenScene(const std::string& filepath); // Direct version
-        void OnNewScene();
-        void CloseScene();
-        void CloseProject();
+  void OnScenePlay();
+  void OnScenePause();
+  void OnSceneStop();
 
-        void OnEntityCollidableChanged(Ref<Entity> entity);
+  void OnSaveScene();                          // Quick Save (Shortcuts)
+  void OnSaveSceneAs();                        // Dialog version
+  void OnOpenScene();                          // Dialog version
+  void OpenScene(const std::string &filepath); // Direct version
+  void OnNewScene();
+  void CloseScene();
+  void CloseProject();
 
-        void OnNewProject();
-        void OnOpenProject();
-        void DiscoverProject(const std::filesystem::path& levelPath);
-        void SaveManifest();
+  void OnEntityCollidableChanged(Ref<Entity> entity);
 
-        void CreateTestScene();
-        void ResetScene();
+  void OnNewProject();
+  void OnOpenProject();
+  void DiscoverProject(const std::filesystem::path &levelPath);
+  void SaveManifest();
 
-        inline Window& GetWindow() { return *m_Window; }
-        ImGuiLayer& GetImGuiLayer() { return *m_ImGuiLayer; }
-        inline static Application& Get() { return *s_Instance; }
+  void CreateTestScene();
+  void ResetScene();
 
-        const std::filesystem::path& GetProjectRoot() const { return m_ProjectRoot; }
-        void SetProjectRoot(const std::filesystem::path& root);
+  inline Window &GetWindow() { return *m_Window; }
+  ImGuiLayer &GetImGuiLayer() { return *m_ImGuiLayer; }
+  inline static Application &Get() { return *s_Instance; }
 
-        UndoSystem& GetUndoSystem() { return m_UndoSystem; }
+  const std::filesystem::path &GetProjectRoot() const { return m_ProjectRoot; }
+  void SetProjectRoot(const std::filesystem::path &root);
 
-    private:
-        bool OnWindowClose(WindowCloseEvent& e);
-        bool OnWindowResize(WindowResizeEvent& e);
-        bool OnWindowDrop(WindowDropEvent& e);
+  UndoSystem &GetUndoSystem() { return m_UndoSystem; }
 
-        void UI_SettingsWindow();
-        void UI_ProjectSettingsWindow();
+private:
+  bool OnWindowClose(WindowCloseEvent &e);
+  bool OnWindowResize(WindowResizeEvent &e);
+  bool OnWindowDrop(WindowDropEvent &e);
 
-        std::unique_ptr<Window> m_Window;
-        bool m_Running = true;
+  void UI_SettingsWindow();
+  void UI_ProjectSettingsWindow();
 
-        Ref<PerspectiveCamera> m_Camera; // Game Camera
-        Ref<PerspectiveCamera> m_EditorCamera;
-        Ref<CameraController> m_CameraController; // Game Camera Controller
-        Ref<CameraController> m_EditorCameraController;
-        Scope<Scene> m_Scene;
-        DirectionalLight m_Sun;
+  std::unique_ptr<Window> m_Window;
+  bool m_Running = true;
 
-        float m_LastFrameTime = 0.0f;
-        
-        Scope<PlayerController> m_PlayerController;
+  Ref<PerspectiveCamera> m_Camera; // Game Camera
+  Ref<PerspectiveCamera> m_EditorCamera;
+  Ref<CameraController> m_CameraController; // Game Camera Controller
+  Ref<CameraController> m_EditorCameraController;
+  Scope<Scene> m_Scene;
+  DirectionalLight m_Sun;
 
-        Scope<ImGuiLayer> m_ImGuiLayer;
-        Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
-        Scope<ContentBrowserPanel> m_ContentBrowserPanel;
-        Scope<Skybox> m_Skybox;
+  float m_LastFrameTime = 0.0f;
 
-        std::filesystem::path m_ProjectRoot;
-        std::filesystem::path m_ProjectFilePath;
-        std::string m_ProjectName = "Standalone";
-        std::string m_ProjectVersion = "N/A";
-        bool m_LevelLoaded = false;
-        std::string m_LevelFilePath = "";
+  Scope<PlayerController> m_PlayerController;
 
-        int m_GizmoType = 7; // ImGuizmo::TRANSLATE
-        UndoSystem m_UndoSystem;
-        Transform m_InitialGizmoTransform;
-        bool m_IsDraggingGizmo = false;
+  Scope<ImGuiLayer> m_ImGuiLayer;
+  Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
+  Scope<ContentBrowserPanel> m_ContentBrowserPanel;
+  Scope<Skybox> m_Skybox;
 
-        Ref<Framebuffer> m_SceneFramebuffer;
-        Ref<Framebuffer> m_GameFramebuffer;
-        Ref<Shader> m_OutlineShader;
+  std::filesystem::path m_ProjectRoot;
+  std::filesystem::path m_ProjectFilePath;
+  std::string m_ProjectName = "Standalone";
+  std::string m_ProjectVersion = "N/A";
+  bool m_LevelLoaded = false;
+  std::string m_LevelFilePath = "";
 
-        glm::vec2 m_SceneViewportSize = { 0, 0 };
-        glm::vec2 m_GameViewportSize = { 0, 0 };
+  int m_GizmoType = 7; // ImGuizmo::TRANSLATE
+  UndoSystem m_UndoSystem;
+  Transform m_InitialGizmoTransform;
+  bool m_IsDraggingGizmo = false;
 
-        glm::vec2 m_SceneViewportPos = { 0, 0 };
+  Ref<Framebuffer> m_SceneFramebuffer;
+  Ref<Framebuffer> m_GameFramebuffer;
+  Ref<Shader> m_OutlineShader;
 
-        bool m_SceneViewportFocused = false, m_SceneViewportHovered = false;
-        bool m_GameViewportFocused = false, m_GameViewportHovered = false;
+  glm::vec2 m_SceneViewportSize = {0, 0};
+  glm::vec2 m_GameViewportSize = {0, 0};
 
-        bool m_ShowSettingsWindow = false;
-        bool m_ShowProjectSettingsWindow = false;
-        float m_FontSize = 18.0f;
-        std::string m_FontPath = "assets/fonts/Roboto-Medium.ttf";
-        glm::vec4 m_CustomColor = { 0.1f, 0.105f, 0.11f, 1.0f };
-        EditorTheme m_EditorTheme = EditorTheme::Dracula;
+  glm::vec2 m_SceneViewportPos = {0, 0};
 
-        Ref<Shader> m_DefaultShader;
-        Ref<Texture2D> m_DefaultTexture;
+  bool m_SceneViewportFocused = false, m_SceneViewportHovered = false;
+  bool m_GameViewportFocused = false, m_GameViewportHovered = false;
 
-        SceneState m_SceneState = SceneState::Edit;
+  bool m_ShowSettingsWindow = false;
+  bool m_ShowProjectSettingsWindow = false;
+  float m_FontSize = 18.0f;
+  std::string m_FontPath = "assets/fonts/Roboto-Medium.ttf";
+  glm::vec4 m_CustomColor = {0.1f, 0.105f, 0.11f, 1.0f};
+  EditorTheme m_EditorTheme = EditorTheme::Dracula;
 
-        static Application* s_Instance;
-    };
+  bool m_ShowInspector = true;
+  bool m_ShowHierarchy = true;
+  bool m_ShowContentBrowser = true;
+  bool m_ShowScene = true;
+  bool m_ShowGame = true;
+  bool m_ShowToolbar = true;
+  bool m_ShowStats = true;
+  bool m_ResetLayoutOnNextFrame = false;
 
-}
+  Ref<Shader> m_DefaultShader;
+  Ref<Texture2D> m_DefaultTexture;
+
+  SceneState m_SceneState = SceneState::Edit;
+
+  static Application *s_Instance;
+};
+
+} // namespace S67
