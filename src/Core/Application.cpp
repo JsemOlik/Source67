@@ -110,7 +110,8 @@ Application::Application(const std::string &executablePath) {
 
   m_SceneHierarchyPanel = CreateScope<SceneHierarchyPanel>(m_Scene);
   m_ContentBrowserPanel = CreateScope<ContentBrowserPanel>();
-  m_Skybox = CreateScope<Skybox>("assets/textures/skybox.png");
+  m_Skybox = CreateScope<Skybox>(
+      ResolveAssetPath("assets/textures/skybox.png").string());
   LoadSettings();
 
   if (!std::filesystem::exists("imgui.ini")) {
@@ -122,7 +123,8 @@ Application::Application(const std::string &executablePath) {
   fbSpec.Height = 720;
   m_SceneFramebuffer = Framebuffer::Create(fbSpec);
   m_GameFramebuffer = Framebuffer::Create(fbSpec);
-  m_OutlineShader = Shader::Create("assets/shaders/FlatColor.glsl");
+  m_OutlineShader = Shader::Create(
+      ResolveAssetPath("assets/shaders/FlatColor.glsl").string());
 
   S67_CORE_INFO("Application initialized successfully");
 }
@@ -171,8 +173,10 @@ void Application::CreateTestScene() {
   vertexArray->SetIndexBuffer(
       IndexBuffer::Create(indices, sizeof(indices) / sizeof(uint32_t)));
 
-  auto shader = Shader::Create("assets/shaders/Lighting.glsl");
-  auto texture = Texture2D::Create("assets/textures/Checkerboard.png");
+  auto shader =
+      Shader::Create(ResolveAssetPath("assets/shaders/Lighting.glsl").string());
+  auto texture = Texture2D::Create(
+      ResolveAssetPath("assets/textures/Checkerboard.png").string());
   m_DefaultShader = shader;
   m_DefaultTexture = texture;
 
@@ -228,11 +232,17 @@ void Application::OnScenePlay() {
   }
 
   m_SceneState = SceneState::Play;
+
+  // Prevent ImGui from managing cursor (so it doesn't override our lock)
+  ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+
+  // Block ImGui from capturing events during play
+  m_ImGuiLayer->SetBlockEvents(true);
+
+  // Lock cursor for first-person control
   m_Window->SetCursorLocked(true);
   m_CursorLocked = true;
 
-  ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
-  m_ImGuiLayer->SetBlockEvents(false);
   m_PlayerController->Reset({0.0f, 2.0f, 8.0f});
 }
 
@@ -241,19 +251,24 @@ void Application::OnScenePause() {
     return;
 
   m_SceneState = SceneState::Pause;
-  m_Window->SetCursorLocked(true);
-  m_CursorLocked = true;
-  ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
-  m_ImGuiLayer->SetBlockEvents(true);
+
+  // Re-enable ImGui cursor management
+  ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
+
+  m_Window->SetCursorLocked(false);
+  m_CursorLocked = false;
+  m_ImGuiLayer->SetBlockEvents(false);
 }
 
 void Application::OnSceneStop() {
   m_SceneState = SceneState::Edit;
+
+  // Re-enable ImGui cursor management
+  ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
+
   m_Window->SetCursorLocked(false);
   m_CursorLocked = false;
-
-  ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
-  m_ImGuiLayer->SetBlockEvents(true);
+  m_ImGuiLayer->SetBlockEvents(false);
 
   // Restore
   auto &bodyInterface = PhysicsSystem::GetBodyInterface();
@@ -284,26 +299,65 @@ void Application::SetProjectRoot(const std::filesystem::path &root) {
     m_ContentBrowserPanel->SetRoot(root);
 }
 
+std::filesystem::path
+Application::ResolveAssetPath(const std::filesystem::path &path) {
+  if (!m_ProjectRoot.empty()) {
+    std::filesystem::path projectRelativePath = m_ProjectRoot / path;
+    if (std::filesystem::exists(projectRelativePath))
+      return projectRelativePath;
+  }
+  return path;
+}
+
 void Application::OnNewProject() {
   std::string path = FileDialogs::SaveFile(
       "Source67 Manifest (manifest.json)\0manifest.json\0", "manifest", "json");
   if (!path.empty()) {
     std::filesystem::path manifestPath(path);
-    std::filesystem::create_directories(manifestPath.parent_path());
-
-    m_ProjectName = manifestPath.parent_path().stem().string();
+    // Create Project Directories
+    std::filesystem::path projectRoot = manifestPath.parent_path();
+    m_ProjectName = projectRoot.stem().string();
     m_ProjectVersion = "1.0.0";
 
-    // Save Manifest File
-    std::ofstream fout(path);
-    fout << "ProjectName: " << m_ProjectName << "\n";
-    fout << "Version: " << m_ProjectVersion << "\n";
-    fout.close();
+    std::filesystem::path projectAssets = projectRoot / "assets";
+    std::filesystem::create_directories(projectAssets / "shaders");
+    std::filesystem::create_directories(projectAssets / "textures");
 
-    SetProjectRoot(manifestPath.parent_path());
+    // Copy Default Assets (Shaders)
+    try {
+      if (std::filesystem::exists("assets/shaders")) {
+        for (const auto &entry :
+             std::filesystem::directory_iterator("assets/shaders")) {
+          if (entry.path().extension() == ".glsl") {
+            std::filesystem::copy_file(
+                entry.path(),
+                projectAssets / "shaders" / entry.path().filename(),
+                std::filesystem::copy_options::overwrite_existing);
+          }
+        }
+      }
+
+      // Copy Default Assets (Textures)
+      if (std::filesystem::exists("assets/textures")) {
+        for (const auto &entry :
+             std::filesystem::directory_iterator("assets/textures")) {
+          if (entry.path().extension() == ".png") {
+            std::filesystem::copy_file(
+                entry.path(),
+                projectAssets / "textures" / entry.path().filename(),
+                std::filesystem::copy_options::overwrite_existing);
+          }
+        }
+      }
+    } catch (const std::exception &e) {
+      S67_CORE_ERROR("Failed to copy default assets: {0}", e.what());
+    }
+
+    SetProjectRoot(projectRoot);
     m_ProjectFilePath = manifestPath;
     SaveManifest();
-    S67_CORE_INFO("Created new project manifest: {0}", path);
+    S67_CORE_INFO("Created new project manifest and isolated assets at: {0}",
+                  projectRoot.string());
   }
 }
 

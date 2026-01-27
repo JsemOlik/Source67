@@ -8,7 +8,6 @@
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <utility>
 
-
 namespace S67 {
 
 class PlayerBodyFilter : public JPH::BodyFilter {
@@ -47,6 +46,7 @@ PlayerController::PlayerController(Ref<PerspectiveCamera> camera)
 PlayerController::~PlayerController() {}
 
 void PlayerController::Reset(const glm::vec3 &startPos) {
+  ReinitializeCharacter(); // Ensure character is valid after physics reset
   m_Position = startPos;
   SetPosition(startPos);
   m_Character->SetLinearVelocity(JPH::Vec3::sZero());
@@ -55,6 +55,24 @@ void PlayerController::Reset(const glm::vec3 &startPos) {
   m_Camera->SetYaw(m_Yaw);
   m_Camera->SetPitch(m_Pitch);
   m_FirstMouse = true;
+}
+
+void PlayerController::ReinitializeCharacter() {
+  JPH::CharacterVirtualSettings settings;
+  settings.mMass = 70.0f;
+  settings.mMaxStrength = 100.0f;
+  settings.mShape = JPH::RotatedTranslatedShapeSettings(
+                        JPH::Vec3(0, 0.9f, 0), JPH::Quat::sIdentity(),
+                        new JPH::CapsuleShape(0.9f, 0.3f))
+                        .Create()
+                        .Get();
+  settings.mCharacterPadding = 0.02f;
+  settings.mPenetrationRecoverySpeed = 1.0f;
+  settings.mPredictiveContactDistance = 0.1f;
+
+  m_Character = new JPH::CharacterVirtual(
+      &settings, JPH::RVec3(m_Position.x, m_Position.y, m_Position.z),
+      JPH::Quat::sIdentity(), &PhysicsSystem::GetPhysicsSystem());
 }
 
 void PlayerController::OnEvent(Event &e) {

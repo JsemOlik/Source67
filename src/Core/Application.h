@@ -82,6 +82,8 @@ private:
   void UI_SettingsWindow();
   void UI_ProjectSettingsWindow();
 
+  std::filesystem::path ResolveAssetPath(const std::filesystem::path &path);
+
   std::unique_ptr<Window> m_Window;
   bool m_Running = true;
 
