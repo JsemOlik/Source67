@@ -64,6 +64,7 @@ void SceneSerializer::Serialize(const std::string &filepath) {
       ss << "    TextureTiling: [" << entity->Material.Tiling.x << ", "
          << entity->Material.Tiling.y << "]\n";
     ss << "    Collidable: " << (entity->Collidable ? "true" : "false") << "\n";
+    ss << "    CameraFOV: " << entity->CameraFOV << "\n";
   }
 
   std::ofstream fout(filepath);

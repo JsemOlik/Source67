@@ -310,7 +310,26 @@ Ref<VertexArray> MeshLoader::CreateCapsule(float radius, float height) {
   };
 
   makeIndices(0, rings);         // Top
-  makeIndices(rings + 1, rings); // Bottom (Offset by one ring count?)
+  makeIndices(rings + 1, rings); // Bottom
+
+  // Cylinder Body Connection
+  int topRingIndex = rings;
+  int bottomRingIndex = rings + 1;
+  for (int j = 0; j < segments; ++j) {
+    int next = (j + 1) % (segments + 1);
+    int current = topRingIndex * (segments + 1) + j;
+    int below = bottomRingIndex * (segments + 1) + j;
+    int currentNext = topRingIndex * (segments + 1) + next;
+    int belowNext = bottomRingIndex * (segments + 1) + next;
+
+    indices.push_back(current);
+    indices.push_back(below);
+    indices.push_back(belowNext);
+
+    indices.push_back(current);
+    indices.push_back(belowNext);
+    indices.push_back(currentNext);
+  }
   // Note: vertices buffer size check needed.
   // Also cylinder body is missing.
   // For Player debug visual, two spheres separated is "Capsule-ish" enough for

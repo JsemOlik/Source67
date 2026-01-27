@@ -34,18 +34,8 @@ void Scene::EnsurePlayerExists() {
     player->MeshPath = "ProceduralCapsule";
   }
 
-  // Enforce Texture (Debug.png)
-  // Check if texture is not set or not Debug.png
-  bool needsTexture = true;
-  if (player->Material.AlbedoMap) {
-    std::string path = player->Material.AlbedoMap->GetPath();
-    // Simple check for filename
-    if (path.find("Debug.png") != std::string::npos)
-      needsTexture = false;
-  }
-
-  if (needsTexture) {
-    // We assume assets/textures/Debug.png exists as per user request
+  // Enforce Texture (Debug.png) only if missing
+  if (!player->Material.AlbedoMap) {
     player->Material.AlbedoMap = Texture2D::Create("assets/textures/Debug.png");
   }
 
@@ -59,7 +49,7 @@ void Scene::EnsurePlayerExists() {
     // We'll rely on "assets/shaders/FlatColor.glsl".
     // Ideally we shouldn't hardcode, but for "Player" default it's safer.
     // Or better: Re-use shader if we can get it? No easy way.
-    player->MaterialShader = Shader::Create("assets/shaders/FlatColor.glsl");
+    player->MaterialShader = Shader::Create("assets/shaders/Texture.glsl");
   }
 
   // Ensure Physics Body is Invalid (or set to Character?)
