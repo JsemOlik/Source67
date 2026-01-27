@@ -29,6 +29,7 @@
 #include <glm/gtx/transform.hpp>
 
 #include <chrono>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <nlohmann/json.hpp>
@@ -70,7 +71,10 @@ Application::Application(const std::string &executablePath) {
     S67_CORE_ERROR(
         "Could not find 'assets' directory relative to executable path: {0}!",
         executablePath);
+    m_EngineAssetsRoot =
+        std::filesystem::absolute(executablePath).parent_path();
   } else {
+    m_EngineAssetsRoot = currentPath;
     S67_CORE_INFO("Set working directory to project root: {0}",
                   currentPath.string());
   }
@@ -78,7 +82,7 @@ Application::Application(const std::string &executablePath) {
   S67_CORE_INFO("Initializing Window...");
   m_Window = std::unique_ptr<Window>(Window::Create());
   m_Window->SetEventCallback(BIND_EVENT_FN(Application::OnEvent));
-  m_Window->SetIcon("assets/textures/level_icon.png");
+  m_Window->SetIcon(ResolveAssetPath("assets/engine/level_icon.png").string());
 
   S67_CORE_INFO("Initializing Renderer...");
   Renderer::Init();
@@ -99,9 +103,6 @@ Application::Application(const std::string &executablePath) {
   m_Sun.Direction = {-0.5f, -1.0f, -0.2f};
   m_Sun.Color = {1.0f, 0.95f, 0.8f}; // Warm sun color
   m_Sun.Intensity = 1.0f;
-
-  CreateTestScene();
-  m_Scene->EnsurePlayerExists();
 
   m_CameraController = CreateRef<CameraController>(m_Camera);
   m_EditorCameraController = CreateRef<CameraController>(m_EditorCamera);
@@ -130,16 +131,18 @@ Application::Application(const std::string &executablePath) {
   m_OutlineShader = Shader::Create(
       ResolveAssetPath("assets/shaders/FlatColor.glsl").string());
 
-  std::filesystem::path logoPath = "assets/engine/engine_logo.png";
+  std::filesystem::path logoPath =
+      ResolveAssetPath("assets/engine/engine_logo.png");
   if (std::filesystem::exists(logoPath)) {
     m_LauncherLogo = Texture2D::Create(logoPath.string());
   }
 
+  InitDefaultAssets();
+
   S67_CORE_INFO("Application initialized successfully");
 }
 
-void Application::CreateTestScene() {
-  S67_CORE_INFO("Setting up test scene...");
+void Application::InitDefaultAssets() {
   auto vertexArray = VertexArray::Create();
 
   float vertices[] = {
@@ -182,19 +185,20 @@ void Application::CreateTestScene() {
   vertexArray->SetIndexBuffer(
       IndexBuffer::Create(indices, sizeof(indices) / sizeof(uint32_t)));
 
-  auto shader =
+  m_DefaultShader =
       Shader::Create(ResolveAssetPath("assets/shaders/Lighting.glsl").string());
-  auto texture = Texture2D::Create(
+  m_DefaultTexture = Texture2D::Create(
       ResolveAssetPath("assets/textures/Checkerboard.png").string());
-  m_DefaultShader = shader;
-  m_DefaultTexture = texture;
   m_CubeMesh = vertexArray;
+}
 
+void Application::CreateTestScene() {
+  S67_CORE_INFO("Setting up test scene...");
   auto &bodyInterface = PhysicsSystem::GetBodyInterface();
 
   // 1. Static Floor
-  auto floorVA = vertexArray; // Reusing cube for floor
-  auto floor = CreateRef<Entity>("Static Floor", floorVA, shader, texture);
+  auto floor = CreateRef<Entity>("Static Floor", m_CubeMesh, m_DefaultShader,
+                                 m_DefaultTexture);
   floor->Transform.Position = {0.0f, -2.0f, 0.0f};
   floor->Transform.Scale = {20.0f, 1.0f, 20.0f};
 
@@ -209,7 +213,8 @@ void Application::CreateTestScene() {
   // 2. Dynamic Cubes
   for (int i = 0; i < 5; i++) {
     std::string name = "Cube " + std::to_string(i);
-    auto cube = CreateRef<Entity>(name, vertexArray, shader, texture);
+    auto cube =
+        CreateRef<Entity>(name, m_CubeMesh, m_DefaultShader, m_DefaultTexture);
     cube->Transform.Position = {(float)i * 2.0f - 4.0f, 10.0f + (float)i * 2.0f,
                                 0.0f};
 
@@ -272,6 +277,8 @@ void Application::OnScenePlay() {
     m_Camera->SetProjection(fov, aspect, 0.1f, 100.0f);
   }
 
+  m_Window->SetCursorLocked(true);
+  m_CursorLocked = true;
   m_SceneState = SceneState::Play;
 }
 
@@ -328,11 +335,23 @@ void Application::SetProjectRoot(const std::filesystem::path &root) {
 
 std::filesystem::path
 Application::ResolveAssetPath(const std::filesystem::path &path) {
+  if (path.is_absolute())
+    return path;
+
+  // 1. Try project root
   if (!m_ProjectRoot.empty()) {
-    std::filesystem::path projectRelativePath = m_ProjectRoot / path;
-    if (std::filesystem::exists(projectRelativePath))
-      return projectRelativePath;
+    std::filesystem::path projectPath = m_ProjectRoot / path;
+    if (std::filesystem::exists(projectPath))
+      return projectPath;
   }
+
+  // 2. Try engine assets root
+  if (!m_EngineAssetsRoot.empty()) {
+    std::filesystem::path enginePath = m_EngineAssetsRoot / path;
+    if (std::filesystem::exists(enginePath))
+      return enginePath;
+  }
+
   return path;
 }
 
@@ -352,9 +371,11 @@ void Application::OnNewProject() {
 
     // Copy Default Assets (Shaders)
     try {
-      if (std::filesystem::exists("assets/shaders")) {
+      std::filesystem::path engineShaders =
+          m_EngineAssetsRoot / "assets/shaders";
+      if (std::filesystem::exists(engineShaders)) {
         for (const auto &entry :
-             std::filesystem::directory_iterator("assets/shaders")) {
+             std::filesystem::directory_iterator(engineShaders)) {
           if (entry.path().extension() == ".glsl") {
             std::filesystem::copy_file(
                 entry.path(),
@@ -365,9 +386,11 @@ void Application::OnNewProject() {
       }
 
       // Copy Default Assets (Textures)
-      if (std::filesystem::exists("assets/textures")) {
+      std::filesystem::path engineTextures =
+          m_EngineAssetsRoot / "assets/textures";
+      if (std::filesystem::exists(engineTextures)) {
         for (const auto &entry :
-             std::filesystem::directory_iterator("assets/textures")) {
+             std::filesystem::directory_iterator(engineTextures)) {
           if (entry.path().extension() == ".png") {
             std::filesystem::copy_file(
                 entry.path(),
@@ -584,6 +607,7 @@ void Application::OpenScene(const std::string &filepath) {
   PhysicsSystem::Init();
   m_PlayerController = CreateScope<PlayerController>(m_Camera);
 
+  DiscoverProject(std::filesystem::path(filepath));
   SceneSerializer serializer(m_Scene.get(), m_ProjectRoot.string());
   if (serializer.Deserialize(filepath)) {
     m_LevelLoaded = true;
@@ -591,7 +615,6 @@ void Application::OpenScene(const std::string &filepath) {
     m_Window->SetCursorLocked(false);
     m_CursorLocked = false;
     ImGui::SetWindowFocus("Scene");
-    DiscoverProject(std::filesystem::path(filepath));
     auto &bodyInterface = PhysicsSystem::GetBodyInterface();
 
     for (auto &entity : m_Scene->GetEntities()) {
@@ -1119,30 +1142,81 @@ void Application::Run() {
         ImGui::EndMainMenuBar();
       }
 
-      if (!m_ProjectRoot.empty()) {
-        if (m_ShowHierarchy)
+      // Hierarchy
+      if (m_ShowHierarchy) {
+        if (!m_ProjectRoot.empty() && m_LevelLoaded) {
           m_SceneHierarchyPanel->OnImGuiRender();
-        if (m_ShowContentBrowser)
-          m_ContentBrowserPanel->OnImGuiRender();
 
-        // Inspector is handled inside SceneHierarchyPanel usually,
-        // but if it's separate, we'd wrap it here.
-        // Looking at line 815, it seems it's just a placeholder for now if no
-        // project.
-      } else {
-        // Blank placeholders
-        if (m_ShowInspector) {
-          ImGui::Begin("Inspector");
-          ImGui::End();
-        }
-        if (m_ShowHierarchy) {
+          if (m_SceneHierarchyPanel->GetPendingCreateType() !=
+              SceneHierarchyPanel::CreatePrimitiveType::None) {
+            auto type = m_SceneHierarchyPanel->GetPendingCreateType();
+            m_SceneHierarchyPanel->ClearPendingCreateType();
+
+            Ref<VertexArray> mesh = nullptr;
+            std::string name = "Object";
+            std::string meshPath = "Cube";
+
+            if (type == SceneHierarchyPanel::CreatePrimitiveType::Cube) {
+              mesh = m_CubeMesh;
+              name = "Cube";
+              meshPath = "Cube";
+            } else if (type ==
+                       SceneHierarchyPanel::CreatePrimitiveType::Sphere) {
+              mesh = MeshLoader::LoadOBJ(
+                  ResolveAssetPath("assets/engine/sphere.obj").string());
+              name = "Sphere";
+              meshPath = "assets/engine/sphere.obj";
+            } else if (type ==
+                       SceneHierarchyPanel::CreatePrimitiveType::Cylinder) {
+              mesh = MeshLoader::LoadOBJ(
+                  ResolveAssetPath("assets/engine/cylinder.obj").string());
+              name = "Cylinder";
+              meshPath = "assets/engine/cylinder.obj";
+            }
+
+            if (mesh) {
+              auto entity = CreateRef<Entity>(name, mesh, m_DefaultShader,
+                                              m_DefaultTexture);
+              entity->MeshPath = meshPath;
+              glm::vec3 spawnPos = m_EditorCamera->GetPosition() +
+                                   m_EditorCamera->GetForward() * 5.0f;
+              entity->Transform.Position = spawnPos;
+
+              auto &bodyInterface = PhysicsSystem::GetBodyInterface();
+              JPH::BodyCreationSettings settings(
+                  PhysicsShapes::CreateBox({entity->Transform.Scale.x,
+                                            entity->Transform.Scale.y,
+                                            entity->Transform.Scale.z}),
+                  JPH::RVec3(spawnPos.x, spawnPos.y, spawnPos.z),
+                  JPH::Quat::sIdentity(), JPH::EMotionType::Static,
+                  Layers::NON_MOVING);
+              entity->PhysicsBody = bodyInterface.CreateAndAddBody(
+                  settings, JPH::EActivation::DontActivate);
+
+              m_Scene->AddEntity(entity);
+              m_SceneHierarchyPanel->SetSelectedEntity(entity);
+            }
+          }
+        } else {
           ImGui::Begin("Scene Hierarchy");
           ImGui::End();
         }
-        if (m_ShowContentBrowser) {
+      }
+
+      // Content Browser
+      if (m_ShowContentBrowser) {
+        if (!m_ProjectRoot.empty())
+          m_ContentBrowserPanel->OnImGuiRender();
+        else {
           ImGui::Begin("Content Browser");
           ImGui::End();
         }
+      }
+
+      // Inspector
+      if (m_ShowInspector) {
+        ImGui::Begin("Inspector");
+        ImGui::End();
       }
 
       if (m_ShowSettingsWindow)

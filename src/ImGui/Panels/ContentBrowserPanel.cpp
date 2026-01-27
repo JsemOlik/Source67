@@ -10,17 +10,20 @@ static const std::filesystem::path s_AssetPath = "assets";
 ContentBrowserPanel::ContentBrowserPanel()
     : m_BaseDirectory(s_AssetPath), m_CurrentDirectory(s_AssetPath) {
 
-  std::filesystem::path levelIconPath = "assets/engine/level_icon.png";
+  std::filesystem::path levelIconPath =
+      Application::Get().ResolveAssetPath("assets/engine/level_icon.png");
   if (std::filesystem::exists(levelIconPath)) {
     m_LevelIcon = Texture2D::Create(levelIconPath.string());
   }
 
-  std::filesystem::path folderIconPath = "assets/engine/folder_icon.png";
+  std::filesystem::path folderIconPath =
+      Application::Get().ResolveAssetPath("assets/engine/folder_icon.png");
   if (std::filesystem::exists(folderIconPath)) {
     m_FolderIcon = Texture2D::Create(folderIconPath.string());
   }
 
-  std::filesystem::path backIconPath = "assets/engine/back_arrow_icon.png";
+  std::filesystem::path backIconPath =
+      Application::Get().ResolveAssetPath("assets/engine/back_arrow_icon.png");
   if (std::filesystem::exists(backIconPath)) {
     m_BackArrowIcon = Texture2D::Create(backIconPath.string());
   }

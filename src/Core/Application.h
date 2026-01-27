@@ -74,6 +74,15 @@ public:
 
   UndoSystem &GetUndoSystem() { return m_UndoSystem; }
 
+  Ref<Shader> GetDefaultShader() const { return m_DefaultShader; }
+  Ref<Texture2D> GetDefaultTexture() const { return m_DefaultTexture; }
+  Ref<VertexArray> GetCubeMesh() const { return m_CubeMesh; }
+
+  std::filesystem::path ResolveAssetPath(const std::filesystem::path &path);
+  const std::filesystem::path &GetEngineAssetsRoot() const {
+    return m_EngineAssetsRoot;
+  }
+
 private:
   bool OnWindowClose(WindowCloseEvent &e);
   bool OnWindowResize(WindowResizeEvent &e);
@@ -84,8 +93,7 @@ private:
   void UI_LauncherScreen();
 
   void AddToRecentProjects(const std::string &path);
-
-  std::filesystem::path ResolveAssetPath(const std::filesystem::path &path);
+  void InitDefaultAssets();
 
   std::unique_ptr<Window> m_Window;
   bool m_Running = true;
@@ -137,6 +145,7 @@ private:
   glm::vec4 m_CustomColor = {0.1f, 0.105f, 0.11f, 1.0f};
   EditorTheme m_EditorTheme = EditorTheme::Dracula;
   int m_FPSCap = 0; // 0 = Unlimited
+  std::filesystem::path m_EngineAssetsRoot;
 
   bool m_ShowInspector = true;
   bool m_ShowHierarchy = true;

@@ -1,4 +1,5 @@
 #include "Scene.h"
+#include "Core/Application.h"
 #include "Mesh.h"
 #include "Texture.h"
 #include <algorithm>
@@ -50,7 +51,10 @@ void Scene::EnsurePlayerExists() {
     // We'll rely on "assets/shaders/FlatColor.glsl".
     // Ideally we shouldn't hardcode, but for "Player" default it's safer.
     // Or better: Re-use shader if we can get it? No easy way.
-    player->MaterialShader = Shader::Create("assets/shaders/Texture.glsl");
+    player->MaterialShader =
+        Shader::Create(Application::Get()
+                           .ResolveAssetPath("assets/shaders/Texture.glsl")
+                           .string());
   }
 
   // Ensure Physics Body is Invalid (or set to Character?)

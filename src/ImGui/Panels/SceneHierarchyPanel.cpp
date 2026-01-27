@@ -24,6 +24,20 @@ void SceneHierarchyPanel::OnImGuiRender() {
     }
   }
 
+  if (ImGui::BeginPopupContextWindow(NULL, ImGuiPopupFlags_NoOpenOverItems)) {
+    if (ImGui::BeginMenu("New Object")) {
+      if (ImGui::MenuItem("Cube"))
+        m_PendingCreateType = CreatePrimitiveType::Cube;
+      if (ImGui::MenuItem("Sphere"))
+        m_PendingCreateType = CreatePrimitiveType::Sphere;
+      if (ImGui::MenuItem("Cylinder"))
+        m_PendingCreateType = CreatePrimitiveType::Cylinder;
+
+      ImGui::EndMenu();
+    }
+    ImGui::EndPopup();
+  }
+
   if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered())
     m_SelectionContext = nullptr;
 

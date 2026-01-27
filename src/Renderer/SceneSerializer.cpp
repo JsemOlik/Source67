@@ -1,36 +1,57 @@
 #include "SceneSerializer.h"
+#include "Core/Application.h"
 #include "Core/Logger.h"
 #include "Renderer/Mesh.h"
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <string>
 
 namespace S67 {
+
+static std::string Trim(const std::string &str) {
+  size_t first = str.find_first_not_of(" \t\r\n");
+  if (std::string::npos == first)
+    return "";
+  size_t last = str.find_last_not_of(" \t\r\n");
+  return str.substr(first, (last - first + 1));
+}
 
 SceneSerializer::SceneSerializer(Scene *scene, const std::string &projectRoot)
     : m_Scene(scene), m_ProjectRoot(projectRoot) {}
 
 std::string SceneSerializer::MakeRelative(const std::string &path) {
-  if (m_ProjectRoot.empty() || path == "Cube" || path.empty())
+  if (path == "Cube" || path.empty() || path == "None")
     return path;
 
   std::filesystem::path p(path);
-  if (p.is_relative()) {
-    p = std::filesystem::current_path() / p;
-  }
-  p = std::filesystem::absolute(p);
+  if (p.is_relative())
+    return p.generic_string();
 
-  std::filesystem::path root(m_ProjectRoot);
-  if (root.is_relative()) {
-    root = std::filesystem::current_path() / root;
+  // 1. Try to make relative to project root
+  if (!m_ProjectRoot.empty()) {
+    std::filesystem::path root(m_ProjectRoot);
+    if (p.string().find(root.string()) != std::string::npos) {
+      try {
+        return std::filesystem::relative(p, root).generic_string();
+      } catch (...) {
+      }
+    }
   }
-  root = std::filesystem::absolute(root);
 
-  try {
-    return std::filesystem::relative(p, root).generic_string();
-  } catch (...) {
-    return path;
+  // 2. Try to make relative to engine root
+  std::filesystem::path engineRoot = Application::Get().GetEngineAssetsRoot();
+  if (!engineRoot.empty()) {
+    if (p.string().find(engineRoot.string()) != std::string::npos) {
+      try {
+        return std::filesystem::relative(p, engineRoot).generic_string();
+      } catch (...) {
+      }
+    }
   }
+
+  return p.generic_string();
 }
 
 void SceneSerializer::Serialize(const std::string &filepath) {
@@ -56,15 +77,27 @@ void SceneSerializer::Serialize(const std::string &filepath) {
        << entity->Transform.Scale.y << ", " << entity->Transform.Scale.z
        << "]\n";
     ss << "    MeshPath: " << MakeRelative(entity->MeshPath) << "\n";
-    ss << "    ShaderPath: " << MakeRelative(entity->MaterialShader->GetPath())
-       << "\n";
-    ss << "    TexturePath: "
-       << MakeRelative(entity->Material.AlbedoMap->GetPath()) << "\n";
+
+    if (entity->MaterialShader)
+      ss << "    ShaderPath: "
+         << MakeRelative(entity->MaterialShader->GetPath()) << "\n";
+    else
+      ss << "    ShaderPath: None\n";
+
+    if (entity->Material.AlbedoMap)
+      ss << "    TexturePath: "
+         << MakeRelative(entity->Material.AlbedoMap->GetPath()) << "\n";
+    else
+      ss << "    TexturePath: None\n";
+
     if (entity->Material.AlbedoMap)
       ss << "    TextureTiling: [" << entity->Material.Tiling.x << ", "
          << entity->Material.Tiling.y << "]\n";
+
     ss << "    Collidable: " << (entity->Collidable ? "true" : "false") << "\n";
-    ss << "    CameraFOV: " << entity->CameraFOV << "\n";
+
+    if (entity->Name == "Player")
+      ss << "    CameraFOV: " << entity->CameraFOV << "\n";
   }
 
   std::ofstream fout(filepath);
@@ -91,7 +124,7 @@ bool SceneSerializer::Deserialize(const std::string &filepath) {
 
   while (std::getline(fin, line)) {
     if (line.find("- Entity:") != std::string::npos) {
-      std::string name = line.substr(line.find(":") + 2);
+      std::string name = Trim(line.substr(line.find(":") + 2));
       currentEntity = CreateRef<Entity>();
       currentEntity->Name = name;
       m_Scene->AddEntity(currentEntity);
@@ -109,64 +142,61 @@ bool SceneSerializer::Deserialize(const std::string &filepath) {
         sscanf(line.c_str(), "      Scale: [%f, %f, %f]", &x, &y, &z);
         currentEntity->Transform.Scale = {x, y, z};
       } else if (line.find("MeshPath:") != std::string::npos) {
-        std::string path = line.substr(line.find(":") + 2);
-        if (path != "Cube") {
-          if (!m_ProjectRoot.empty() &&
-              std::filesystem::path(path).is_relative())
-            currentEntity->MeshPath =
-                (std::filesystem::path(m_ProjectRoot) / path)
-                    .make_preferred()
-                    .string();
-          else
-            currentEntity->MeshPath =
-                std::filesystem::path(path).make_preferred().string();
-
-          // Actually load the mesh!
-          if (std::filesystem::path(currentEntity->MeshPath).extension() ==
-              ".obj")
-            currentEntity->Mesh = MeshLoader::LoadOBJ(currentEntity->MeshPath);
-          else if (std::filesystem::path(currentEntity->MeshPath).extension() ==
-                   ".stl")
-            currentEntity->Mesh = MeshLoader::LoadSTL(currentEntity->MeshPath);
-        } else {
+        std::string path = Trim(line.substr(line.find(":") + 2));
+        if (path == "Cube") {
           currentEntity->MeshPath = "Cube";
+          currentEntity->Mesh = Application::Get().GetCubeMesh();
+        } else if (path != "None") {
+          currentEntity->MeshPath =
+              std::filesystem::path(path).make_preferred().string();
+          std::string resolvedPath =
+              Application::Get()
+                  .ResolveAssetPath(currentEntity->MeshPath)
+                  .string();
+
+          if (std::filesystem::path(resolvedPath).extension() == ".obj")
+            currentEntity->Mesh = MeshLoader::LoadOBJ(resolvedPath);
+          else if (std::filesystem::path(resolvedPath).extension() == ".stl")
+            currentEntity->Mesh = MeshLoader::LoadSTL(resolvedPath);
+        } else {
+          currentEntity->MeshPath = path;
         }
       } else if (line.find("ShaderPath:") != std::string::npos) {
-        std::string path = line.substr(line.find(":") + 2);
-        std::string originalPath = path;
+        std::string path = Trim(line.substr(line.find(":") + 2));
+        if (path != "None") {
+          std::string resolvedPath =
+              Application::Get().ResolveAssetPath(path).string();
 
-        if (!m_ProjectRoot.empty() && std::filesystem::path(path).is_relative())
-          path = (std::filesystem::path(m_ProjectRoot) / path)
-                     .make_preferred()
-                     .string();
-        else
-          path = std::filesystem::path(path).make_preferred().string();
-
-        S67_CORE_INFO(
-            "[SCENE LOAD] Loading shader: '{0}' -> '{1}' (exists: {2})",
-            originalPath, path, std::filesystem::exists(path));
-        currentEntity->MaterialShader = Shader::Create(path);
+          // Reuse default shader if path matches
+          auto defaultShader = Application::Get().GetDefaultShader();
+          if (defaultShader &&
+              (path.find("Lighting.glsl") != std::string::npos)) {
+            currentEntity->MaterialShader = defaultShader;
+          } else {
+            currentEntity->MaterialShader = Shader::Create(resolvedPath);
+          }
+        }
       } else if (line.find("TexturePath:") != std::string::npos) {
-        std::string path = line.substr(line.find(":") + 2);
-        std::string originalPath = path;
+        std::string path = Trim(line.substr(line.find(":") + 2));
+        if (path != "None") {
+          std::string resolvedPath =
+              Application::Get().ResolveAssetPath(path).string();
 
-        if (!m_ProjectRoot.empty() && std::filesystem::path(path).is_relative())
-          path = (std::filesystem::path(m_ProjectRoot) / path)
-                     .make_preferred()
-                     .string();
-        else
-          path = std::filesystem::path(path).make_preferred().string();
-
-        S67_CORE_INFO(
-            "[SCENE LOAD] Loading texture: '{0}' -> '{1}' (exists: {2})",
-            originalPath, path, std::filesystem::exists(path));
-        currentEntity->Material.AlbedoMap = Texture2D::Create(path);
+          // Reuse default texture if path matches
+          auto defaultTex = Application::Get().GetDefaultTexture();
+          if (defaultTex &&
+              (path.find("Checkerboard.png") != std::string::npos)) {
+            currentEntity->Material.AlbedoMap = defaultTex;
+          } else {
+            currentEntity->Material.AlbedoMap = Texture2D::Create(resolvedPath);
+          }
+        }
       } else if (line.find("TextureTiling:") != std::string::npos) {
         float x, y;
         if (sscanf(line.c_str(), "      TextureTiling: [%f, %f]", &x, &y) == 2)
           currentEntity->Material.Tiling = {x, y};
       } else if (line.find("Collidable:") != std::string::npos) {
-        std::string val = line.substr(line.find(":") + 2);
+        std::string val = Trim(line.substr(line.find(":") + 2));
         currentEntity->Collidable = (val.find("true") != std::string::npos);
       } else if (line.find("CameraFOV:") != std::string::npos) {
         float fov;
