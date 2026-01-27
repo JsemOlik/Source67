@@ -24,19 +24,20 @@ void Scene::EnsurePlayerExists() {
     player = CreateRef<Entity>();
     player->Name = "Player";
     player->Transform.Position = {0.0f, 2.0f, 0.0f};
-    player->Transform.Scale = {1.0f, 1.0f, 1.0f}; // Default scale
+    player->Transform.Scale = {1.0f, 1.5f, 1.0f}; // Enforce scale
     m_Entities.insert(m_Entities.begin(), player);
   }
 
   // Enforce Visuals
-  if (!player->Mesh || player->MeshPath != "ProceduralCapsule") {
-    player->Mesh = MeshLoader::CreateCapsule(0.5f, 1.0f);
-    player->MeshPath = "ProceduralCapsule";
+  if (!player->Mesh || player->MeshPath != "Cube") {
+    player->Mesh = MeshLoader::CreateCube();
+    player->MeshPath = "Cube";
   }
 
-  // Enforce Texture (Debug.png) only if missing
+  // Enforce Texture (level_icon.png) only if missing
   if (!player->Material.AlbedoMap) {
-    player->Material.AlbedoMap = Texture2D::Create("assets/textures/Debug.png");
+    player->Material.AlbedoMap =
+        Texture2D::Create("assets/textures/level_icon.png");
   }
 
   // Ensure Shader logic:

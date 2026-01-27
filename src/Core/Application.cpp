@@ -857,6 +857,17 @@ void Application::Run() {
         // movement
         m_PlayerController->OnUpdate(timestep);
         PhysicsSystem::OnUpdate(timestep);
+
+        // Sync Player Entity to Camera Position
+        for (auto &entity : m_Scene->GetEntities()) {
+          if (entity->Name == "Player") {
+            entity->Transform.Position = m_Camera->GetPosition();
+            // Optional: Sync rotation?
+            // entity->Transform.Rotation.y =
+            // glm::degrees(m_PlayerController->GetYaw());
+            break;
+          }
+        }
       } else {
         if (m_SceneViewportFocused) {
           m_EditorCameraController->OnUpdate(timestep);
@@ -950,6 +961,8 @@ void Application::Run() {
       Renderer::BeginScene(*m_Camera, m_Sun);
       m_Skybox->Draw(*m_Camera);
       for (auto &entity : m_Scene->GetEntities()) {
+        if (entity->Name == "Player")
+          continue; // Hide Player in Game View
         if (entity->Material.AlbedoMap)
           entity->Material.AlbedoMap->Bind();
 
