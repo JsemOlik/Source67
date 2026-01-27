@@ -145,6 +145,7 @@ private:
 
   Ref<Shader> m_DefaultShader;
   Ref<Texture2D> m_DefaultTexture;
+  Ref<VertexArray> m_CubeMesh;
 
   SceneState m_SceneState = SceneState::Edit;
   bool m_CursorLocked = false;

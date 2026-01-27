@@ -179,6 +179,7 @@ void Application::CreateTestScene() {
       ResolveAssetPath("assets/textures/Checkerboard.png").string());
   m_DefaultShader = shader;
   m_DefaultTexture = texture;
+  m_CubeMesh = vertexArray;
 
   auto &bodyInterface = PhysicsSystem::GetBodyInterface();
 
@@ -536,6 +537,11 @@ void Application::OpenScene(const std::string &filepath) {
     auto &bodyInterface = PhysicsSystem::GetBodyInterface();
 
     for (auto &entity : m_Scene->GetEntities()) {
+
+      // Assign cube mesh if MeshPath is "Cube"
+      if (entity->MeshPath == "Cube") {
+        entity->Mesh = m_CubeMesh;
+      }
 
       // Recreate Physics Body
       glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
