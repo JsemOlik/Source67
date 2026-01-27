@@ -253,17 +253,22 @@ void Application::OnScenePlay() {
   m_Window->SetCursorLocked(true);
   m_CursorLocked = true;
 
-  glm::vec3 startPos = {0.0f, 2.0f, 0.0f};
   float fov = 45.0f;
+  glm::vec3 startPos = {0.0f, 2.0f, 0.0f};
+  glm::vec3 startRotation = {0.0f, 0.0f, 0.0f};
+
   for (auto &entity : m_Scene->GetEntities()) {
     if (entity->Name == "Player") {
       startPos = entity->Transform.Position;
+      startRotation = entity->Transform.Rotation;
       fov = entity->CameraFOV;
       break;
     }
   }
 
   m_PlayerController->Reset(startPos);
+  // Rotation: X is pitch, Y is yaw
+  m_PlayerController->SetRotation(startRotation.y, startRotation.x);
 
   float aspect = 1.0f;
   if (m_GameViewportSize.x > 0 && m_GameViewportSize.y > 0)
@@ -871,6 +876,22 @@ void Application::Run() {
       } else {
         if (m_SceneViewportFocused) {
           m_EditorCameraController->OnUpdate(timestep);
+        }
+
+        // Sync Game Camera to Player Entity (Edit Mode)
+        for (auto &entity : m_Scene->GetEntities()) {
+          if (entity->Name == "Player") {
+            m_Camera->SetPosition(entity->Transform.Position);
+            m_Camera->SetYaw(entity->Transform.Rotation.y -
+                             90.0f); // -90 deg offset usually for default view
+            m_Camera->SetPitch(entity->Transform.Rotation.x);
+
+            float aspect = 1.0f;
+            if (m_GameViewportSize.x > 0 && m_GameViewportSize.y > 0)
+              aspect = m_GameViewportSize.x / m_GameViewportSize.y;
+            m_Camera->SetProjection(entity->CameraFOV, aspect, 0.1f, 100.0f);
+            break;
+          }
         }
 
         // Safety: If Right Mouse is released, ensure cursor is unlocked

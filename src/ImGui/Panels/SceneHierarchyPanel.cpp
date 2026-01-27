@@ -303,25 +303,16 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
       if (DrawVec3Control("Position", entity->Transform.Position))
         changed = true;
 
-      bool isPlayer = (entity->Name == "Player");
-
-      if (isPlayer)
-        ImGui::BeginDisabled();
       glm::vec3 rotation = entity->Transform.Rotation;
       if (DrawVec3Control("Rotation", rotation)) {
         entity->Transform.Rotation = rotation;
         changed = true;
       }
-      if (isPlayer)
-        ImGui::EndDisabled();
 
-      if (isPlayer)
-        ImGui::BeginDisabled();
       if (DrawVec3Control("Scale", entity->Transform.Scale, 1.0f))
         changed = true;
-      if (isPlayer)
-        ImGui::EndDisabled();
 
+      bool isPlayer = (entity->Name == "Player");
       if (isPlayer) {
         ImGui::Spacing();
         ImGui::Separator();

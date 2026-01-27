@@ -181,7 +181,13 @@ void PlayerController::HandleInput(float dt) {
 }
 
 void PlayerController::SetPosition(const glm::vec3 &position) {
+  m_Position = position;
   m_Character->SetPosition(JPH::RVec3(position.x, position.y, position.z));
+}
+
+void PlayerController::SetRotation(float yaw, float pitch) {
+  m_Yaw = yaw;
+  m_Pitch = pitch;
 }
 
 glm::vec3 PlayerController::GetPosition() const {

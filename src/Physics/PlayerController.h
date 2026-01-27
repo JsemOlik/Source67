@@ -8,7 +8,6 @@
 #include <Jolt/Physics/Character/CharacterVirtual.h>
 #include <glm/glm.hpp>
 
-
 namespace S67 {
 
 class PlayerController {
@@ -22,6 +21,7 @@ public:
   void ReinitializeCharacter();
 
   void SetPosition(const glm::vec3 &position);
+  void SetRotation(float yaw, float pitch);
   glm::vec3 GetPosition() const;
   float GetSpeed() const;
 
