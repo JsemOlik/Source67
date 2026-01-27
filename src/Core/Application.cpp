@@ -233,11 +233,8 @@ void Application::OnScenePlay() {
 
   m_SceneState = SceneState::Play;
 
-  // Prevent ImGui from managing cursor (so it doesn't override our lock)
-  ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
-
-  // Block ImGui from capturing events during play
-  m_ImGuiLayer->SetBlockEvents(true);
+  // Disable ImGui mouse handling completely during Play mode
+  ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
 
   // Lock cursor for first-person control
   m_Window->SetCursorLocked(true);
@@ -252,23 +249,21 @@ void Application::OnScenePause() {
 
   m_SceneState = SceneState::Pause;
 
-  // Re-enable ImGui cursor management
-  ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
+  // Re-enable ImGui mouse handling
+  ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
 
   m_Window->SetCursorLocked(false);
   m_CursorLocked = false;
-  m_ImGuiLayer->SetBlockEvents(false);
 }
 
 void Application::OnSceneStop() {
   m_SceneState = SceneState::Edit;
 
-  // Re-enable ImGui cursor management
-  ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
+  // Re-enable ImGui mouse handling
+  ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
 
   m_Window->SetCursorLocked(false);
   m_CursorLocked = false;
-  m_ImGuiLayer->SetBlockEvents(false);
 
   // Restore
   auto &bodyInterface = PhysicsSystem::GetBodyInterface();
@@ -727,6 +722,8 @@ void Application::OnEvent(Event &e) {
       }
 
       if (ek.GetKeyCode() == GLFW_KEY_ESCAPE) {
+        S67_CORE_INFO("[ESC] ESC key pressed, current state: {0}",
+                      m_SceneState == SceneState::Play ? "PLAY" : "EDIT/PAUSE");
         if (m_SceneState == SceneState::Play)
           OnScenePause();
         else {
