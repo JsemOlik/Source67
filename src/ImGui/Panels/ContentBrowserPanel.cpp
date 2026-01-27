@@ -5,15 +5,24 @@
 
 namespace S67 {
 
-// For now, project root is current directory
 static const std::filesystem::path s_AssetPath = "assets";
 
 ContentBrowserPanel::ContentBrowserPanel()
     : m_BaseDirectory(s_AssetPath), m_CurrentDirectory(s_AssetPath) {
 
-  std::filesystem::path iconPath = "assets/textures/level_icon.png";
-  if (std::filesystem::exists(iconPath)) {
-    m_LevelIcon = Texture2D::Create(iconPath.string());
+  std::filesystem::path levelIconPath = "assets/engine/level_icon.png";
+  if (std::filesystem::exists(levelIconPath)) {
+    m_LevelIcon = Texture2D::Create(levelIconPath.string());
+  }
+
+  std::filesystem::path folderIconPath = "assets/engine/folder_icon.png";
+  if (std::filesystem::exists(folderIconPath)) {
+    m_FolderIcon = Texture2D::Create(folderIconPath.string());
+  }
+
+  std::filesystem::path backIconPath = "assets/engine/back_arrow_icon.png";
+  if (std::filesystem::exists(backIconPath)) {
+    m_BackArrowIcon = Texture2D::Create(backIconPath.string());
   }
 }
 
@@ -37,31 +46,44 @@ void ContentBrowserPanel::OnImGuiRender() {
 
   ImGui::Columns(columnCount, 0, false);
 
-  // Add back navigation item if not at base directory
   if (m_CurrentDirectory != m_BaseDirectory) {
-    ImGui::PushID("##back");
+    ImGui::PushID("back_nav_item");
 
-    // Draw back button as a folder-style item
-    ImGui::Button("<-", {thumbnailSize, thumbnailSize});
+    ImTextureID iconID =
+        m_BackArrowIcon
+            ? (ImTextureID)(uint64_t)m_BackArrowIcon->GetRendererID()
+            : (m_FolderIcon
+                   ? (ImTextureID)(uint64_t)m_FolderIcon->GetRendererID()
+                   : 0);
+    if (iconID != 0) {
+      // Keep the button surface at thumbnailSize by using custom padding
+      float iconScale =
+          0.75f; // Final fine-tune: Scale to 0.75 (a tiny bit bigger)
+      float iconSize = thumbnailSize * iconScale;
+      float internalPadding = (thumbnailSize - iconSize) * 0.5f;
 
-    // Double-click to go back
+      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,
+                          {internalPadding, internalPadding});
+      ImGui::ImageButton("##back_nav", iconID, {iconSize, iconSize}, {0, 1},
+                         {1, 0});
+      ImGui::PopStyleVar();
+    } else {
+      ImGui::Button("<-", {thumbnailSize, thumbnailSize});
+    }
+
     if (ImGui::IsItemHovered() &&
         ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
       m_CurrentDirectory = m_CurrentDirectory.parent_path();
     }
 
-    // Drop target for moving items to parent directory
     if (ImGui::BeginDragDropTarget()) {
       if (const ImGuiPayload *payload =
               ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
-        const char *droppedPath = (const char *)payload->Data;
-        std::filesystem::path sourcePath(droppedPath);
+        std::filesystem::path sourcePath((const char *)payload->Data);
         std::filesystem::path parentDir = m_CurrentDirectory.parent_path();
         std::filesystem::path destPath = parentDir / sourcePath.filename();
 
-        // Don't move to same location
         if (sourcePath.parent_path() != parentDir) {
-          // Handle name conflicts
           if (std::filesystem::exists(destPath)) {
             std::string baseName = sourcePath.stem().string();
             std::string extension = sourcePath.extension().string();
@@ -71,193 +93,140 @@ void ContentBrowserPanel::OnImGuiRender() {
                                       std::to_string(counter++) + extension);
             } while (std::filesystem::exists(destPath));
           }
-
           try {
             std::filesystem::rename(sourcePath, destPath);
-          } catch (const std::exception &e) {
-            // Move failed
+          } catch (...) {
           }
         }
       }
       ImGui::EndDragDropTarget();
     }
 
-    // No label for back button
     ImGui::TextWrapped("");
-
     ImGui::NextColumn();
     ImGui::PopID();
   }
 
-  for (auto &directoryEntry :
-       std::filesystem::directory_iterator(m_CurrentDirectory)) {
-    const auto &path = directoryEntry.path();
-    std::string filenameString = path.filename().string();
+  try {
+    for (auto &entry :
+         std::filesystem::directory_iterator(m_CurrentDirectory)) {
+      const auto &path = entry.path();
+      std::string filename = path.filename().string();
+      if (filename.empty())
+        continue;
 
-    ImGui::PushID(filenameString.c_str());
+      ImGui::PushID(filename.c_str());
 
-    bool isDirectory = directoryEntry.is_directory();
-    std::string ext = path.extension().string();
-    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+      bool isDir = entry.is_directory();
+      bool isLevel = path.extension() == ".s67";
+      bool isImage = path.extension() == ".png" || path.extension() == ".jpg" ||
+                     path.extension() == ".jpeg";
 
-    bool isImage = ext == ".png" || ext == ".jpg" || ext == ".jpeg" ||
-                   ext == ".bmp" || ext == ".tga";
-    bool isLevel = ext == ".s67";
-    bool isMesh = ext == ".obj" || ext == ".stl";
-
-    ImTextureID iconID = 0; // Use dummy or fallback
-    if (isImage) {
-      if (m_ThumbnailCache.find(path.string()) == m_ThumbnailCache.end()) {
-        m_ThumbnailCache[path.string()] = Texture2D::Create(path.string());
-      }
-      iconID = (ImTextureID)(uint64_t)m_ThumbnailCache[path.string()]
-                   ->GetRendererID();
-    } else if (isLevel && m_LevelIcon) {
-      iconID = (ImTextureID)(uint64_t)m_LevelIcon->GetRendererID();
-    }
-
-    if (iconID) {
-      ImGui::ImageButton(filenameString.c_str(), iconID,
-                         {thumbnailSize, thumbnailSize}, {0, 1}, {1, 0});
-    } else {
-      std::string label =
-          isDirectory ? "[D]" : (isLevel ? "[L]" : (isMesh ? "[M]" : "[F]"));
-      ImGui::Button(label.c_str(), {thumbnailSize, thumbnailSize});
-    }
-
-    if (ImGui::BeginDragDropSource()) {
-      std::string pathString = path.string();
-      const char *itemPath = pathString.c_str();
-      ImGui::SetDragDropPayload("CONTENT_BROWSER_ITEM", itemPath,
-                                (strlen(itemPath) + 1) * sizeof(char));
-      ImGui::Text("%s", filenameString.c_str());
-      ImGui::EndDragDropSource();
-    }
-
-    // Drop target for folders
-    if (isDirectory && ImGui::BeginDragDropTarget()) {
-      if (const ImGuiPayload *payload =
-              ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
-        const char *droppedPath = (const char *)payload->Data;
-        std::filesystem::path sourcePath(droppedPath);
-        std::filesystem::path destPath = path / sourcePath.filename();
-
-        // Validate move
-        bool canMove = true;
-
-        // Don't move to same location
-        if (sourcePath.parent_path() == path) {
-          canMove = false;
+      ImTextureID iconID = 0;
+      if (isDir && m_FolderIcon)
+        iconID = (ImTextureID)(uint64_t)m_FolderIcon->GetRendererID();
+      else if (isLevel && m_LevelIcon)
+        iconID = (ImTextureID)(uint64_t)m_LevelIcon->GetRendererID();
+      else if (isImage) {
+        if (m_ThumbnailCache.find(path.string()) == m_ThumbnailCache.end()) {
+          auto tex = Texture2D::Create(path.string());
+          if (tex)
+            m_ThumbnailCache[path.string()] = tex;
         }
-
-        // Don't move folder into itself or its subdirectories
-        if (std::filesystem::is_directory(sourcePath)) {
-          std::filesystem::path checkPath = path;
-          while (checkPath != checkPath.root_path()) {
-            if (checkPath == sourcePath) {
-              canMove = false;
-              break;
-            }
-            checkPath = checkPath.parent_path();
-          }
-        }
-
-        if (canMove) {
-          // Handle name conflicts
-          if (std::filesystem::exists(destPath)) {
-            std::string baseName = sourcePath.stem().string();
-            std::string extension = sourcePath.extension().string();
-            int counter = 1;
-            do {
-              destPath = path / (baseName + "_" + std::to_string(counter++) +
-                                 extension);
-            } while (std::filesystem::exists(destPath));
-          }
-
-          try {
-            std::filesystem::rename(sourcePath, destPath);
-          } catch (const std::exception &e) {
-            // Move failed, could log error
-          }
+        if (m_ThumbnailCache.count(path.string()) &&
+            m_ThumbnailCache[path.string()]) {
+          iconID = (ImTextureID)(uint64_t)m_ThumbnailCache[path.string()]
+                       ->GetRendererID();
         }
       }
-      ImGui::EndDragDropTarget();
-    }
 
-    if (ImGui::IsItemHovered() &&
-        ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-      if (isDirectory) {
-        m_CurrentDirectory /= path.filename();
-      } else if (isLevel) {
-        Application::Get().OpenScene(path.string());
+      if (iconID != 0) {
+        ImVec2 pos = ImGui::GetCursorScreenPos();
+        bool hovered = ImGui::IsMouseHoveringRect(
+            pos, {pos.x + thumbnailSize, pos.y + thumbnailSize});
+        ImVec4 tint = hovered ? ImVec4{1.2f, 1.2f, 1.2f, 1.0f}
+                              : ImVec4{1.0f, 1.0f, 1.0f, 1.0f};
+
+        if (isDir) {
+          ImGui::PushStyleColor(ImGuiCol_Button, {0, 0, 0, 0});
+          ImGui::PushStyleColor(ImGuiCol_ButtonHovered, {0, 0, 0, 0});
+          ImGui::PushStyleColor(ImGuiCol_ButtonActive, {0, 0, 0, 0});
+          ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
+
+          ImGui::ImageButton("##folder", iconID, {thumbnailSize, thumbnailSize},
+                             {0, 1}, {1, 0}, {0, 0, 0, 0}, tint);
+
+          ImGui::PopStyleVar();
+          ImGui::PopStyleColor(3);
+        } else {
+          ImGui::ImageButton("##asset", iconID, {thumbnailSize, thumbnailSize},
+                             {0, 1}, {1, 0});
+        }
       } else {
-        FileDialogs::OpenExternally(path.string());
-      }
-    }
-
-    // Right-click on item
-    if (ImGui::BeginPopupContextItem()) {
-      if (ImGui::MenuItem("Open in Finder")) {
-        FileDialogs::OpenExplorer(path.string());
+        std::string label = isDir ? "[D]" : (isLevel ? "[L]" : "[F]");
+        ImGui::Button(label.c_str(), {thumbnailSize, thumbnailSize});
       }
 
-      if (isDirectory) {
-        if (ImGui::MenuItem("Rename")) {
-          m_PathToRename = path;
-          std::strncpy(m_RenameBuffer, path.filename().string().c_str(),
-                       sizeof(m_RenameBuffer));
-          m_ShowRenameModal = true;
+      if (ImGui::BeginDragDropSource()) {
+        std::string p = path.string();
+        ImGui::SetDragDropPayload("CONTENT_BROWSER_ITEM", p.c_str(),
+                                  (p.length() + 1) * sizeof(char));
+        ImGui::Text("%s", filename.c_str());
+        ImGui::EndDragDropSource();
+      }
+
+      if (isDir && ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload *payload =
+                ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+          std::filesystem::path sourcePath((const char *)payload->Data);
+          if (sourcePath.parent_path() != path) {
+            std::filesystem::path destPath = path / sourcePath.filename();
+            try {
+              std::filesystem::rename(sourcePath, destPath);
+            } catch (...) {
+            }
+          }
         }
+        ImGui::EndDragDropTarget();
       }
 
-      if (ImGui::MenuItem("Delete")) {
-        m_PathToDelete = path;
-        m_ShowDeleteModal = true;
+      if (ImGui::IsItemHovered() &&
+          ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+        if (isDir)
+          m_CurrentDirectory /= path.filename();
+        else if (isLevel)
+          Application::Get().OpenScene(path.string());
+        else
+          FileDialogs::OpenExternally(path.string());
       }
-      ImGui::EndPopup();
+
+      if (ImGui::BeginPopupContextItem()) {
+        if (ImGui::MenuItem("Open in Finder"))
+          FileDialogs::OpenExplorer(path.string());
+        if (isDir) {
+          if (ImGui::MenuItem("Rename")) {
+            m_PathToRename = path;
+            std::strncpy(m_RenameBuffer, path.filename().string().c_str(),
+                         sizeof(m_RenameBuffer));
+            m_ShowRenameModal = true;
+          }
+        }
+        if (ImGui::MenuItem("Delete")) {
+          m_PathToDelete = path;
+          m_ShowDeleteModal = true;
+        }
+        ImGui::EndPopup();
+      }
+
+      ImGui::TextWrapped("%s", filename.c_str());
+      ImGui::NextColumn();
+      ImGui::PopID();
     }
-
-    ImGui::TextWrapped("%s", filenameString.c_str());
-
-    ImGui::NextColumn();
-    ImGui::PopID();
+  } catch (...) {
   }
 
   ImGui::Columns(1);
 
-  // Drop target for background (current directory)
-  if (ImGui::BeginDragDropTarget()) {
-    if (const ImGuiPayload *payload =
-            ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
-      const char *droppedPath = (const char *)payload->Data;
-      std::filesystem::path sourcePath(droppedPath);
-      std::filesystem::path destPath =
-          m_CurrentDirectory / sourcePath.filename();
-
-      // Don't move to same location
-      if (sourcePath.parent_path() != m_CurrentDirectory) {
-        // Handle name conflicts
-        if (std::filesystem::exists(destPath)) {
-          std::string baseName = sourcePath.stem().string();
-          std::string extension = sourcePath.extension().string();
-          int counter = 1;
-          do {
-            destPath = m_CurrentDirectory /
-                       (baseName + "_" + std::to_string(counter++) + extension);
-          } while (std::filesystem::exists(destPath));
-        }
-
-        try {
-          std::filesystem::rename(sourcePath, destPath);
-        } catch (const std::exception &e) {
-          // Move failed, could log error
-        }
-      }
-    }
-    ImGui::EndDragDropTarget();
-  }
-
-  // Right-click on background
   if (ImGui::BeginPopupContextWindow(nullptr,
                                      ImGuiPopupFlags_MouseButtonRight |
                                          ImGuiPopupFlags_NoOpenOverItems)) {
@@ -269,34 +238,22 @@ void ContentBrowserPanel::OnImGuiRender() {
       }
       std::filesystem::create_directory(newPath);
     }
-
-    if (ImGui::MenuItem("Open in Finder")) {
-      FileDialogs::OpenExplorer(m_CurrentDirectory.string());
-    }
-
     ImGui::EndPopup();
   }
 
-  // Deletion Modal
   if (m_ShowDeleteModal) {
     ImGui::OpenPopup("Delete Asset?");
     m_ShowDeleteModal = false;
   }
-
   if (ImGui::BeginPopupModal("Delete Asset?", NULL,
                              ImGuiWindowFlags_AlwaysAutoResize)) {
     ImGui::Text("Are you sure you want to delete '%s'?",
                 m_PathToDelete.filename().string().c_str());
-    ImGui::TextColored({1.0f, 0.4f, 0.4f, 1.0f},
-                       "This action cannot be undone!");
-    ImGui::Separator();
-
     if (ImGui::Button("Delete", {120, 0})) {
       std::filesystem::remove_all(m_PathToDelete);
       m_PathToDelete = "";
       ImGui::CloseCurrentPopup();
     }
-    ImGui::SetItemDefaultFocus();
     ImGui::SameLine();
     if (ImGui::Button("Cancel", {120, 0})) {
       m_PathToDelete = "";
@@ -305,17 +262,13 @@ void ContentBrowserPanel::OnImGuiRender() {
     ImGui::EndPopup();
   }
 
-  // Rename Modal
   if (m_ShowRenameModal) {
     ImGui::OpenPopup("Rename Folder");
     m_ShowRenameModal = false;
   }
-
   if (ImGui::BeginPopupModal("Rename Folder", NULL,
                              ImGuiWindowFlags_AlwaysAutoResize)) {
     ImGui::InputText("New Name", m_RenameBuffer, sizeof(m_RenameBuffer));
-    ImGui::Separator();
-
     if (ImGui::Button("Rename", {120, 0})) {
       std::filesystem::path newPath =
           m_PathToRename.parent_path() / m_RenameBuffer;
@@ -323,9 +276,6 @@ void ContentBrowserPanel::OnImGuiRender() {
         std::filesystem::rename(m_PathToRename, newPath);
         m_PathToRename = "";
         ImGui::CloseCurrentPopup();
-      } else {
-        // Optional: Simple warning if name exists? I'll let it fail or just let
-        // user try again.
       }
     }
     ImGui::SameLine();

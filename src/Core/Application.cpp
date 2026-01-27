@@ -218,6 +218,7 @@ void Application::CreateTestScene() {
         cubeSettings, JPH::EActivation::Activate);
     m_Scene->AddEntity(cube);
   }
+  m_Scene->EnsurePlayerExists();
 }
 
 Application::~Application() {
@@ -231,6 +232,8 @@ void Application::OnScenePlay() {
     return;
   }
 
+  m_Scene->EnsurePlayerExists();
+
   if (m_SceneState == SceneState::Edit) {
     // Backup before first play
     s_SceneBackup.Data.clear();
@@ -239,42 +242,32 @@ void Application::OnScenePlay() {
                                           entity->Transform.Rotation,
                                           entity->Transform.Scale};
     }
+
+    float fov = 45.0f;
+    glm::vec3 startPos = {0.0f, 2.0f, 0.0f};
+    glm::vec3 startRotation = {0.0f, 0.0f, 0.0f};
+
+    for (auto &entity : m_Scene->GetEntities()) {
+      if (entity->Name == "Player") {
+        startPos = entity->Transform.Position;
+        startRotation = entity->Transform.Rotation;
+        fov = entity->CameraFOV;
+        break;
+      }
+    }
+
+    m_PlayerController->Reset(startPos);
+    // Rotation: X is pitch, Y is yaw
+    m_PlayerController->SetRotation(startRotation.y, startRotation.x);
+
+    float aspect = 1.0f;
+    if (m_GameViewportSize.x > 0 && m_GameViewportSize.y > 0)
+      aspect = m_GameViewportSize.x / m_GameViewportSize.y;
+
+    m_Camera->SetProjection(fov, aspect, 0.1f, 100.0f);
   }
 
   m_SceneState = SceneState::Play;
-
-  // Disable ImGui mouse handling to prevent cursor override
-  ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
-
-  // Lock cursor for first-person control
-  m_Window->SetCursorLocked(true);
-  m_CursorLocked = true;
-
-  m_Window->SetCursorLocked(true);
-  m_CursorLocked = true;
-
-  float fov = 45.0f;
-  glm::vec3 startPos = {0.0f, 2.0f, 0.0f};
-  glm::vec3 startRotation = {0.0f, 0.0f, 0.0f};
-
-  for (auto &entity : m_Scene->GetEntities()) {
-    if (entity->Name == "Player") {
-      startPos = entity->Transform.Position;
-      startRotation = entity->Transform.Rotation;
-      fov = entity->CameraFOV;
-      break;
-    }
-  }
-
-  m_PlayerController->Reset(startPos);
-  // Rotation: X is pitch, Y is yaw
-  m_PlayerController->SetRotation(startRotation.y, startRotation.x);
-
-  float aspect = 1.0f;
-  if (m_GameViewportSize.x > 0 && m_GameViewportSize.y > 0)
-    aspect = m_GameViewportSize.x / m_GameViewportSize.y;
-
-  m_Camera->SetProjection(fov, aspect, 0.1f, 100.0f);
 }
 
 void Application::OnScenePause() {
@@ -581,7 +574,10 @@ void Application::OpenScene(const std::string &filepath) {
         entity->Mesh = m_CubeMesh;
       }
 
-      // Recreate Physics Body
+      // Recreate Physics Body (Skip Player)
+      if (entity->Name == "Player")
+        continue;
+
       glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
       bool isStat = (entity->Name == "Static Floor");
       JPH::BodyCreationSettings settings(
@@ -857,23 +853,13 @@ void Application::Run() {
             45.0f, m_GameViewportSize.x / m_GameViewportSize.y, 0.1f, 100.0f);
       }
 
-      if (m_SceneState == SceneState::Play) {
-        // m_CameraController->OnUpdate(timestep); // Disable default fly cam
-        // movement
-        m_PlayerController->OnUpdate(timestep);
-        PhysicsSystem::OnUpdate(timestep);
-
-        // Sync Player Entity to Camera Position
-        for (auto &entity : m_Scene->GetEntities()) {
-          if (entity->Name == "Player") {
-            entity->Transform.Position = m_Camera->GetPosition();
-            // Optional: Sync rotation?
-            // entity->Transform.Rotation.y =
-            // glm::degrees(m_PlayerController->GetYaw());
-            break;
-          }
+      if (m_SceneState == SceneState::Play ||
+          m_SceneState == SceneState::Pause) {
+        if (m_SceneState == SceneState::Play) {
+          m_PlayerController->OnUpdate(timestep);
+          PhysicsSystem::OnUpdate(timestep);
         }
-      } else {
+      } else if (m_SceneState == SceneState::Edit) {
         if (m_SceneViewportFocused) {
           m_EditorCameraController->OnUpdate(timestep);
         }
@@ -914,7 +900,17 @@ void Application::Run() {
       Renderer::BeginScene(*m_EditorCamera, m_Sun);
       m_Skybox->Draw(*m_EditorCamera);
       for (auto &entity : m_Scene->GetEntities()) {
-        if (!entity->PhysicsBody.IsInvalid()) {
+        // Real-time Player Sync (during Play/Pause)
+        if (entity->Name == "Player" && (m_SceneState == SceneState::Play ||
+                                         m_SceneState == SceneState::Pause)) {
+          entity->Transform.Position =
+              m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
+          entity->Transform.Rotation.x = m_PlayerController->GetPitch();
+          entity->Transform.Rotation.y = m_PlayerController->GetYaw() + 90.0f;
+          // No break here, we need to render it too
+        }
+
+        if (entity->Name != "Player" && !entity->PhysicsBody.IsInvalid()) {
           if (m_SceneState == SceneState::Play) {
             JPH::RVec3 position;
             JPH::Quat rotation;

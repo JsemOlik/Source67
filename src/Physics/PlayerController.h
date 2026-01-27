@@ -24,6 +24,8 @@ public:
   void SetRotation(float yaw, float pitch);
   glm::vec3 GetPosition() const;
   float GetSpeed() const;
+  float GetYaw() const { return m_Yaw; }
+  float GetPitch() const { return m_Pitch; }
 
 private:
   void HandleInput(float dt);
