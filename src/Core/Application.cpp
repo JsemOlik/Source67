@@ -130,6 +130,11 @@ Application::Application(const std::string &executablePath) {
   m_OutlineShader = Shader::Create(
       ResolveAssetPath("assets/shaders/FlatColor.glsl").string());
 
+  std::filesystem::path logoPath = "assets/engine/engine_logo.png";
+  if (std::filesystem::exists(logoPath)) {
+    m_LauncherLogo = Texture2D::Create(logoPath.string());
+  }
+
   S67_CORE_INFO("Application initialized successfully");
 }
 
@@ -378,6 +383,7 @@ void Application::OnNewProject() {
     SetProjectRoot(projectRoot);
     m_ProjectFilePath = manifestPath;
     SaveManifest();
+    AddToRecentProjects(projectRoot.string());
     S67_CORE_INFO("Created new project manifest and isolated assets at: {0}",
                   projectRoot.string());
   }
@@ -418,8 +424,28 @@ void Application::OnOpenProject() {
       m_ProjectVersion = "Developer Root";
       m_ProjectFilePath = "";
     }
+    AddToRecentProjects(folderPath.string());
     S67_CORE_INFO("Opened project folder: {0}", path);
   }
+}
+
+void Application::AddToRecentProjects(const std::string &path) {
+  if (path.empty())
+    return;
+
+  // Move to front if exists, or add to front
+  auto it = std::find(m_RecentProjects.begin(), m_RecentProjects.end(), path);
+  if (it != m_RecentProjects.end()) {
+    m_RecentProjects.erase(it);
+  }
+  m_RecentProjects.insert(m_RecentProjects.begin(), path);
+
+  // Limit to 5
+  if (m_RecentProjects.size() > 5) {
+    m_RecentProjects.pop_back();
+  }
+
+  SaveSettings();
 }
 
 void Application::DiscoverProject(const std::filesystem::path &levelPath) {
@@ -447,6 +473,7 @@ void Application::DiscoverProject(const std::filesystem::path &levelPath) {
       }
       S67_CORE_INFO("Discovered project: {0} (v{1}) at {2}", m_ProjectName,
                     m_ProjectVersion, currentDir.string());
+      AddToRecentProjects(currentDir.string());
       found = true;
       break;
     }
@@ -1368,6 +1395,11 @@ void Application::Run() {
         ImGui::End();
       }
     }
+
+    if (m_ProjectRoot.empty()) {
+      UI_LauncherScreen();
+    }
+
     m_ImGuiLayer->End();
 
     m_Window->OnUpdate();
@@ -1482,6 +1514,91 @@ void Application::UI_SettingsWindow() {
   ImGui::End();
 }
 
+void Application::UI_LauncherScreen() {
+  ImGuiViewport *viewport = ImGui::GetMainViewport();
+  ImGui::SetNextWindowPos(viewport->Pos);
+  ImGui::SetNextWindowSize(viewport->Size);
+  ImGui::SetNextWindowViewport(viewport->ID);
+
+  ImGuiWindowFlags window_flags =
+      ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+      ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings;
+
+  ImGui::Begin("Launcher", nullptr, window_flags);
+
+  // Center Content
+  ImVec2 contentSize = {400, 500};
+  ImVec2 viewportSize = viewport->Size;
+  ImGui::SetCursorPos({(viewportSize.x - contentSize.x) * 0.5f,
+                       (viewportSize.y - contentSize.y) * 0.5f});
+
+  ImGui::BeginChild("LauncherContent", contentSize, false);
+
+  // Logo
+  if (m_LauncherLogo) {
+    float logoWidth = contentSize.x * 0.8f;
+    float aspect =
+        (float)m_LauncherLogo->GetHeight() / (float)m_LauncherLogo->GetWidth();
+    float logoHeight = logoWidth * aspect;
+
+    ImGui::SetCursorPosX((contentSize.x - logoWidth) * 0.5f);
+    ImGui::Image((void *)(uint64_t)m_LauncherLogo->GetRendererID(),
+                 {logoWidth, logoHeight}, {0, 1}, {1, 0});
+  } else {
+    // Fallback to title
+    ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
+    ImGui::SetWindowFontScale(3.0f);
+    const char *title = "Source 67";
+    ImVec2 titleSize = ImGui::CalcTextSize(title);
+    ImGui::SetCursorPosX((contentSize.x - titleSize.x) * 0.5f);
+    ImGui::Text("%s", title);
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::PopFont();
+  }
+
+  ImGui::Dummy({0, 40});
+
+  // Buttons
+  if (ImGui::Button("New Project", {contentSize.x, 40})) {
+    OnNewProject();
+  }
+  if (ImGui::Button("Open Project", {contentSize.x, 40})) {
+    OnOpenProject();
+  }
+
+  ImGui::Dummy({0, 20});
+  ImGui::Separator();
+  ImGui::Dummy({0, 10});
+
+  ImGui::TextDisabled("Recent Projects");
+  ImGui::Dummy({0, 5});
+
+  if (m_RecentProjects.empty()) {
+    ImGui::TextWrapped("No recent projects found.");
+  } else {
+    for (const auto &projectPath : m_RecentProjects) {
+      if (projectPath.empty())
+        continue;
+
+      ImGui::PushID(projectPath.c_str());
+      std::filesystem::path p(projectPath);
+      std::string label = p.stem().string() + " (" + projectPath + ")";
+      if (ImGui::Selectable(label.c_str(), false, 0, {contentSize.x, 0})) {
+        SetProjectRoot(p);
+        DiscoverProject(p / "manifest.json");
+        AddToRecentProjects(projectPath);
+      }
+      if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("%s", projectPath.c_str());
+      }
+      ImGui::PopID();
+    }
+  }
+
+  ImGui::EndChild();
+  ImGui::End();
+}
+
 void Application::UI_ProjectSettingsWindow() {
   ImGui::Begin("Project Settings", &m_ShowProjectSettingsWindow);
 
@@ -1523,6 +1640,8 @@ void Application::SaveSettings() {
   j["ShowToolbar"] = m_ShowToolbar;
   j["ShowStats"] = m_ShowStats;
 
+  j["RecentProjects"] = m_RecentProjects;
+
   std::ofstream o("settings.json");
   o << std::setw(4) << j << std::endl;
   S67_CORE_INFO("Saved settings to settings.json");
@@ -1560,6 +1679,13 @@ void Application::LoadSettings() {
         m_ShowToolbar = j["ShowToolbar"];
       if (j.contains("ShowStats"))
         m_ShowStats = j["ShowStats"];
+
+      if (j.contains("RecentProjects")) {
+        m_RecentProjects = j["RecentProjects"].get<std::vector<std::string>>();
+        m_RecentProjects.erase(
+            std::remove(m_RecentProjects.begin(), m_RecentProjects.end(), ""),
+            m_RecentProjects.end());
+      }
 
       // Apply
       ImGui::GetIO().FontGlobalScale = m_FontSize / 18.0f;

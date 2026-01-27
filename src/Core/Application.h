@@ -81,6 +81,9 @@ private:
 
   void UI_SettingsWindow();
   void UI_ProjectSettingsWindow();
+  void UI_LauncherScreen();
+
+  void AddToRecentProjects(const std::string &path);
 
   std::filesystem::path ResolveAssetPath(const std::filesystem::path &path);
 
@@ -157,6 +160,9 @@ private:
 
   float m_LastGameTime = 0.0f;
   float m_GameFPS = 0.0f;
+
+  std::vector<std::string> m_RecentProjects;
+  Ref<Texture2D> m_LauncherLogo;
 
   static Application *s_Instance;
 };
