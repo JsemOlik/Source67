@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <vector>
 
-
 namespace S67 {
 
 class Scene {
@@ -19,6 +18,7 @@ public:
     if (it != m_Entities.end())
       m_Entities.erase(it);
   }
+  void EnsurePlayerExists();
   void Clear() { m_Entities.clear(); }
   const std::vector<Ref<Entity>> &GetEntities() const { return m_Entities; }
 

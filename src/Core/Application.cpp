@@ -13,6 +13,7 @@
 #include "ImGui/Panels/ContentBrowserPanel.h"
 #include "ImGuizmo/ImGuizmo.h"
 #include "Physics/PhysicsShapes.h"
+#include "Physics/PlayerController.h"
 #include "Renderer/Framebuffer.h"
 #include "Renderer/SceneSerializer.h"
 #include <GLFW/glfw3.h>
@@ -100,6 +101,7 @@ Application::Application(const std::string &executablePath) {
   m_Sun.Intensity = 1.0f;
 
   CreateTestScene();
+  m_Scene->EnsurePlayerExists();
 
   m_CameraController = CreateRef<CameraController>(m_Camera);
   m_EditorCameraController = CreateRef<CameraController>(m_EditorCamera);
@@ -248,7 +250,26 @@ void Application::OnScenePlay() {
   m_Window->SetCursorLocked(true);
   m_CursorLocked = true;
 
-  m_PlayerController->Reset({0.0f, 2.0f, 8.0f});
+  m_Window->SetCursorLocked(true);
+  m_CursorLocked = true;
+
+  glm::vec3 startPos = {0.0f, 2.0f, 0.0f};
+  float fov = 45.0f;
+  for (auto &entity : m_Scene->GetEntities()) {
+    if (entity->Name == "Player") {
+      startPos = entity->Transform.Position;
+      fov = entity->CameraFOV;
+      break;
+    }
+  }
+
+  m_PlayerController->Reset(startPos);
+
+  float aspect = 1.0f;
+  if (m_GameViewportSize.x > 0 && m_GameViewportSize.y > 0)
+    aspect = m_GameViewportSize.x / m_GameViewportSize.y;
+
+  m_Camera->SetProjection(fov, aspect, 0.1f, 100.0f);
 }
 
 void Application::OnScenePause() {
@@ -571,6 +592,7 @@ void Application::OpenScene(const std::string &filepath) {
       entity->PhysicsBody =
           bodyInterface.CreateAndAddBody(settings, JPH::EActivation::Activate);
     }
+    m_Scene->EnsurePlayerExists();
   }
 }
 

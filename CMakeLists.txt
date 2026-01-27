@@ -12,6 +12,7 @@ set(CMAKE_CXX_STANDARD 20)
 # Nudge to pick up ContentBrowserPanel.cpp
 # Nudge to pick up PlayerController.cpp
 # Nudge to pick up Window.mm
+# Nudge to pick up Scene.cpp
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Force dynamic CRT on Windows to match Jolt and other libs if USE_STATIC_CRT is OFF
@@ -112,6 +113,7 @@ file(GLOB_RECURSE SOURCES
     "vendor/**/*.h"
 )
 list(APPEND SOURCES "main.cpp")
+list(APPEND SOURCES "src/Renderer/Scene.cpp")
 
 # ImGui Files
 set(IMGUI_DIR ${imgui_SOURCE_DIR})

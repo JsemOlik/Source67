@@ -167,6 +167,10 @@ bool SceneSerializer::Deserialize(const std::string &filepath) {
       } else if (line.find("Collidable:") != std::string::npos) {
         std::string val = line.substr(line.find(":") + 2);
         currentEntity->Collidable = (val.find("true") != std::string::npos);
+      } else if (line.find("CameraFOV:") != std::string::npos) {
+        float fov;
+        if (sscanf(line.c_str(), "      CameraFOV: %f", &fov) == 1)
+          currentEntity->CameraFOV = fov;
       }
     }
   }

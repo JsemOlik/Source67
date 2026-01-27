@@ -5,7 +5,6 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 
-
 namespace S67 {
 
 SceneHierarchyPanel::SceneHierarchyPanel(const Scope<Scene> &context) {
@@ -29,11 +28,16 @@ void SceneHierarchyPanel::OnImGuiRender() {
     m_SelectionContext = nullptr;
 
   // Defer deletion
+  // Defer deletion
   if (m_EntityToDelete) {
-    (*m_Context)->RemoveEntity(m_EntityToDelete);
-    if (m_SelectionContext == m_EntityToDelete)
-      m_SelectionContext = nullptr;
-    m_EntityToDelete = nullptr;
+    if (m_EntityToDelete->Name == "Player") {
+      m_EntityToDelete = nullptr;
+    } else {
+      (*m_Context)->RemoveEntity(m_EntityToDelete);
+      if (m_SelectionContext == m_EntityToDelete)
+        m_SelectionContext = nullptr;
+      m_EntityToDelete = nullptr;
+    }
   }
 
   if (m_RenamingEntity)
@@ -94,11 +98,15 @@ void SceneHierarchyPanel::DrawEntityNode(Ref<Entity> entity) {
   }
 
   if (ImGui::BeginPopupContextItem()) {
-    if (ImGui::MenuItem("Rename"))
-      m_RenamingEntity = entity;
+    if (entity->Name != "Player") {
+      if (ImGui::MenuItem("Rename"))
+        m_RenamingEntity = entity;
 
-    if (ImGui::MenuItem("Delete Geometry"))
-      m_EntityToDelete = entity;
+      if (ImGui::MenuItem("Delete Geometry"))
+        m_EntityToDelete = entity;
+    } else {
+      ImGui::TextDisabled("Player Object (Protected)");
+    }
 
     ImGui::EndPopup();
   }
@@ -295,14 +303,31 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
       if (DrawVec3Control("Position", entity->Transform.Position))
         changed = true;
 
+      bool isPlayer = (entity->Name == "Player");
+
+      if (isPlayer)
+        ImGui::BeginDisabled();
       glm::vec3 rotation = entity->Transform.Rotation;
       if (DrawVec3Control("Rotation", rotation)) {
         entity->Transform.Rotation = rotation;
         changed = true;
       }
+      if (isPlayer)
+        ImGui::EndDisabled();
 
+      if (isPlayer)
+        ImGui::BeginDisabled();
       if (DrawVec3Control("Scale", entity->Transform.Scale, 1.0f))
         changed = true;
+      if (isPlayer)
+        ImGui::EndDisabled();
+
+      if (isPlayer) {
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Text("Player Camera");
+        ImGui::DragFloat("FOV", &entity->CameraFOV, 0.5f, 10.0f, 170.0f);
+      }
 
       if (changed && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
         Application::Get().GetUndoSystem().AddCommand(
