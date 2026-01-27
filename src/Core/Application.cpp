@@ -1168,8 +1168,8 @@ void Application::Run() {
             // Fade out in the last 0.5 seconds
             float alpha = (elapsed > 2.5f) ? (3.0f - elapsed) / 0.5f : 1.0f;
             ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
-            ImGui::PushStyleColor(ImGuiCol_WindowBg,
-                                  ImVec4(0.2f, 0.6f, 0.2f, 0.9f));
+
+            // Use standard theme background color (no PushStyleColor)
 
             ImGui::Begin(
                 "##SaveNotification", nullptr,
@@ -1186,7 +1186,6 @@ void Application::Run() {
             ImGui::Text("%s", notifText);
 
             ImGui::End();
-            ImGui::PopStyleColor();
             ImGui::PopStyleVar();
           } else {
             m_ShowSaveNotification = false;
