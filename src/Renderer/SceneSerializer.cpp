@@ -129,21 +129,33 @@ bool SceneSerializer::Deserialize(const std::string &filepath) {
         }
       } else if (line.find("ShaderPath:") != std::string::npos) {
         std::string path = line.substr(line.find(":") + 2);
+        std::string originalPath = path;
+
         if (!m_ProjectRoot.empty() && std::filesystem::path(path).is_relative())
           path = (std::filesystem::path(m_ProjectRoot) / path)
                      .make_preferred()
                      .string();
         else
           path = std::filesystem::path(path).make_preferred().string();
+
+        S67_CORE_INFO(
+            "[SCENE LOAD] Loading shader: '{0}' -> '{1}' (exists: {2})",
+            originalPath, path, std::filesystem::exists(path));
         currentEntity->MaterialShader = Shader::Create(path);
       } else if (line.find("TexturePath:") != std::string::npos) {
         std::string path = line.substr(line.find(":") + 2);
+        std::string originalPath = path;
+
         if (!m_ProjectRoot.empty() && std::filesystem::path(path).is_relative())
           path = (std::filesystem::path(m_ProjectRoot) / path)
                      .make_preferred()
                      .string();
         else
           path = std::filesystem::path(path).make_preferred().string();
+
+        S67_CORE_INFO(
+            "[SCENE LOAD] Loading texture: '{0}' -> '{1}' (exists: {2})",
+            originalPath, path, std::filesystem::exists(path));
         currentEntity->Material.AlbedoMap = Texture2D::Create(path);
       } else if (line.find("Collidable:") != std::string::npos) {
         std::string val = line.substr(line.find(":") + 2);

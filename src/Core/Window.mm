@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <glad/glad.h>
 
-
 #ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
 #include <Cocoa/Cocoa.h>
@@ -167,8 +166,18 @@ void Window::Init(const WindowProps &props) {
   S67_CORE_INFO("Window initialized successfully");
 }
 void Window::SetCursorLocked(bool locked) {
+  S67_CORE_INFO("[CURSOR] SetCursorLocked called with: {0}",
+                locked ? "TRUE" : "FALSE");
+
   glfwSetInputMode(m_Window, GLFW_CURSOR,
                    locked ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+
+  // Verify the state was actually set
+  int actualState = glfwGetInputMode(m_Window, GLFW_CURSOR);
+  S67_CORE_INFO("[CURSOR] GLFW cursor state after setting: {0}",
+                actualState == GLFW_CURSOR_DISABLED ? "DISABLED"
+                : actualState == GLFW_CURSOR_HIDDEN ? "HIDDEN"
+                                                    : "NORMAL");
 }
 
 void Window::SetIcon(const std::string &path) {

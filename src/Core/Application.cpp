@@ -649,16 +649,19 @@ void Application::OnEvent(Event &e) {
             m_SceneHierarchyPanel->SetSelectedEntity(nullptr);
           }
         }
-      } else if (e.GetEventType() == EventType::MouseButtonReleased) {
-        auto &mb = (MouseButtonReleasedEvent &)e;
-        if (mb.GetMouseButton() == 1) { // Right Click
-          m_Window->SetCursorLocked(false);
-          m_CursorLocked = false;
-          m_EditorCameraController->SetRotationEnabled(false);
-        }
       }
 
       m_EditorCameraController->OnEvent(e);
+    }
+
+    // Handle mouse button RELEASE separately (not inside the Press handler!)
+    if (e.GetEventType() == EventType::MouseButtonReleased) {
+      auto &mb = (MouseButtonReleasedEvent &)e;
+      if (mb.GetMouseButton() == 1) { // Right Click
+        m_Window->SetCursorLocked(false);
+        m_CursorLocked = false;
+        m_EditorCameraController->SetRotationEnabled(false);
+      }
     }
 
     EventDispatcher dispatcher(e);
@@ -777,13 +780,6 @@ void Application::Run() {
         m_CursorLocked = false;
         m_EditorCameraController->SetRotationEnabled(false);
       }
-    }
-
-    // Safety: If Right Mouse is released, ensure cursor is unlocked
-    if (m_CursorLocked && !Input::IsMouseButtonPressed(1)) {
-      m_Window->SetCursorLocked(false);
-      m_CursorLocked = false;
-      m_EditorCameraController->SetRotationEnabled(false);
     }
 
     auto &bodyInterface = PhysicsSystem::GetBodyInterface();
