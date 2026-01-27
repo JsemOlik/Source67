@@ -12,7 +12,7 @@ set(CMAKE_CXX_STANDARD 20)
 # Nudge to pick up ContentBrowserPanel.cpp
 # Nudge to pick up PlayerController.cpp
 # Nudge to pick up Window.mm
-# Nudge to pick up Scene.cpp
+# Nudge to pick up manifest.source
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Force dynamic CRT on Windows to match Jolt and other libs if USE_STATIC_CRT is OFF
@@ -127,7 +127,19 @@ list(APPEND SOURCES
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
 )
 
-add_executable(Source67 ${SOURCES})
+if(APPLE)
+    set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.jsemolik.source67")
+    set(MACOSX_BUNDLE_BUNDLE_NAME "Source67")
+    set(MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/MacOS/Info.plist.in)
+    
+    # Add icon to bundle resources
+    set(ICON_FILE ${CMAKE_CURRENT_SOURCE_DIR}/assets/engine/level_icon.png)
+    set_source_files_properties(${ICON_FILE} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+    list(APPEND SOURCES ${ICON_FILE})
+    set(MACOSX_BUNDLE_ICON_FILE level_icon.png)
+endif()
+
+add_executable(Source67 MACOSX_BUNDLE ${SOURCES})
 
 target_include_directories(Source67 PUBLIC 
     ${INCLUDE_DIR}

@@ -47,13 +47,14 @@ static SceneBackup s_SceneBackup;
 
 Application *Application::s_Instance = nullptr;
 
-Application::Application(const std::string &executablePath) {
+Application::Application(const std::string &executablePath,
+                         const std::string &commandLineFile) {
   S67_CORE_ASSERT(!s_Instance, "Application already exists!");
   s_Instance = this;
 
   // Find assets root
-  std::filesystem::path currentPath =
-      std::filesystem::absolute(executablePath).parent_path();
+  std::filesystem::path exeDir = std::filesystem::absolute(executablePath).parent_path();
+  std::filesystem::path currentPath = exeDir;
   bool found = false;
   for (int i = 0; i < 5; i++) {
     if (std::filesystem::exists(currentPath / "assets")) {
@@ -71,8 +72,7 @@ Application::Application(const std::string &executablePath) {
     S67_CORE_ERROR(
         "Could not find 'assets' directory relative to executable path: {0}!",
         executablePath);
-    m_EngineAssetsRoot =
-        std::filesystem::absolute(executablePath).parent_path();
+    m_EngineAssetsRoot = exeDir;
   } else {
     m_EngineAssetsRoot = currentPath;
     S67_CORE_INFO("Set working directory to project root: {0}",
@@ -138,6 +138,16 @@ Application::Application(const std::string &executablePath) {
   }
 
   InitDefaultAssets();
+
+  if (!commandLineFile.empty()) {
+    std::filesystem::path p(commandLineFile);
+    if (std::filesystem::exists(p)) {
+      DiscoverProject(p);
+      if (p.extension() == ".s67") {
+        OpenScene(p.string());
+      }
+    }
+  }
 
   S67_CORE_INFO("Application initialized successfully");
 }
@@ -357,7 +367,7 @@ Application::ResolveAssetPath(const std::filesystem::path &path) {
 
 void Application::OnNewProject() {
   std::string path = FileDialogs::SaveFile(
-      "Source67 Manifest (manifest.json)\0manifest.json\0", "manifest", "json");
+      "Source67 Project (*.source)\0*.source\0", "manifest", "source");
   if (!path.empty()) {
     std::filesystem::path manifestPath(path);
     // Create Project Directories
@@ -416,7 +426,7 @@ void Application::SaveManifest() {
   if (m_ProjectRoot.empty())
     return;
 
-  std::filesystem::path manifestPath = m_ProjectRoot / "manifest.json";
+  std::filesystem::path manifestPath = m_ProjectRoot / "manifest.source";
   std::ofstream fout(manifestPath);
   if (fout.is_open()) {
     fout << "ProjectName: " << m_ProjectName << "\n";
@@ -436,7 +446,7 @@ void Application::OnOpenProject() {
     SetProjectRoot(folderPath);
 
     // Try to find a manifest in this specific folder
-    std::filesystem::path manifestPath = folderPath / "manifest.json";
+    std::filesystem::path manifestPath = folderPath / "manifest.source";
     if (std::filesystem::exists(manifestPath)) {
       // If opening a level later, it will discover properly, but let's load it
       // now too
@@ -472,12 +482,12 @@ void Application::AddToRecentProjects(const std::string &path) {
 }
 
 void Application::DiscoverProject(const std::filesystem::path &levelPath) {
-  std::filesystem::path currentDir = levelPath.parent_path();
+  std::filesystem::path currentDir = std::filesystem::is_directory(levelPath) ? levelPath : levelPath.parent_path();
   bool found = false;
 
-  // Search upward for manifest.json
+  // Search upward for manifest.source
   while (!currentDir.empty() && currentDir != currentDir.root_path()) {
-    std::filesystem::path manifestPath = currentDir / "manifest.json";
+    std::filesystem::path manifestPath = currentDir / "manifest.source";
     if (std::filesystem::exists(manifestPath)) {
       m_ProjectFilePath = manifestPath;
       SetProjectRoot(currentDir);
@@ -1659,7 +1669,7 @@ void Application::UI_LauncherScreen() {
       std::string label = p.stem().string() + " (" + projectPath + ")";
       if (ImGui::Selectable(label.c_str(), false, 0, {contentSize.x, 0})) {
         SetProjectRoot(p);
-        DiscoverProject(p / "manifest.json");
+        DiscoverProject(p / "manifest.source");
         AddToRecentProjects(projectPath);
       }
       if (ImGui::IsItemHovered()) {
