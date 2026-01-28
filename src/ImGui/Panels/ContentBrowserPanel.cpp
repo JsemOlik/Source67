@@ -406,7 +406,7 @@ void ContentBrowserPanel::CreateDefaultLevel(
   f << "      Rotation: [0, 0, 0]\n";
   f << "      Scale: [20, 1, 20]\n";
   f << "    MeshPath: Cube\n";
-  f << "    ShaderPath: assets/shaders/FlatColor.glsl\n";
+  f << "    ShaderPath: assets/shaders/Lighting.glsl\n";
   f << "    TexturePath: assets/textures/Checkerboard.png\n";
   f << "    TextureTiling: [1, 1]\n";
   f << "    Collidable: true\n";
@@ -420,7 +420,7 @@ void ContentBrowserPanel::CreateDefaultLevel(
     f << "      Rotation: [0, 0, 0]\n";
     f << "      Scale: [1, 1, 1]\n";
     f << "    MeshPath: Cube\n";
-    f << "    ShaderPath: assets/shaders/FlatColor.glsl\n";
+    f << "    ShaderPath: assets/shaders/Lighting.glsl\n";
     f << "    TexturePath: assets/textures/Checkerboard.png\n";
     f << "    TextureTiling: [1, 1]\n";
     f << "    Collidable: true\n";
@@ -433,8 +433,8 @@ void ContentBrowserPanel::CreateDefaultLevel(
   f << "      Rotation: [0, 0, 0]\n";
   f << "      Scale: [1, 1.5, 1]\n";
   f << "    MeshPath: Cube\n";
-  f << "    ShaderPath: assets/shaders/FlatColor.glsl\n";
-  f << "    TexturePath: assets/textures/Checkerboard.png\n";
+  f << "    ShaderPath: assets/shaders/Lighting.glsl\n";
+  f << "    TexturePath: assets/textures/Debug.png\n";
   f << "    TextureTiling: [1, 1]\n";
   f << "    Collidable: true\n";
   f << "    CameraFOV: 45\n";
