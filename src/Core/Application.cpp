@@ -414,6 +414,14 @@ void Application::OnNewProject() {
         for (const auto &entry :
              std::filesystem::directory_iterator(engineTextures)) {
           if (entry.path().extension() == ".png") {
+            // Skip UI icons that should stay in the engine assets
+            if (entry.path().filename() == "level_icon.png" ||
+                entry.path().filename() == "folder_icon.png" ||
+                entry.path().filename() == "back_arrow_icon.png" ||
+                entry.path().filename() == "engine_logo.png") {
+              continue;
+            }
+
             std::filesystem::copy_file(
                 entry.path(),
                 projectAssets / "textures" / entry.path().filename(),
