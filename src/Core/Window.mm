@@ -10,6 +10,20 @@
 #ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
 #include <Cocoa/Cocoa.h>
+#include <objc/runtime.h>
+
+static BOOL applicationOpenFile(id self, SEL _cmd, NSApplication *sender,
+                                NSString *path) {
+  return YES;
+}
+
+static void SetupMacOpenFileHandler() {
+  Class delegateClass = NSClassFromString(@"GLFWAppDelegate");
+  if (delegateClass) {
+    class_addMethod(delegateClass, @selector(application:openFile:),
+                    (IMP)applicationOpenFile, "B@:@@");
+  }
+}
 #endif
 
 #include <GLFW/glfw3.h>
@@ -41,6 +55,9 @@ void Window::Init(const WindowProps &props) {
     S67_CORE_ASSERT(success, "Could not initialize GLFW!");
     glfwSetErrorCallback(GLFWErrorCallback);
     s_GLFWInitialized = true;
+#ifdef __APPLE__
+    SetupMacOpenFileHandler();
+#endif
   }
 
 #ifdef __APPLE__
