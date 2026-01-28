@@ -171,6 +171,11 @@ private:
   bool m_ShowSaveNotification = false;
   float m_SaveNotificationTime = 0.0f;
 
+  // Unsaved changes tracking
+  bool m_SceneModified = false;
+  float m_LastAutoSaveTime = 0.0f;
+  std::string m_PendingScenePath;
+
   float m_LastGameTime = 0.0f;
   float m_GameFPS = 0.0f;
 

@@ -548,6 +548,12 @@ void Application::DiscoverProject(const std::filesystem::path &levelPath) {
 }
 
 void Application::OnNewScene() {
+  // Check for unsaved changes
+  if (m_SceneModified) {
+    ImGui::OpenPopup("Unsaved Changes##NewScene");
+    return;
+  }
+
   m_Scene->Clear();
   m_SceneHierarchyPanel->SetSelectedEntity(nullptr);
 
@@ -560,6 +566,7 @@ void Application::OnNewScene() {
   m_LevelFilePath = "Untitled.s67";
   m_Window->SetCursorLocked(false);
   m_CursorLocked = false;
+  m_SceneModified = false;
   ImGui::SetWindowFocus("Scene");
   S67_CORE_INFO("Created new level");
 }
@@ -641,6 +648,9 @@ void Application::OnSaveScene() {
       m_LevelFilePath != "Untitled.s67") {
     SceneSerializer serializer(m_Scene.get(), m_ProjectRoot.string());
     serializer.Serialize(m_LevelFilePath);
+    m_SceneModified = false;
+    m_ShowSaveNotification = true;
+    m_SaveNotificationTime = 0.0f;
     S67_CORE_INFO("Quick Saved level: {0}", m_LevelFilePath);
   } else {
     OnSaveSceneAs();
@@ -663,6 +673,9 @@ void Application::OnSaveSceneAs() {
     serializer.Serialize(filepath);
     m_LevelLoaded = true;
     m_LevelFilePath = filepath;
+    m_SceneModified = false;
+    m_ShowSaveNotification = true;
+    m_SaveNotificationTime = 0.0f;
     DiscoverProject(std::filesystem::path(filepath));
   }
 }
@@ -681,11 +694,24 @@ void Application::OnOpenScene() {
   std::string filepath =
       FileDialogs::OpenFile("Source67 Level (*.s67)\0*.s67\0", "s67");
   if (!filepath.empty()) {
+    // Check for unsaved changes AFTER user selects a file
+    if (m_SceneModified) {
+      m_PendingScenePath = filepath;
+      ImGui::OpenPopup("Unsaved Changes##OpenScene");
+      return;
+    }
     OpenScene(filepath);
   }
 }
 
 void Application::OpenScene(const std::string &filepath) {
+  // Check for unsaved changes
+  if (m_SceneModified) {
+    m_PendingScenePath = filepath;
+    ImGui::OpenPopup("Unsaved Changes##OpenSceneDirect");
+    return;
+  }
+
   PhysicsSystem::Shutdown(); // Reset physics system to clear all bodies
   PhysicsSystem::Init();
   m_PlayerController = CreateScope<PlayerController>(m_Camera);
@@ -695,6 +721,7 @@ void Application::OpenScene(const std::string &filepath) {
   if (serializer.Deserialize(filepath)) {
     m_LevelLoaded = true;
     m_LevelFilePath = filepath;
+    m_SceneModified = false;
     m_Window->SetCursorLocked(false);
     m_CursorLocked = false;
     ImGui::SetWindowFocus("Scene");
@@ -1283,6 +1310,7 @@ void Application::Run() {
 
               m_Scene->AddEntity(entity);
               m_SceneHierarchyPanel->SetSelectedEntity(entity);
+              m_SceneModified = true;
             }
           }
         } else {
@@ -1375,6 +1403,7 @@ void Application::Run() {
 
                   m_Scene->AddEntity(entity);
                   m_SceneHierarchyPanel->SetSelectedEntity(entity);
+                  m_SceneModified = true;
                 }
               }
             }
@@ -1435,6 +1464,7 @@ void Application::Run() {
                 m_UndoSystem.AddCommand(CreateScope<TransformCommand>(
                     selectedEntity, m_InitialGizmoTransform,
                     selectedEntity->Transform));
+                m_SceneModified = true;
               }
             }
           }
@@ -1574,6 +1604,112 @@ void Application::Run() {
 
     if (m_ProjectRoot.empty()) {
       UI_LauncherScreen();
+    }
+
+    // Unsaved Changes Modal Dialogs
+    if (ImGui::BeginPopupModal("Unsaved Changes##NewScene", nullptr,
+                               ImGuiWindowFlags_AlwaysAutoResize)) {
+      ImGui::Text("You have unsaved changes. What would you like to do?");
+      ImGui::Separator();
+
+      if (ImGui::Button("Save and Continue", ImVec2(150, 0))) {
+        OnSaveScene();
+        m_SceneModified = false;
+        ImGui::CloseCurrentPopup();
+        OnNewScene();
+      }
+      ImGui::SameLine();
+      if (ImGui::Button("Discard Changes", ImVec2(150, 0))) {
+        m_SceneModified = false;
+        ImGui::CloseCurrentPopup();
+        OnNewScene();
+      }
+      ImGui::SameLine();
+      if (ImGui::Button("Cancel", ImVec2(150, 0))) {
+        ImGui::CloseCurrentPopup();
+      }
+
+      ImGui::EndPopup();
+    }
+
+    if (ImGui::BeginPopupModal("Unsaved Changes##OpenScene", nullptr,
+                               ImGuiWindowFlags_AlwaysAutoResize)) {
+      ImGui::Text("You have unsaved changes. What would you like to do?");
+      ImGui::Separator();
+
+      if (ImGui::Button("Save and Continue", ImVec2(150, 0))) {
+        OnSaveScene();
+        m_SceneModified = false;
+        ImGui::CloseCurrentPopup();
+        if (!m_PendingScenePath.empty()) {
+          std::string path = m_PendingScenePath;
+          m_PendingScenePath.clear();
+          OpenScene(path);
+        }
+      }
+      ImGui::SameLine();
+      if (ImGui::Button("Discard Changes", ImVec2(150, 0))) {
+        m_SceneModified = false;
+        ImGui::CloseCurrentPopup();
+        if (!m_PendingScenePath.empty()) {
+          std::string path = m_PendingScenePath;
+          m_PendingScenePath.clear();
+          OpenScene(path);
+        }
+      }
+      ImGui::SameLine();
+      if (ImGui::Button("Cancel", ImVec2(150, 0))) {
+        m_PendingScenePath.clear();
+        ImGui::CloseCurrentPopup();
+      }
+
+      ImGui::EndPopup();
+    }
+
+    if (ImGui::BeginPopupModal("Unsaved Changes##OpenSceneDirect", nullptr,
+                               ImGuiWindowFlags_AlwaysAutoResize)) {
+      ImGui::Text("You have unsaved changes. What would you like to do?");
+      ImGui::Separator();
+
+      if (ImGui::Button("Save and Continue", ImVec2(150, 0))) {
+        OnSaveScene();
+        m_SceneModified = false;
+        ImGui::CloseCurrentPopup();
+        if (!m_PendingScenePath.empty()) {
+          std::string path = m_PendingScenePath;
+          m_PendingScenePath.clear();
+          OpenScene(path);
+        }
+      }
+      ImGui::SameLine();
+      if (ImGui::Button("Discard Changes", ImVec2(150, 0))) {
+        m_SceneModified = false;
+        ImGui::CloseCurrentPopup();
+        if (!m_PendingScenePath.empty()) {
+          std::string path = m_PendingScenePath;
+          m_PendingScenePath.clear();
+          OpenScene(path);
+        }
+      }
+      ImGui::SameLine();
+      if (ImGui::Button("Cancel", ImVec2(150, 0))) {
+        m_PendingScenePath.clear();
+        ImGui::CloseCurrentPopup();
+      }
+
+      ImGui::EndPopup();
+    }
+
+    // Auto-save system (every 60 seconds)
+    if (m_LevelLoaded && !m_LevelFilePath.empty() &&
+        m_LevelFilePath != "Untitled.s67") {
+      m_LastAutoSaveTime += timestep;
+      if (m_LastAutoSaveTime >= 60.0f) {
+        SceneSerializer serializer(m_Scene.get(), m_ProjectRoot.string());
+        serializer.Serialize(m_LevelFilePath);
+        m_LastAutoSaveTime = 0.0f;
+        S67_CORE_INFO("Auto-saved level: {0}", m_LevelFilePath);
+      }
     }
 
     m_ImGuiLayer->End();

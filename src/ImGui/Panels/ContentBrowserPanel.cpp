@@ -407,7 +407,7 @@ void ContentBrowserPanel::CreateDefaultLevel(
   f << "      Scale: [20, 1, 20]\n";
   f << "    MeshPath: Cube\n";
   f << "    ShaderPath: assets/shaders/FlatColor.glsl\n";
-  f << "    TexturePath: assets/textures/level_icon.png\n";
+  f << "    TexturePath: assets/textures/Checkerboard.png\n";
   f << "    TextureTiling: [1, 1]\n";
   f << "    Collidable: true\n";
 
@@ -421,7 +421,7 @@ void ContentBrowserPanel::CreateDefaultLevel(
     f << "      Scale: [1, 1, 1]\n";
     f << "    MeshPath: Cube\n";
     f << "    ShaderPath: assets/shaders/FlatColor.glsl\n";
-    f << "    TexturePath: assets/textures/level_icon.png\n";
+    f << "    TexturePath: assets/textures/Checkerboard.png\n";
     f << "    TextureTiling: [1, 1]\n";
     f << "    Collidable: true\n";
   }
@@ -434,7 +434,7 @@ void ContentBrowserPanel::CreateDefaultLevel(
   f << "      Scale: [1, 1.5, 1]\n";
   f << "    MeshPath: Cube\n";
   f << "    ShaderPath: assets/shaders/FlatColor.glsl\n";
-  f << "    TexturePath: assets/textures/level_icon.png\n";
+  f << "    TexturePath: assets/textures/Checkerboard.png\n";
   f << "    TextureTiling: [1, 1]\n";
   f << "    Collidable: true\n";
   f << "    CameraFOV: 45\n";
