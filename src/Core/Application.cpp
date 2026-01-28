@@ -1149,11 +1149,8 @@ void Application::Run() {
 
           ImGui::Separator();
 
-          // New Level only if none loaded
-          if (!m_LevelLoaded) {
-            if (ImGui::MenuItem("New Level"))
-              OnNewScene();
-          }
+          if (ImGui::MenuItem("New Level"))
+            OnNewScene();
 
           if (ImGui::MenuItem("Open Level...", "Cmd+O"))
             OnOpenScene();

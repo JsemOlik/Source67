@@ -19,9 +19,15 @@ public:
   }
 
 private:
+  void RenderDirectoryTree(const std::filesystem::path &directoryPath);
+  void CreateDefaultLevel(const std::filesystem::path &path);
+
   std::filesystem::path m_BaseDirectory;
   std::filesystem::path m_CurrentDirectory;
   std::unordered_map<std::string, Ref<Texture2D>> m_ThumbnailCache;
+
+  char m_SearchBuffer[256] = {0};
+  bool m_ShowSidebar = true;
 
   std::filesystem::path m_PathToDelete;
   bool m_ShowDeleteModal = false;
