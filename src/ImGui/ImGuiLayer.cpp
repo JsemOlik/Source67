@@ -93,6 +93,8 @@ void ImGuiLayer::OnAttach() {
 
   io.ConfigViewportsNoAutoMerge = false;
   io.ConfigViewportsNoTaskBarIcon = true;
+  io.ConfigViewportsNoDecoration = false;
+  io.ConfigViewportsNoDefaultParent = false;
 
   // Load Font
   if (std::filesystem::exists("assets/fonts/Roboto-Medium.ttf")) {

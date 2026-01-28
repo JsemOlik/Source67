@@ -1166,6 +1166,14 @@ void Application::Run() {
     }
 
     ImGuizmo::BeginFrame();
+
+    // Set up window class to constrain windows to main viewport
+    // (except Developer Console which can be moved freely)
+    ImGuiWindowClass window_class;
+    window_class.ClassId = ImGui::GetID("ConstrainedWindows");
+    window_class.ParentViewportId = ImGui::GetMainViewport()->ID;
+    window_class.ViewportFlagsOverrideSet = ImGuiViewportFlags_NoAutoMerge;
+
     {
       if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
@@ -1260,6 +1268,7 @@ void Application::Run() {
         ImGui::SetNextWindowSizeConstraints(ImVec2(200, 200),
                                             ImVec2(FLT_MAX, FLT_MAX));
         if (!m_ProjectRoot.empty() && m_LevelLoaded) {
+          ImGui::SetNextWindowClass(&window_class);
           m_SceneHierarchyPanel->OnImGuiRender();
 
           if (m_SceneHierarchyPanel->GetPendingCreateType() !=
@@ -1323,9 +1332,10 @@ void Application::Run() {
       if (m_ShowContentBrowser) {
         ImGui::SetNextWindowSizeConstraints(ImVec2(200, 200),
                                             ImVec2(FLT_MAX, FLT_MAX));
-        if (!m_ProjectRoot.empty())
+        if (!m_ProjectRoot.empty()) {
+          ImGui::SetNextWindowClass(&window_class);
           m_ContentBrowserPanel->OnImGuiRender();
-        else {
+        } else {
           ImGui::Begin("Content Browser");
           ImGui::End();
         }
@@ -1335,6 +1345,7 @@ void Application::Run() {
       if (m_ShowInspector) {
         ImGui::SetNextWindowSizeConstraints(ImVec2(200, 200),
                                             ImVec2(FLT_MAX, FLT_MAX));
+        ImGui::SetNextWindowClass(&window_class);
         ImGui::Begin("Inspector");
         ImGui::End();
       }
@@ -1349,6 +1360,7 @@ void Application::Run() {
       if (m_ShowScene) {
         ImGui::SetNextWindowSizeConstraints(ImVec2(300, 200),
                                             ImVec2(FLT_MAX, FLT_MAX));
+        ImGui::SetNextWindowClass(&window_class);
         ImGui::Begin("Scene");
         m_SceneViewportFocused = ImGui::IsWindowFocused();
         m_SceneViewportHovered = ImGui::IsWindowHovered();
@@ -1584,6 +1596,7 @@ void Application::Run() {
 
     if (m_ShowStats) {
       if (!m_ProjectRoot.empty()) {
+        ImGui::SetNextWindowClass(&window_class);
         ImGui::Begin("Engine Statistics");
         float speed =
             m_PlayerController ? m_PlayerController->GetSpeed() : 0.0f;
