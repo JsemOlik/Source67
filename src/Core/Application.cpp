@@ -1555,6 +1555,12 @@ void Application::LoadSettings() {
     m_ImGuiLayer->SetDarkThemeColors();
     S67_CORE_INFO("No settings.json found, using defaults (Unity Dark, 18px)");
   }
+
+  // Apply editor FOV to the camera if it exists
+  if (m_EditorCamera) {
+    float aspect = 1280.0f / 720.0f; // Default aspect ratio
+    m_EditorCamera->SetProjection(m_EditorFOV, aspect, 0.1f, 1000.0f);
+  }
 }
 
 void Application::SaveLayout() {
@@ -1626,7 +1632,7 @@ void Application::RenderFrame(Timestep timestep) {
     m_SceneFramebuffer->Resize((uint32_t)m_SceneViewportSize.x,
                                (uint32_t)m_SceneViewportSize.y);
     m_EditorCamera->SetProjection(
-        45.0f, m_SceneViewportSize.x / m_SceneViewportSize.y, 0.1f, 100.0f);
+        m_EditorFOV, m_SceneViewportSize.x / m_SceneViewportSize.y, 0.1f, 100.0f);
   }
   if (FramebufferSpecification spec = m_GameFramebuffer->GetSpecification();
       m_GameViewportSize.x > 0.0f && m_GameViewportSize.y > 0.0f &&
@@ -2207,8 +2213,10 @@ void Application::RenderFrame(Timestep timestep) {
       ImGui::Text("%.3f ms/frame (%.1f Game FPS | %.1f Engine FPS)",
                   1000.0f / m_GameFPS, m_GameFPS, ImGui::GetIO().Framerate);
       ImGui::Separator();
-      ImGui::Text("Velocity:  X: %.2f  Y: %.2f  Z: %.2f", vel.x, vel.y, vel.z);
-      ImGui::Text("Speed (H): %.2f units/s", speed);
+      // Convert meters to Hammer Units (1 meter = 39.97 HU)
+      constexpr float METERS_TO_HU = 39.97f;
+      ImGui::Text("Velocity:  X: %.2f  Y: %.2f  Z: %.2f", vel.x * METERS_TO_HU, vel.y * METERS_TO_HU, vel.z * METERS_TO_HU);
+      ImGui::Text("Speed (H): %.2f units/s", speed * METERS_TO_HU);
       ImGui::End();
     } else {
       ImGui::SetNextWindowSizeConstraints(ImVec2(200, 100),

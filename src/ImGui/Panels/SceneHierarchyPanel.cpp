@@ -16,8 +16,6 @@ void SceneHierarchyPanel::SetContext(const Scope<Scene> &context) {
   m_Context = &context;
 }
 
-namespace {} // namespace
-
 void SceneHierarchyPanel::OnImGuiRender() {
   ImGui::Begin("Scene Hierarchy");
 
@@ -376,14 +374,26 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
     });
   } else {
     DrawComponent("Transform", [&]() {
-      DrawVec3Control("Position", entity->Transform.Position);
+      Transform oldTransform = entity->Transform;
+      bool changed = false;
+
+      if (DrawVec3Control("Position", entity->Transform.Position))
+        changed = true;
 
       glm::vec3 rotation = entity->Transform.Rotation;
       if (DrawVec3Control("Rotation", rotation)) {
         entity->Transform.Rotation = rotation;
+        changed = true;
       }
 
-      DrawVec3Control("Scale", entity->Transform.Scale, 1.0f);
+      if (DrawVec3Control("Scale", entity->Transform.Scale, 1.0f))
+        changed = true;
+
+      if (changed && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+        Application::Get().GetUndoSystem().AddCommand(
+            CreateScope<TransformCommand>(entity, oldTransform,
+                                          entity->Transform));
+      }
     });
 
     if (entity->Name == "Player") {

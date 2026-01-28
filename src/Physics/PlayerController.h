@@ -54,7 +54,6 @@ private:
   static constexpr float SPRINT_RECOVERY = 8.0f;
 
   // Movement State
-  bool m_IsGrounded = false;
   bool m_IsSprinting = false;
   float m_SprintRemaining = SPRINT_DURATION;
   float m_SprintRecoveryTime = 0.0f;
