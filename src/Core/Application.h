@@ -99,6 +99,7 @@ private:
 
   void AddToRecentProjects(const std::string &path);
   void InitDefaultAssets();
+  void HandleCustomWindowDecorations();
 
   std::unique_ptr<Window> m_Window;
   bool m_Running = true;

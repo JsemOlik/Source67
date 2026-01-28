@@ -3,7 +3,6 @@
 #include <functional>
 #include <string>
 
-
 struct GLFWwindow;
 
 namespace S67 {
@@ -12,10 +11,12 @@ struct WindowProps {
   std::string Title;
   uint32_t Width;
   uint32_t Height;
+  bool Decorated;
 
   WindowProps(const std::string &title = "Source67 Engine",
-              uint32_t width = 1920, uint32_t height = 1080)
-      : Title(title), Width(width), Height(height) {}
+              uint32_t width = 1920, uint32_t height = 1080,
+              bool decorated = true)
+      : Title(title), Width(width), Height(height), Decorated(decorated) {}
 };
 
 class Window {

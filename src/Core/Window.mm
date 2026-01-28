@@ -36,12 +36,12 @@ void Window::Init(const WindowProps &props) {
   S67_CORE_INFO("Creating window {0} ({1}, {2})", props.Title, props.Width,
                 props.Height);
 
-  if (!s_GLFWInitialized) {
-    int success = glfwInit();
-    S67_CORE_ASSERT(success, "Could not initialize GLFW!");
-    glfwSetErrorCallback(GLFWErrorCallback);
-    s_GLFWInitialized = true;
-  }
+  int success = glfwInit();
+  S67_CORE_ASSERT(success, "Could not initialize GLFW!");
+  glfwSetErrorCallback(GLFWErrorCallback);
+  s_GLFWInitialized = true;
+
+  glfwWindowHint(GLFW_DECORATED, props.Decorated ? GLFW_TRUE : GLFW_FALSE);
 
 #ifdef __APPLE__
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
