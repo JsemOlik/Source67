@@ -4,6 +4,7 @@
 #include "Core/UndoSystem.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
+#include <imgui_internal.h>
 
 namespace S67 {
 
@@ -14,6 +15,8 @@ SceneHierarchyPanel::SceneHierarchyPanel(const Scope<Scene> &context) {
 void SceneHierarchyPanel::SetContext(const Scope<Scene> &context) {
   m_Context = &context;
 }
+
+namespace {} // namespace
 
 void SceneHierarchyPanel::OnImGuiRender() {
   ImGui::Begin("Scene Hierarchy");
@@ -175,9 +178,88 @@ void SceneHierarchyPanel::DrawEntityNode(Ref<Entity> entity) {
   }
 }
 
-static bool DrawVec2Control(const std::string &label, glm::vec2 &values,
+static void DrawFloatControl(const std::string &label, float &value,
+                             float resetValue = 0.0f,
+                             float columnWidth = 150.0f) {
+  ImGui::PushID(label.c_str());
+
+  ImGui::Columns(2);
+  ImGui::SetColumnWidth(0, columnWidth);
+  ImGui::Text("%s", label.c_str());
+  ImGui::NextColumn();
+
+  float availWidth = ImGui::GetContentRegionAvail().x;
+  float width =
+      std::min(availWidth, 400.0f); // Max 400px to prevent massive sliders
+  ImGui::PushItemWidth(width);
+  ImGui::DragFloat("##value", &value, 0.1f, 0.0f, 0.0f, "%.2f");
+  ImGui::PopItemWidth();
+
+  ImGui::Columns(1);
+  ImGui::PopID();
+}
+
+static void DrawVec2Control(const std::string &label, glm::vec2 &values,
                             float resetValue = 0.0f,
-                            float columnWidth = 100.0f) {
+                            float columnWidth = 150.0f) {
+  ImGui::PushID(label.c_str());
+
+  ImGui::Columns(2);
+  ImGui::SetColumnWidth(0, columnWidth);
+  ImGui::Text("%s", label.c_str());
+  ImGui::NextColumn();
+
+  ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{0, 0});
+
+  float lineHeight =
+      ImGui::GetFontSize() + ImGui::GetStyle().FramePadding.y * 2.0f;
+  ImVec2 buttonSize = {lineHeight + 3.0f, lineHeight};
+  float widthEach =
+      (ImGui::GetContentRegionAvail().x - 2.0f * buttonSize.x) / 2.0f;
+
+  // X Axis
+  ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.8f, 0.1f, 0.15f, 1.0f});
+  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.9f, 0.2f, 0.2f, 1.0f});
+  ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.8f, 0.1f, 0.15f, 1.0f});
+  ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
+  if (ImGui::Button("X", buttonSize)) {
+    values.x = resetValue;
+  }
+  ImGui::PopFont();
+  ImGui::PopStyleColor(3);
+
+  ImGui::SameLine();
+  ImGui::PushItemWidth(widthEach);
+  if (ImGui::DragFloat("##X", &values.x, 0.1f, 0.0f, 0.0f, "%.2f")) {
+  }
+  ImGui::PopItemWidth();
+  ImGui::SameLine();
+
+  // Y Axis
+  ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.2f, 0.7f, 0.2f, 1.0f});
+  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.3f, 0.8f, 0.3f, 1.0f});
+  ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.2f, 0.7f, 0.2f, 1.0f});
+  ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
+  if (ImGui::Button("Y", buttonSize)) {
+    values.y = resetValue;
+  }
+  ImGui::PopFont();
+  ImGui::PopStyleColor(3);
+
+  ImGui::SameLine();
+  ImGui::PushItemWidth(widthEach);
+  if (ImGui::DragFloat("##Y", &values.y, 0.1f, 0.0f, 0.0f, "%.2f")) {
+  }
+  ImGui::PopItemWidth();
+
+  ImGui::PopStyleVar();
+  ImGui::Columns(1);
+  ImGui::PopID();
+}
+
+static bool DrawVec3Control(const std::string &label, glm::vec3 &values,
+                            float resetValue = 0.0f,
+                            float columnWidth = 150.0f) {
   bool changed = false;
   ImGui::PushID(label.c_str());
 
@@ -191,114 +273,97 @@ static bool DrawVec2Control(const std::string &label, glm::vec2 &values,
   float lineHeight =
       ImGui::GetFontSize() + ImGui::GetStyle().FramePadding.y * 2.0f;
   ImVec2 buttonSize = {lineHeight + 3.0f, lineHeight};
-  float dragFloatWidth =
-      (ImGui::GetContentRegionAvail().x - 2.0f * buttonSize.x) / 2.0f;
+  float widthEach =
+      (ImGui::GetContentRegionAvail().x - 3.0f * buttonSize.x) / 3.0f;
 
-  ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.7f, 0.15f, 0.15f, 1.0f});
+  // X Axis
+  ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.8f, 0.1f, 0.15f, 1.0f});
+  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.9f, 0.2f, 0.2f, 1.0f});
+  ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.8f, 0.1f, 0.15f, 1.0f});
+  ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
   if (ImGui::Button("X", buttonSize)) {
     values.x = resetValue;
     changed = true;
   }
-  ImGui::PopStyleColor();
+  ImGui::PopFont();
+  ImGui::PopStyleColor(3);
 
   ImGui::SameLine();
-  ImGui::PushItemWidth(dragFloatWidth);
+  ImGui::PushItemWidth(widthEach);
   if (ImGui::DragFloat("##X", &values.x, 0.1f, 0.0f, 0.0f, "%.2f"))
     changed = true;
   ImGui::PopItemWidth();
   ImGui::SameLine();
 
-  ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.15f, 0.6f, 0.15f, 1.0f});
+  // Y Axis
+  ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.2f, 0.7f, 0.2f, 1.0f});
+  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.3f, 0.8f, 0.3f, 1.0f});
+  ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.2f, 0.7f, 0.2f, 1.0f});
+  ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
   if (ImGui::Button("Y", buttonSize)) {
     values.y = resetValue;
     changed = true;
   }
-  ImGui::PopStyleColor();
+  ImGui::PopFont();
+  ImGui::PopStyleColor(3);
 
   ImGui::SameLine();
-  ImGui::PushItemWidth(dragFloatWidth);
+  ImGui::PushItemWidth(widthEach);
   if (ImGui::DragFloat("##Y", &values.y, 0.1f, 0.0f, 0.0f, "%.2f"))
+    changed = true;
+  ImGui::PopItemWidth();
+  ImGui::SameLine();
+
+  // Z Axis
+  ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.1f, 0.25f, 0.8f, 1.0f});
+  ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                        ImVec4{0.2f, 0.35f, 0.9f, 1.0f});
+  ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.1f, 0.25f, 0.8f, 1.0f});
+  ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
+  if (ImGui::Button("Z", buttonSize)) {
+    values.z = resetValue;
+    changed = true;
+  }
+  ImGui::PopFont();
+  ImGui::PopStyleColor(3);
+
+  ImGui::SameLine();
+  ImGui::PushItemWidth(widthEach);
+  if (ImGui::DragFloat("##Z", &values.z, 0.1f, 0.0f, 0.0f, "%.2f"))
     changed = true;
   ImGui::PopItemWidth();
 
   ImGui::PopStyleVar();
+
   ImGui::Columns(1);
   ImGui::PopID();
 
   return changed;
 }
 
-static bool DrawVec3Control(const std::string &label, glm::vec3 &values,
-                            float resetValue = 0.0f,
-                            float columnWidth = 100.0f) {
-  bool changed = false;
-  ImGui::PushID(label.c_str());
+template <typename UIFunction>
+static void DrawComponent(const std::string &name, UIFunction uiFunction) {
+  const ImGuiTreeNodeFlags treeNodeFlags =
+      ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
+      ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowOverlap |
+      ImGuiTreeNodeFlags_FramePadding;
 
-  ImGui::Columns(2);
-  ImGui::SetColumnWidth(0, columnWidth);
-  ImGui::Text("%s", label.c_str());
-  ImGui::NextColumn();
-
-  ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{0, 0});
-
+  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{4, 4});
   float lineHeight =
       ImGui::GetFontSize() + ImGui::GetStyle().FramePadding.y * 2.0f;
-  ImVec2 buttonSize = {lineHeight + 3.0f, lineHeight};
-  float dragFloatWidth =
-      (ImGui::GetContentRegionAvail().x - 3.0f * buttonSize.x) / 3.0f;
-
-  ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.7f, 0.15f, 0.15f, 1.0f});
-  if (ImGui::Button("X", buttonSize)) {
-    values.x = resetValue;
-    changed = true;
-  }
-  ImGui::PopStyleColor();
-
-  ImGui::SameLine();
-  ImGui::PushItemWidth(dragFloatWidth);
-  if (ImGui::DragFloat("##X", &values.x, 0.1f, 0.0f, 0.0f, "%.2f"))
-    changed = true;
-  ImGui::PopItemWidth();
-  ImGui::SameLine();
-
-  ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.15f, 0.6f, 0.15f, 1.0f});
-  if (ImGui::Button("Y", buttonSize)) {
-    values.y = resetValue;
-    changed = true;
-  }
-  ImGui::PopStyleColor();
-
-  ImGui::SameLine();
-  ImGui::PushItemWidth(dragFloatWidth);
-  if (ImGui::DragFloat("##Y", &values.y, 0.1f, 0.0f, 0.0f, "%.2f"))
-    changed = true;
-  ImGui::PopItemWidth();
-  ImGui::SameLine();
-
-  ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.15f, 0.15f, 0.7f, 1.0f});
-  if (ImGui::Button("Z", buttonSize)) {
-    values.z = resetValue;
-    changed = true;
-  }
-  ImGui::PopStyleColor();
-
-  ImGui::SameLine();
-  ImGui::PushItemWidth(dragFloatWidth);
-  if (ImGui::DragFloat("##Z", &values.z, 0.1f, 0.0f, 0.0f, "%.2f"))
-    changed = true;
-  ImGui::PopItemWidth();
-
+  ImGui::Separator();
+  bool open = ImGui::TreeNodeEx((void *)name.c_str(), treeNodeFlags, "%s",
+                                name.c_str());
   ImGui::PopStyleVar();
-  ImGui::Columns(1);
-  ImGui::PopID();
-
-  return changed || ImGui::IsItemDeactivatedAfterEdit();
+  if (open) {
+    uiFunction();
+    ImGui::TreePop();
+  }
 }
 
 void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
   if (m_SelectionIsMaterial) {
-    if (ImGui::CollapsingHeader("Material Properties",
-                                ImGuiTreeNodeFlags_DefaultOpen)) {
+    DrawComponent("Material Properties", [&]() {
       if (entity->Material.AlbedoMap) {
         ImGui::Text("Texture: %s",
                     std::filesystem::path(entity->Material.AlbedoMap->GetPath())
@@ -308,80 +373,62 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
         DrawVec2Control("Tiling", entity->Material.Tiling, 1.0f);
         ImGui::Spacing();
       }
-    }
+    });
   } else {
-    if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
-      Transform oldTransform = entity->Transform;
-      bool changed = false;
-
-      if (DrawVec3Control("Position", entity->Transform.Position))
-        changed = true;
+    DrawComponent("Transform", [&]() {
+      DrawVec3Control("Position", entity->Transform.Position);
 
       glm::vec3 rotation = entity->Transform.Rotation;
       if (DrawVec3Control("Rotation", rotation)) {
         entity->Transform.Rotation = rotation;
-        changed = true;
       }
 
-      if (DrawVec3Control("Scale", entity->Transform.Scale, 1.0f))
-        changed = true;
+      DrawVec3Control("Scale", entity->Transform.Scale, 1.0f);
+    });
 
-      bool isPlayer = (entity->Name == "Player");
-      if (isPlayer) {
+    if (entity->Name == "Player") {
+      DrawComponent("Player Camera", [&]() {
+        DrawFloatControl("FOV", entity->CameraFOV, 45.0f);
+      });
+
+      DrawComponent("Movement Settings", [&]() {
         ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Text("Player Camera");
-        ImGui::DragFloat("FOV", &entity->CameraFOV, 0.5f, 10.0f, 170.0f);
+        ImGui::TextDisabled("Speeds");
+        DrawFloatControl("Max Run Speed", entity->Movement.MaxSpeed);
+        DrawFloatControl("Max Sprint Speed", entity->Movement.MaxSprintSpeed);
+        DrawFloatControl("Max Crouch Speed", entity->Movement.MaxCrouchSpeed);
+        DrawFloatControl("Stop Speed", entity->Movement.StopSpeed);
 
         ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Text("Movement Settings");
-        ImGui::DragFloat("Max Run Speed", &entity->Movement.MaxSpeed, 0.1f,
-                         0.0f, 0.0f, "%.2f");
-        ImGui::DragFloat("Max Sprint Speed", &entity->Movement.MaxSprintSpeed,
-                         0.1f, 0.0f, 0.0f, "%.2f");
-        ImGui::DragFloat("Max Crouch Speed", &entity->Movement.MaxCrouchSpeed,
-                         0.1f, 0.0f, 0.0f, "%.2f");
-        ImGui::DragFloat("Acceleration", &entity->Movement.Acceleration, 0.1f,
-                         0.0f, 0.0f, "%.2f");
-        ImGui::DragFloat("Air Acceleration", &entity->Movement.AirAcceleration,
-                         0.1f, 0.0f, 0.0f, "%.2f");
-        ImGui::DragFloat("Friction", &entity->Movement.Friction, 0.1f, 0.0f,
-                         0.0f, "%.2f");
-        ImGui::DragFloat("Stop Speed", &entity->Movement.StopSpeed, 0.1f, 0.0f,
-                         0.0f, "%.2f");
-        ImGui::DragFloat("Jump Velocity", &entity->Movement.JumpVelocity, 0.1f,
-                         0.0f, 0.0f, "%.2f");
-        ImGui::DragFloat("Gravity", &entity->Movement.Gravity, 1.0f, 0.0f, 0.0f,
-                         "%.2f");
-        ImGui::DragFloat("Max Air Wish Speed",
-                         &entity->Movement.MaxAirWishSpeed, 0.1f, 0.0f, 0.0f,
-                         "%.2f");
-      }
+        ImGui::TextDisabled("Physics");
+        DrawFloatControl("Acceleration", entity->Movement.Acceleration);
+        DrawFloatControl("Air Acceleration", entity->Movement.AirAcceleration);
+        DrawFloatControl("Friction", entity->Movement.Friction);
+        DrawFloatControl("Max Air Wish Speed",
+                         entity->Movement.MaxAirWishSpeed);
 
-      if (changed && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
-        Application::Get().GetUndoSystem().AddCommand(
-            CreateScope<TransformCommand>(entity, oldTransform,
-                                          entity->Transform));
-      }
-
-      if (ImGui::Checkbox("Collidable", &entity->Collidable)) {
-        Application::Get().OnEntityCollidableChanged(entity);
-      }
-      ImGui::Spacing();
+        ImGui::Spacing();
+        ImGui::TextDisabled("Gravity & Jump");
+        DrawFloatControl("Jump Velocity", entity->Movement.JumpVelocity);
+        DrawFloatControl("Gravity", entity->Movement.Gravity);
+      });
     }
 
+    DrawComponent("Mesh", [&]() {
+      // Simple mesh selection placeholder text for now, could expand later
+      ImGui::Text("Mesh Asset: %s", entity->MeshPath.c_str());
+      ImGui::Checkbox("Collidable", &entity->Collidable);
+    });
+
     if (entity->Material.AlbedoMap) {
-      if (ImGui::CollapsingHeader("Material Properties",
-                                  ImGuiTreeNodeFlags_DefaultOpen)) {
+      DrawComponent("Material", [&]() {
         ImGui::Text("Texture: %s",
                     std::filesystem::path(entity->Material.AlbedoMap->GetPath())
                         .filename()
                         .string()
                         .c_str());
         DrawVec2Control("Tiling", entity->Material.Tiling, 1.0f);
-        ImGui::Spacing();
-      }
+      });
     }
   }
 }
