@@ -1,3 +1,5 @@
 .DS_Store
-cmake-build-debug
+cmake-build-debug/
 build/
+.idea/
+_codeql_detected_source_root/
