@@ -1189,6 +1189,21 @@ void Application::UI_SettingsWindow() {
       }
       ImGui::PopItemWidth();
 
+      // Editor FOV
+      ImGui::TableNextRow();
+      ImGui::TableSetColumnIndex(0);
+      ImGui::Text("Editor FOV");
+      ImGui::TableSetColumnIndex(1);
+      ImGui::PushItemWidth(-1.0f);
+      if (ImGui::DragFloat("##EditorFOV", &m_EditorFOV, 1.0f, 30.0f, 110.0f,
+                           "%.1f")) {
+        float aspect = 1.0f;
+        if (m_SceneViewportSize.y > 0)
+          aspect = m_SceneViewportSize.x / m_SceneViewportSize.y;
+        m_EditorCamera->SetProjection(m_EditorFOV, aspect, 0.1f, 1000.0f);
+      }
+      ImGui::PopItemWidth();
+
       // Window Background Color
       ImGui::TableNextRow();
       ImGui::TableSetColumnIndex(0);
@@ -1442,6 +1457,7 @@ void Application::UI_ProjectSettingsWindow() {
 void Application::SaveSettings() {
   nlohmann::json j;
   j["FontSize"] = m_FontSize;
+  j["EditorFOV"] = m_EditorFOV;
   j["FPSCap"] = m_FPSCap;
   j["Theme"] = (int)m_EditorTheme;
   j["CustomColor"] = {m_CustomColor.r, m_CustomColor.g, m_CustomColor.b,
@@ -1470,6 +1486,8 @@ void Application::LoadSettings() {
       nlohmann::json j;
       i >> j;
       m_FontSize = j.at("FontSize").get<float>();
+      if (j.contains("EditorFOV"))
+        m_EditorFOV = j["EditorFOV"];
       if (j.contains("FPSCap"))
         m_FPSCap = j["FPSCap"];
       m_EditorTheme = (EditorTheme)j.at("Theme").get<int>();
