@@ -588,6 +588,8 @@ void Application::UI_DeveloperConsole() {
   if (!m_ShowConsole)
     return;
 
+  ImGui::SetNextWindowSizeConstraints(ImVec2(400, 200),
+                                      ImVec2(FLT_MAX, FLT_MAX));
   ImGui::SetNextWindowSize({800, 450}, ImGuiCond_FirstUseEver);
   if (ImGui::Begin("Developer Console (`)", &m_ShowConsole)) {
     if (ImGui::Button("Clear")) {
@@ -1231,6 +1233,8 @@ void Application::Run() {
 
       // Hierarchy
       if (m_ShowHierarchy) {
+        ImGui::SetNextWindowSizeConstraints(ImVec2(200, 200),
+                                            ImVec2(FLT_MAX, FLT_MAX));
         if (!m_ProjectRoot.empty() && m_LevelLoaded) {
           m_SceneHierarchyPanel->OnImGuiRender();
 
@@ -1292,6 +1296,8 @@ void Application::Run() {
 
       // Content Browser
       if (m_ShowContentBrowser) {
+        ImGui::SetNextWindowSizeConstraints(ImVec2(200, 200),
+                                            ImVec2(FLT_MAX, FLT_MAX));
         if (!m_ProjectRoot.empty())
           m_ContentBrowserPanel->OnImGuiRender();
         else {
@@ -1302,6 +1308,8 @@ void Application::Run() {
 
       // Inspector
       if (m_ShowInspector) {
+        ImGui::SetNextWindowSizeConstraints(ImVec2(200, 200),
+                                            ImVec2(FLT_MAX, FLT_MAX));
         ImGui::Begin("Inspector");
         ImGui::End();
       }
@@ -1314,6 +1322,8 @@ void Application::Run() {
 
       // Scene Viewport
       if (m_ShowScene) {
+        ImGui::SetNextWindowSizeConstraints(ImVec2(300, 200),
+                                            ImVec2(FLT_MAX, FLT_MAX));
         ImGui::Begin("Scene");
         m_SceneViewportFocused = ImGui::IsWindowFocused();
         m_SceneViewportHovered = ImGui::IsWindowHovered();
@@ -1552,6 +1562,8 @@ void Application::Run() {
                     speed);
         ImGui::End();
       } else {
+        ImGui::SetNextWindowSizeConstraints(ImVec2(200, 100),
+                                            ImVec2(FLT_MAX, FLT_MAX));
         ImGui::Begin("Engine Statistics");
         ImGui::End();
       }
@@ -1625,54 +1637,106 @@ bool Application::OnWindowDrop(WindowDropEvent &e) {
 }
 
 void Application::UI_SettingsWindow() {
-  ImGui::Begin("Settings", &m_ShowSettingsWindow);
+  ImGui::SetNextWindowSizeConstraints(ImVec2(500, 400),
+                                      ImVec2(FLT_MAX, FLT_MAX));
+  if (!ImGui::Begin("Settings", &m_ShowSettingsWindow)) {
+    ImGui::End();
+    return;
+  }
 
   if (ImGui::CollapsingHeader("Appearance", ImGuiTreeNodeFlags_DefaultOpen)) {
-    ImGui::Text("UI Font Settings");
-    if (ImGui::DragFloat("Font Scale", &m_FontSize, 0.01f, 0.5f, 2.0f,
-                         "%.2f")) {
-      ImGui::GetIO().FontGlobalScale = m_FontSize / 18.0f;
-    }
+    if (ImGui::BeginTable("AppearanceTable", 2,
+                          ImGuiTableFlags_SizingFixedFit)) {
+      ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed,
+                              150.0f);
+      ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 
-    ImGui::Separator();
-    ImGui::Text("Themes");
-    if (ImGui::Button("Unity Dark")) {
-      m_EditorTheme = EditorTheme::Unity;
-      m_ImGuiLayer->SetDarkThemeColors();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Dracula")) {
-      m_EditorTheme = EditorTheme::Dracula;
-      m_ImGuiLayer->SetDraculaThemeColors();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Classic Dark")) {
-      m_EditorTheme = EditorTheme::Classic;
-      ImGui::StyleColorsDark();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Light")) {
-      m_EditorTheme = EditorTheme::Light;
-      ImGui::StyleColorsLight();
-    }
+      // Font Scale
+      ImGui::TableNextRow();
+      ImGui::TableSetColumnIndex(0);
+      ImGui::Text("Font Scale");
+      ImGui::TableSetColumnIndex(1);
+      ImGui::PushItemWidth(-1.0f);
+      if (ImGui::DragFloat("##FontScale", &m_FontSize, 0.01f, 0.5f, 2.0f,
+                           "%.2f")) {
+        ImGui::GetIO().FontGlobalScale = m_FontSize / 18.0f;
+      }
+      ImGui::PopItemWidth();
 
-    ImGui::Separator();
-    ImGui::Text("Custom Colors");
-    if (ImGui::ColorEdit4("Window BG", glm::value_ptr(m_CustomColor))) {
-      auto &colors = ImGui::GetStyle().Colors;
-      colors[ImGuiCol_WindowBg] = ImVec4{m_CustomColor.r, m_CustomColor.g,
-                                         m_CustomColor.b, m_CustomColor.a};
+      // Theme
+      ImGui::TableNextRow();
+      ImGui::TableSetColumnIndex(0);
+      ImGui::Text("Editor Theme");
+      ImGui::TableSetColumnIndex(1);
+      const char *themes[] = {"Unity Dark", "Dracula", "Classic Dark", "Light"};
+      int currentTheme = (int)m_EditorTheme;
+      ImGui::PushItemWidth(-1.0f);
+      if (ImGui::Combo("##Theme", &currentTheme, themes,
+                       IM_ARRAYSIZE(themes))) {
+        m_EditorTheme = (EditorTheme)currentTheme;
+        switch (m_EditorTheme) {
+        case EditorTheme::Unity:
+          m_ImGuiLayer->SetDarkThemeColors();
+          break;
+        case EditorTheme::Dracula:
+          m_ImGuiLayer->SetDraculaThemeColors();
+          break;
+        case EditorTheme::Classic:
+          ImGui::StyleColorsDark();
+          break;
+        case EditorTheme::Light:
+          ImGui::StyleColorsLight();
+          break;
+        }
+      }
+      ImGui::PopItemWidth();
+
+      // Window Background Color
+      ImGui::TableNextRow();
+      ImGui::TableSetColumnIndex(0);
+      ImGui::Text("Window BG");
+      ImGui::TableSetColumnIndex(1);
+      if (ImGui::ColorEdit4("##WindowBG", glm::value_ptr(m_CustomColor),
+                            ImGuiColorEditFlags_NoInputs)) {
+        auto &colors = ImGui::GetStyle().Colors;
+        colors[ImGuiCol_WindowBg] = ImVec4{m_CustomColor.r, m_CustomColor.g,
+                                           m_CustomColor.b, m_CustomColor.a};
+      }
+
+      ImGui::EndTable();
     }
+  }
 
-    ImGui::Separator();
-    ImGui::DragInt("Game FPS Cap (0 = Unlimited)", &m_FPSCap, 1.0f, 0, 1000);
+  if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (ImGui::BeginTable("PerformanceTable", 2,
+                          ImGuiTableFlags_SizingFixedFit)) {
+      ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed,
+                              150.0f);
+      ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 
-    ImGui::Separator();
+      // FPS Cap
+      ImGui::TableNextRow();
+      ImGui::TableSetColumnIndex(0);
+      ImGui::Text("FPS Cap");
+      ImGui::TableSetColumnIndex(1);
+      ImGui::PushItemWidth(-1.0f);
+      ImGui::DragInt("##FPSCap", &m_FPSCap, 1.0f, 0, 1000,
+                     m_FPSCap == 0 ? "Unlimited" : "%d");
+      ImGui::PopItemWidth();
+
+      ImGui::EndTable();
+    }
+  }
+
+  if (ImGui::CollapsingHeader("Features", ImGuiTreeNodeFlags_DefaultOpen)) {
     ImGui::Checkbox("Enable Developer Console (`)", &m_EnableConsole);
   }
 
   ImGui::Separator();
-  if (ImGui::Button("Apply & Save")) {
+  ImVec2 buttonSize = {120, 30};
+  ImGui::SetCursorPosX(ImGui::GetWindowWidth() - buttonSize.x -
+                       ImGui::GetStyle().WindowPadding.x);
+  if (ImGui::Button("Apply & Save", buttonSize)) {
     SaveSettings();
   }
 
