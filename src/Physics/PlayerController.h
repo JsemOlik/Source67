@@ -4,6 +4,7 @@
 #include "Core/Timestep.h"
 #include "Events/Event.h"
 #include "Renderer/Camera.h"
+#include "Renderer/Entity.h"
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Character/CharacterVirtual.h>
 #include <glm/glm.hpp>
@@ -28,6 +29,8 @@ public:
   float GetYaw() const { return m_Yaw; }
   float GetPitch() const { return m_Pitch; }
 
+  void SetSettings(const MovementSettings &settings) { m_Settings = settings; }
+
   // Movement State updates
   void UpdateCrouch(float dt);
   void UpdateSprint(float dt);
@@ -42,21 +45,10 @@ private:
   JPH::Ref<JPH::CharacterVirtual> m_Character;
   glm::vec3 m_Position = {0.0f, 2.0f, 0.0f};
 
+  MovementSettings m_Settings;
+
   // Source Movement Constants (HU)
   static constexpr float HU_TO_METERS = 1.0f / 39.97f;
-  static constexpr float SPEED_CROUCH = 63.3f * HU_TO_METERS;
-  static constexpr float SPEED_WALK = 150.0f * HU_TO_METERS;
-  static constexpr float SPEED_RUN = 190.0f * HU_TO_METERS;
-  static constexpr float SPEED_SPRINT = 320.0f * HU_TO_METERS;
-
-  static constexpr float SV_ACCELERATE = 5.6f;
-  static constexpr float SV_AIRACCELERATE = 12.0f;
-  static constexpr float SV_FRICTION = 4.8f;
-  static constexpr float SV_STOPSPEED = 100.0f * HU_TO_METERS;
-
-  static constexpr float MAX_AIR_WISH_SPEED = 30.0f * HU_TO_METERS;
-  static constexpr float JUMP_VELOCITY = 268.0f * HU_TO_METERS;
-  static constexpr float GRAVITY = 800.0f * HU_TO_METERS;
 
   static constexpr float SPRINT_DURATION = 8.0f;
   static constexpr float SPRINT_RECOVERY = 8.0f;

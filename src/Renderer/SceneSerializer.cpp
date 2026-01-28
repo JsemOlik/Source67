@@ -96,8 +96,22 @@ void SceneSerializer::Serialize(const std::string &filepath) {
 
     ss << "    Collidable: " << (entity->Collidable ? "true" : "false") << "\n";
 
-    if (entity->Name == "Player")
+    if (entity->Name == "Player") {
       ss << "    CameraFOV: " << entity->CameraFOV << "\n";
+      ss << "    Movement:\n";
+      ss << "      MaxSpeed: " << entity->Movement.MaxSpeed << "\n";
+      ss << "      MaxSprintSpeed: " << entity->Movement.MaxSprintSpeed << "\n";
+      ss << "      MaxCrouchSpeed: " << entity->Movement.MaxCrouchSpeed << "\n";
+      ss << "      Acceleration: " << entity->Movement.Acceleration << "\n";
+      ss << "      AirAcceleration: " << entity->Movement.AirAcceleration
+         << "\n";
+      ss << "      Friction: " << entity->Movement.Friction << "\n";
+      ss << "      StopSpeed: " << entity->Movement.StopSpeed << "\n";
+      ss << "      JumpVelocity: " << entity->Movement.JumpVelocity << "\n";
+      ss << "      Gravity: " << entity->Movement.Gravity << "\n";
+      ss << "      MaxAirWishSpeed: " << entity->Movement.MaxAirWishSpeed
+         << "\n";
+    }
   }
 
   std::ofstream fout(filepath);
@@ -202,6 +216,39 @@ bool SceneSerializer::Deserialize(const std::string &filepath) {
         float fov;
         if (sscanf(line.c_str(), "      CameraFOV: %f", &fov) == 1)
           currentEntity->CameraFOV = fov;
+      } else if (line.find("MaxSpeed:") != std::string::npos) {
+        sscanf(line.c_str(), "      MaxSpeed: %f",
+               &currentEntity->Movement.MaxSpeed);
+      } else if (line.find("MaxSprintSpeed:") != std::string::npos) {
+        sscanf(line.c_str(), "      MaxSprintSpeed: %f",
+               &currentEntity->Movement.MaxSprintSpeed);
+      } else if (line.find("MaxCrouchSpeed:") != std::string::npos) {
+        sscanf(line.c_str(), "      MaxCrouchSpeed: %f",
+               &currentEntity->Movement.MaxCrouchSpeed);
+      } else if (line.find("Acceleration:") != std::string::npos) {
+        // Distinguish from AirAcceleration
+        if (line.find("AirAcceleration:") == std::string::npos) {
+          sscanf(line.c_str(), "      Acceleration: %f",
+                 &currentEntity->Movement.Acceleration);
+        } else {
+          sscanf(line.c_str(), "      AirAcceleration: %f",
+                 &currentEntity->Movement.AirAcceleration);
+        }
+      } else if (line.find("Friction:") != std::string::npos) {
+        sscanf(line.c_str(), "      Friction: %f",
+               &currentEntity->Movement.Friction);
+      } else if (line.find("StopSpeed:") != std::string::npos) {
+        sscanf(line.c_str(), "      StopSpeed: %f",
+               &currentEntity->Movement.StopSpeed);
+      } else if (line.find("JumpVelocity:") != std::string::npos) {
+        sscanf(line.c_str(), "      JumpVelocity: %f",
+               &currentEntity->Movement.JumpVelocity);
+      } else if (line.find("Gravity:") != std::string::npos) {
+        sscanf(line.c_str(), "      Gravity: %f",
+               &currentEntity->Movement.Gravity);
+      } else if (line.find("MaxAirWishSpeed:") != std::string::npos) {
+        sscanf(line.c_str(), "      MaxAirWishSpeed: %f",
+               &currentEntity->Movement.MaxAirWishSpeed);
       }
     }
   }

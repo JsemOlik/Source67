@@ -332,6 +332,31 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
         ImGui::Separator();
         ImGui::Text("Player Camera");
         ImGui::DragFloat("FOV", &entity->CameraFOV, 0.5f, 10.0f, 170.0f);
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Text("Movement Settings");
+        ImGui::DragFloat("Max Run Speed", &entity->Movement.MaxSpeed, 0.1f,
+                         0.0f, 0.0f, "%.2f");
+        ImGui::DragFloat("Max Sprint Speed", &entity->Movement.MaxSprintSpeed,
+                         0.1f, 0.0f, 0.0f, "%.2f");
+        ImGui::DragFloat("Max Crouch Speed", &entity->Movement.MaxCrouchSpeed,
+                         0.1f, 0.0f, 0.0f, "%.2f");
+        ImGui::DragFloat("Acceleration", &entity->Movement.Acceleration, 0.1f,
+                         0.0f, 0.0f, "%.2f");
+        ImGui::DragFloat("Air Acceleration", &entity->Movement.AirAcceleration,
+                         0.1f, 0.0f, 0.0f, "%.2f");
+        ImGui::DragFloat("Friction", &entity->Movement.Friction, 0.1f, 0.0f,
+                         0.0f, "%.2f");
+        ImGui::DragFloat("Stop Speed", &entity->Movement.StopSpeed, 0.1f, 0.0f,
+                         0.0f, "%.2f");
+        ImGui::DragFloat("Jump Velocity", &entity->Movement.JumpVelocity, 0.1f,
+                         0.0f, 0.0f, "%.2f");
+        ImGui::DragFloat("Gravity", &entity->Movement.Gravity, 1.0f, 0.0f, 0.0f,
+                         "%.2f");
+        ImGui::DragFloat("Max Air Wish Speed",
+                         &entity->Movement.MaxAirWishSpeed, 0.1f, 0.0f, 0.0f,
+                         "%.2f");
       }
 
       if (changed && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {

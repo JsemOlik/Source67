@@ -1686,6 +1686,7 @@ void Application::RenderFrame(Timestep timestep) {
     // Real-time Player Sync (during Play/Pause)
     if (entity->Name == "Player" && (m_SceneState == SceneState::Play ||
                                      m_SceneState == SceneState::Pause)) {
+      m_PlayerController->SetSettings(entity->Movement);
       entity->Transform.Position =
           m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
       entity->Transform.Rotation.x = m_PlayerController->GetPitch();

@@ -128,16 +128,6 @@ void PlayerController::OnUpdate(Timestep ts) {
                           velocityMeters.GetY() / HU_TO_METERS,
                           velocityMeters.GetZ() / HU_TO_METERS};
 
-  const float SV_GRAVITY_HU = 800.0f;    // HU/s^2
-  const float JUMP_VELOCITY_HU = 268.0f; // HU/s
-  const float SPEED_RUN_HU = 190.0f;
-  const float SPEED_SPRINT_HU = 320.0f;
-  const float SPEED_CROUCH_HU = 63.3f;
-  const float SV_FRICTION_HU = 4.8f;
-  const float SV_ACCELERATE_HU = 5.6f;
-  const float SV_AIRACCELERATE_HU = 12.0f;
-  const float MAX_AIR_WISH_SPEED_HU = 30.0f;
-
   // 1. Check Ground State & Jump (Jump must happen before Friction to enable
   // Bhop)
   bool onGround = m_Character->GetGroundState() ==
@@ -145,7 +135,7 @@ void PlayerController::OnUpdate(Timestep ts) {
   bool justJumped = false;
 
   if (m_JumpPressed && onGround) {
-    velocityHU.y = JUMP_VELOCITY_HU;
+    velocityHU.y = m_Settings.JumpVelocity;
     m_JumpPressed = false;
     justJumped = true;
     onGround = false; // Treat as air for rest of frame
@@ -156,8 +146,10 @@ void PlayerController::OnUpdate(Timestep ts) {
     glm::vec3 speedVec = {velocityHU.x, 0.0f, velocityHU.z};
     float speed = glm::length(speedVec);
     if (speed > 0.01f) {
-      float control = (speed < 100.0f) ? 100.0f : speed; // 100 HU/s stopspeed
-      float drop = control * SV_FRICTION_HU * ts;
+      float control = (speed < m_Settings.StopSpeed)
+                          ? m_Settings.StopSpeed
+                          : speed; // 100 HU/s stopspeed
+      float drop = control * m_Settings.Friction * ts;
       float newSpeed = glm::max(0.0f, speed - drop);
       newSpeed /= speed;
       velocityHU.x *= newSpeed;
@@ -177,11 +169,11 @@ void PlayerController::OnUpdate(Timestep ts) {
     glm::vec3 wishVel =
         (forward * m_ForwardInput * 450.0f) + (right * m_SideInput * 450.0f);
 
-    float maxSpeed = SPEED_RUN_HU;
+    float maxSpeed = m_Settings.MaxSpeed;
     if (m_IsSprinting && m_SprintRemaining > 0.0f)
-      maxSpeed = SPEED_SPRINT_HU;
+      maxSpeed = m_Settings.MaxSprintSpeed;
     else if (m_IsCrouching)
-      maxSpeed = SPEED_CROUCH_HU;
+      maxSpeed = m_Settings.MaxCrouchSpeed;
 
     wishSpeedHU = glm::length(wishVel);
     if (wishSpeedHU > 0.01f) {
@@ -199,17 +191,17 @@ void PlayerController::OnUpdate(Timestep ts) {
     float currentSpeed = velocityHU.x * wishDir.x + velocityHU.z * wishDir.z;
     float addSpeed = wishSpeedHU - currentSpeed;
     if (addSpeed > 0.0f) {
-      float accelSpeed = SV_ACCELERATE_HU * ts * wishSpeedHU;
+      float accelSpeed = m_Settings.Acceleration * ts * wishSpeedHU;
       velocityHU.x += (glm::min(accelSpeed, addSpeed) * wishDir.x);
       velocityHU.z += (glm::min(accelSpeed, addSpeed) * wishDir.z);
     }
   } else {
     // Air Accelerate
-    float wishSpeedCap = glm::min(wishSpeedHU, MAX_AIR_WISH_SPEED_HU);
+    float wishSpeedCap = glm::min(wishSpeedHU, m_Settings.MaxAirWishSpeed);
     float currentSpeed = velocityHU.x * wishDir.x + velocityHU.z * wishDir.z;
     float addSpeed = wishSpeedCap - currentSpeed;
     if (addSpeed > 0.0f) {
-      float accelSpeed = SV_AIRACCELERATE_HU * ts * wishSpeedHU;
+      float accelSpeed = m_Settings.AirAcceleration * ts * wishSpeedHU;
       float finalAccel = glm::min(accelSpeed, addSpeed);
       velocityHU.x += finalAccel * wishDir.x;
       velocityHU.z += finalAccel * wishDir.z;
@@ -218,7 +210,7 @@ void PlayerController::OnUpdate(Timestep ts) {
 
   // 5. Gravity
   if (!onGround && !justJumped) {
-    velocityHU.y -= SV_GRAVITY_HU * ts;
+    velocityHU.y -= m_Settings.Gravity * ts;
   } else if (onGround) {
     velocityHU.y = -10.0f; // Small stick to ground force in HU
   }
