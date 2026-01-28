@@ -27,22 +27,59 @@ public:
   float GetYaw() const { return m_Yaw; }
   float GetPitch() const { return m_Pitch; }
 
+  // Movement State updates
+  void UpdateCrouch(float dt);
+  void UpdateSprint(float dt);
+
 private:
   void HandleInput(float dt);
+  glm::vec3 GetForwardVector(float yaw, float pitch);
+  glm::vec3 GetRightVector(float yaw);
 
 private:
   Ref<PerspectiveCamera> m_Camera;
   JPH::Ref<JPH::CharacterVirtual> m_Character;
   glm::vec3 m_Position = {0.0f, 2.0f, 0.0f};
-  float m_WalkSpeed = 6.0f;
-  float m_SprintSpeed = 10.0f;
-  float m_JumpForce = 8.0f;
-  float m_Acceleration = 30.0f;
-  float m_Friction = 15.0f;
+
+  // Source Movement Constants (HU)
+  static constexpr float HU_TO_METERS = 1.0f / 39.97f;
+  static constexpr float SPEED_CROUCH = 63.3f * HU_TO_METERS;
+  static constexpr float SPEED_WALK = 150.0f * HU_TO_METERS;
+  static constexpr float SPEED_RUN = 190.0f * HU_TO_METERS;
+  static constexpr float SPEED_SPRINT = 320.0f * HU_TO_METERS;
+
+  static constexpr float SV_ACCELERATE = 5.6f;
+  static constexpr float SV_AIRACCELERATE = 12.0f;
+  static constexpr float SV_FRICTION = 4.8f;
+  static constexpr float SV_STOPSPEED = 100.0f * HU_TO_METERS;
+
+  static constexpr float MAX_AIR_WISH_SPEED = 30.0f * HU_TO_METERS;
+  static constexpr float JUMP_VELOCITY = 268.0f * HU_TO_METERS;
+  static constexpr float GRAVITY = 800.0f * HU_TO_METERS;
+
+  static constexpr float SPRINT_DURATION = 8.0f;
+  static constexpr float SPRINT_RECOVERY = 8.0f;
+
+  // Movement State
+  bool m_IsGrounded = false;
+  bool m_IsSprinting = false;
+  float m_SprintRemaining = SPRINT_DURATION;
+  float m_SprintRecoveryTime = 0.0f;
+
+  bool m_IsCrouching = false;
+  float m_CrouchTransition =
+      1.0f; // 1.0 = standing, 0.0 = crouched (inverted for ease of mix)
+
+  // Input State
+  float m_ForwardInput = 0.0f;
+  float m_SideInput = 0.0f;
+  bool m_JumpPressed = false;
+  bool m_SprintPressed = false;
+  bool m_CrouchPressed = false;
 
   float m_LastMouseX = 0.0f, m_LastMouseY = 0.0f;
   bool m_FirstMouse = true;
-  float m_Pitch = 0.0f, m_Yaw = -90.0f; // Default yaw facing -Z
+  float m_Pitch = 0.0f, m_Yaw = -90.0f;
 };
 
 } // namespace S67

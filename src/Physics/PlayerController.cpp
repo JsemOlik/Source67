@@ -55,6 +55,19 @@ void PlayerController::Reset(const glm::vec3 &startPos) {
   m_Camera->SetYaw(m_Yaw);
   m_Camera->SetPitch(m_Pitch);
   m_FirstMouse = true;
+
+  // Reset Source state
+  m_IsGrounded = false;
+  m_IsSprinting = false;
+  m_SprintRemaining = SPRINT_DURATION;
+  m_SprintRecoveryTime = 0.0f;
+  m_IsCrouching = false;
+  m_CrouchTransition = 1.0f;
+  m_ForwardInput = 0.0f;
+  m_SideInput = 0.0f;
+  m_JumpPressed = false;
+  m_SprintPressed = false;
+  m_CrouchPressed = false;
 }
 
 void PlayerController::ReinitializeCharacter() {
@@ -109,75 +122,192 @@ void PlayerController::OnUpdate(Timestep ts) {
 
   HandleInput(ts);
 
-  // Sync Camera
-  JPH::RVec3 pos = m_Character->GetPosition();
-  m_Camera->SetPosition(
-      {pos.GetX(), pos.GetY() + 1.7f, pos.GetZ()}); // Eye height
-}
+  // Read current velocity from Jolt and convert to Hammer Units (HU)
+  JPH::Vec3 velocityMeters = m_Character->GetLinearVelocity();
+  glm::vec3 velocityHU = {velocityMeters.GetX() / HU_TO_METERS,
+                          velocityMeters.GetY() / HU_TO_METERS,
+                          velocityMeters.GetZ() / HU_TO_METERS};
 
-void PlayerController::HandleInput(float dt) {
-  glm::vec3 direction = {0.0f, 0.0f, 0.0f};
-  glm::vec3 forward = m_Camera->GetForward();
-  forward.y = 0;
-  forward = glm::normalize(forward);
-  glm::vec3 right = m_Camera->GetRight();
-  right.y = 0;
-  right = glm::normalize(right);
+  const float SV_GRAVITY_HU = 800.0f;    // HU/s^2
+  const float JUMP_VELOCITY_HU = 268.0f; // HU/s
+  const float SPEED_RUN_HU = 190.0f;
+  const float SPEED_SPRINT_HU = 320.0f;
+  const float SPEED_CROUCH_HU = 63.3f;
+  const float SV_FRICTION_HU = 4.8f;
+  const float SV_ACCELERATE_HU = 5.6f;
+  const float SV_AIRACCELERATE_HU = 12.0f;
+  const float MAX_AIR_WISH_SPEED_HU = 30.0f;
 
-  if (Input::IsKeyPressed(GLFW_KEY_W))
-    direction += forward;
-  if (Input::IsKeyPressed(GLFW_KEY_S))
-    direction -= forward;
-  if (Input::IsKeyPressed(GLFW_KEY_A))
-    direction -= right;
-  if (Input::IsKeyPressed(GLFW_KEY_D))
-    direction += right;
+  bool onGround = m_Character->GetGroundState() ==
+                  JPH::CharacterVirtual::EGroundState::OnGround;
 
-  float currentSpeed =
-      Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT) ? m_SprintSpeed : m_WalkSpeed;
+  // 1. Friction (Ground Only)
+  if (onGround) {
+    glm::vec3 speedVec = {velocityHU.x, 0.0f, velocityHU.z};
+    float speed = glm::length(speedVec);
+    if (speed > 0.01f) {
+      float control = (speed < 100.0f) ? 100.0f : speed; // 100 HU/s stopspeed
+      float drop = control * SV_FRICTION_HU * ts;
+      float newSpeed = glm::max(0.0f, speed - drop);
+      newSpeed /= speed;
+      velocityHU.x *= newSpeed;
+      velocityHU.z *= newSpeed;
+    } else {
+      velocityHU.x = 0.0f;
+      velocityHU.z = 0.0f;
+    }
+  }
 
-  if (glm::length(direction) > 0.0f)
-    direction = glm::normalize(direction);
+  // 2. Wish velocity calculation (HU)
+  glm::vec3 wishDir;
+  float wishSpeedHU;
+  {
+    glm::vec3 forward = GetForwardVector(m_Yaw, 0.0f);
+    glm::vec3 right = GetRightVector(m_Yaw);
+    glm::vec3 wishVel =
+        (forward * m_ForwardInput * 450.0f) + (right * m_SideInput * 450.0f);
 
-  JPH::Vec3 currentVelocity = m_Character->GetLinearVelocity();
-  glm::vec3 currentHorizontalVel = {currentVelocity.GetX(), 0.0f,
-                                    currentVelocity.GetZ()};
-  glm::vec3 targetHorizontalVel = direction * currentSpeed;
+    float maxSpeed = SPEED_RUN_HU;
+    if (m_IsSprinting && m_SprintRemaining > 0.0f)
+      maxSpeed = SPEED_SPRINT_HU;
+    else if (m_IsCrouching)
+      maxSpeed = SPEED_CROUCH_HU;
 
-  float lerpFactor =
-      (glm::length(direction) > 0.0f) ? m_Acceleration : m_Friction;
-  glm::vec3 newHorizontalVel =
-      glm::mix(currentHorizontalVel, targetHorizontalVel,
-               std::min(dt * lerpFactor, 1.0f));
+    wishSpeedHU = glm::length(wishVel);
+    if (wishSpeedHU > 0.01f) {
+      wishDir = glm::normalize(wishVel);
+      wishSpeedHU = glm::min(wishSpeedHU, maxSpeed);
+    } else {
+      wishDir = glm::vec3(0.0f);
+      wishSpeedHU = 0.0f;
+    }
+  }
 
-  currentVelocity.SetX(newHorizontalVel.x);
-  currentVelocity.SetZ(newHorizontalVel.z);
-  JPH::Vec3 &velocity = currentVelocity;
-
-  // Gravity
-  if (m_Character->GetGroundState() !=
-      JPH::CharacterVirtual::EGroundState::OnGround) {
-    velocity.SetY(velocity.GetY() - 9.81f * dt * 3.0f);
+  // 3. Acceleration
+  if (onGround) {
+    // Accelerate
+    float currentSpeed = velocityHU.x * wishDir.x + velocityHU.z * wishDir.z;
+    float addSpeed = wishSpeedHU - currentSpeed;
+    if (addSpeed > 0.0f) {
+      float accelSpeed = SV_ACCELERATE_HU * ts * wishSpeedHU;
+      velocityHU.x += (glm::min(accelSpeed, addSpeed) * wishDir.x);
+      velocityHU.z += (glm::min(accelSpeed, addSpeed) * wishDir.z);
+    }
   } else {
-    velocity.SetY(-1.0f); // Small downward force to stay grounded
+    // Air Accelerate
+    float wishSpeedCap = glm::min(wishSpeedHU, MAX_AIR_WISH_SPEED_HU);
+    float currentSpeed = velocityHU.x * wishDir.x + velocityHU.z * wishDir.z;
+    float addSpeed = wishSpeedCap - currentSpeed;
+    if (addSpeed > 0.0f) {
+      float accelSpeed = SV_AIRACCELERATE_HU * ts * wishSpeedHU;
+      float finalAccel = glm::min(accelSpeed, addSpeed);
+      velocityHU.x += finalAccel * wishDir.x;
+      velocityHU.z += finalAccel * wishDir.z;
+    }
   }
 
-  // Jump
-  if (Input::IsKeyPressed(GLFW_KEY_SPACE) &&
-      m_Character->GetGroundState() ==
-          JPH::CharacterVirtual::EGroundState::OnGround) {
-    velocity.SetY(m_JumpForce);
+  // 4. Gravity & Jump
+  if (!onGround) {
+    velocityHU.y -= SV_GRAVITY_HU * ts;
+  } else {
+    velocityHU.y = -10.0f; // Small stick to ground force in HU
+    if (m_JumpPressed) {
+      velocityHU.y = JUMP_VELOCITY_HU;
+      m_JumpPressed = false;
+    }
   }
 
-  // Update Character
+  // Convert back to meters and update Jolt
+  velocityMeters =
+      JPH::Vec3(velocityHU.x * HU_TO_METERS, velocityHU.y * HU_TO_METERS,
+                velocityHU.z * HU_TO_METERS);
+  m_Character->SetLinearVelocity(velocityMeters);
+
+  // 5. Move Character (Collision Handling)
   JPH::TempAllocatorImpl allocator(10 * 1024 * 1024);
   PlayerBodyFilter bodyFilter;
-  m_Character->Update(dt, JPH::Vec3(0, -9.81f, 0),
+  m_Character->Update(ts, JPH::Vec3(0, -9.81f, 0),
                       PhysicsSystem::GetBroadPhaseLayerFilter(),
                       PhysicsSystem::GetObjectLayerFilter(), bodyFilter,
                       JPH::ShapeFilter(), allocator);
 
-  m_Character->SetLinearVelocity(velocity);
+  // Update Sprint & Crouch timers
+  UpdateSprint(ts);
+  UpdateCrouch(ts);
+
+  // Sync Camera
+  JPH::RVec3 charPos = m_Character->GetPosition();
+  float eyeHeight = glm::mix(1.7f, 0.8f, 1.0f - m_CrouchTransition);
+  m_Camera->SetPosition(
+      {charPos.GetX(), charPos.GetY() + eyeHeight, charPos.GetZ()});
+}
+
+void PlayerController::HandleInput(float dt) {
+  m_ForwardInput = 0.0f;
+  m_SideInput = 0.0f;
+
+  if (Input::IsKeyPressed(GLFW_KEY_W))
+    m_ForwardInput += 1.0f;
+  if (Input::IsKeyPressed(GLFW_KEY_S))
+    m_ForwardInput -= 1.0f;
+  if (Input::IsKeyPressed(GLFW_KEY_A))
+    m_SideInput -= 1.0f;
+  if (Input::IsKeyPressed(GLFW_KEY_D))
+    m_SideInput += 1.0f;
+
+  m_JumpPressed = Input::IsKeyPressed(GLFW_KEY_SPACE);
+  m_SprintPressed = Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT);
+  m_CrouchPressed = Input::IsKeyPressed(GLFW_KEY_LEFT_CONTROL);
+}
+
+// Obsolete methods removed (consolidated into OnUpdate)
+
+void PlayerController::UpdateCrouch(float dt) {
+  if (m_CrouchPressed && !m_IsCrouching) {
+    m_IsCrouching = true;
+    m_CrouchTransition = 1.0f;
+  } else if (!m_CrouchPressed && m_IsCrouching) {
+    m_IsCrouching = false;
+    m_CrouchTransition = 1.0f;
+  }
+
+  if (m_CrouchTransition > 0.0f) {
+    m_CrouchTransition -= dt / 0.2f; // 0.2s transition
+    if (m_CrouchTransition < 0.0f)
+      m_CrouchTransition = 0.0f;
+  }
+}
+
+void PlayerController::UpdateSprint(float dt) {
+  if (m_SprintPressed && !m_IsSprinting && m_SprintRecoveryTime <= 0.0f &&
+      m_Character->GetGroundState() ==
+          JPH::CharacterVirtual::EGroundState::OnGround) {
+    m_IsSprinting = true;
+    m_SprintRemaining = SPRINT_DURATION;
+  }
+
+  if (m_IsSprinting) {
+    m_SprintRemaining -= dt;
+    if (m_SprintRemaining <= 0.0f) {
+      m_IsSprinting = false;
+      m_SprintRecoveryTime = SPRINT_RECOVERY;
+    }
+  } else if (m_SprintRecoveryTime > 0.0f) {
+    m_SprintRecoveryTime -= dt;
+  }
+}
+
+glm::vec3 PlayerController::GetForwardVector(float yaw, float pitch) {
+  glm::vec3 front;
+  front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+  front.y = sin(glm::radians(pitch));
+  front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+  return glm::normalize(front);
+}
+
+glm::vec3 PlayerController::GetRightVector(float yaw) {
+  return glm::normalize(
+      glm::cross(GetForwardVector(yaw, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
 }
 
 void PlayerController::SetPosition(const glm::vec3 &position) {
