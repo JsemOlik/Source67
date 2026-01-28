@@ -1499,6 +1499,8 @@ void Application::Run() {
 
       // Game Viewport
       if (m_ShowGame) {
+        ImGui::SetNextWindowSizeConstraints(ImVec2(300, 200),
+                                            ImVec2(FLT_MAX, FLT_MAX));
         ImGui::Begin("Game");
         m_GameViewportFocused = ImGui::IsWindowFocused();
         m_GameViewportHovered = ImGui::IsWindowHovered();
@@ -1525,6 +1527,8 @@ void Application::Run() {
       }
 
       if (m_ShowToolbar) {
+        ImGui::SetNextWindowSizeConstraints(ImVec2(200, 50),
+                                            ImVec2(FLT_MAX, FLT_MAX));
         ImGui::Begin("Toolbar");
 
         if (m_SceneState == SceneState::Edit) {
@@ -1637,14 +1641,33 @@ bool Application::OnWindowDrop(WindowDropEvent &e) {
 }
 
 void Application::UI_SettingsWindow() {
-  ImGui::SetNextWindowSizeConstraints(ImVec2(500, 400),
+  ImGui::SetNextWindowSizeConstraints(ImVec2(600, 450),
                                       ImVec2(FLT_MAX, FLT_MAX));
   if (!ImGui::Begin("Settings", &m_ShowSettingsWindow)) {
     ImGui::End();
     return;
   }
 
-  if (ImGui::CollapsingHeader("Appearance", ImGuiTreeNodeFlags_DefaultOpen)) {
+  static int s_SelectedIdx = 0;
+  const char *categories[] = {"Appearance", "Performance", "Features"};
+
+  ImGui::BeginChild("Sidebar", ImVec2(150, 0), true);
+  for (int i = 0; i < 3; i++) {
+    if (ImGui::Selectable(categories[i], s_SelectedIdx == i)) {
+      s_SelectedIdx = i;
+    }
+  }
+  ImGui::EndChild();
+
+  ImGui::SameLine();
+
+  ImGui::BeginChild("Content", ImVec2(0, 0), false);
+  ImGui::TextDisabled("%s", categories[s_SelectedIdx]);
+  ImGui::Separator();
+  ImGui::Dummy(ImVec2(0, 10));
+
+  if (s_SelectedIdx == 0) // Appearance
+  {
     if (ImGui::BeginTable("AppearanceTable", 2,
                           ImGuiTableFlags_SizingFixedFit)) {
       ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed,
@@ -1705,9 +1728,8 @@ void Application::UI_SettingsWindow() {
 
       ImGui::EndTable();
     }
-  }
-
-  if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen)) {
+  } else if (s_SelectedIdx == 1) // Performance
+  {
     if (ImGui::BeginTable("PerformanceTable", 2,
                           ImGuiTableFlags_SizingFixedFit)) {
       ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed,
@@ -1726,20 +1748,23 @@ void Application::UI_SettingsWindow() {
 
       ImGui::EndTable();
     }
-  }
-
-  if (ImGui::CollapsingHeader("Features", ImGuiTreeNodeFlags_DefaultOpen)) {
+  } else if (s_SelectedIdx == 2) // Features
+  {
     ImGui::Checkbox("Enable Developer Console (`)", &m_EnableConsole);
   }
 
+  ImGui::Spacing();
   ImGui::Separator();
   ImVec2 buttonSize = {120, 30};
-  ImGui::SetCursorPosX(ImGui::GetWindowWidth() - buttonSize.x -
-                       ImGui::GetStyle().WindowPadding.x);
+  // Align button to bottom-right of the content child
+  ImGui::SetCursorPosY(ImGui::GetWindowHeight() - buttonSize.y -
+                       ImGui::GetStyle().WindowPadding.y * 2.0f);
+  ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - buttonSize.x);
   if (ImGui::Button("Apply & Save", buttonSize)) {
     SaveSettings();
   }
 
+  ImGui::EndChild();
   ImGui::End();
 }
 
@@ -1829,27 +1854,90 @@ void Application::UI_LauncherScreen() {
 }
 
 void Application::UI_ProjectSettingsWindow() {
-  ImGui::Begin("Project Settings", &m_ShowProjectSettingsWindow);
-
-  char nameBuffer[256];
-  memset(nameBuffer, 0, sizeof(nameBuffer));
-  strncpy(nameBuffer, m_ProjectName.c_str(), sizeof(nameBuffer) - 1);
-  if (ImGui::InputText("Project Name", nameBuffer, sizeof(nameBuffer))) {
-    m_ProjectName = nameBuffer;
+  ImGui::SetNextWindowSizeConstraints(ImVec2(600, 400),
+                                      ImVec2(FLT_MAX, FLT_MAX));
+  if (!ImGui::Begin("Project Settings", &m_ShowProjectSettingsWindow)) {
+    ImGui::End();
+    return;
   }
 
-  char versionBuffer[256];
-  memset(versionBuffer, 0, sizeof(versionBuffer));
-  strncpy(versionBuffer, m_ProjectVersion.c_str(), sizeof(versionBuffer) - 1);
-  if (ImGui::InputText("Version", versionBuffer, sizeof(versionBuffer))) {
-    m_ProjectVersion = versionBuffer;
-  }
+  static int s_ProjSelectedIdx = 0;
+  const char *categories[] = {"General", "Paths"};
 
+  ImGui::BeginChild("ProjSidebar", ImVec2(150, 0), true);
+  for (int i = 0; i < 2; i++) {
+    if (ImGui::Selectable(categories[i], s_ProjSelectedIdx == i)) {
+      s_ProjSelectedIdx = i;
+    }
+  }
+  ImGui::EndChild();
+
+  ImGui::SameLine();
+
+  ImGui::BeginChild("ProjContent", ImVec2(0, 0), false);
+  ImGui::TextDisabled("%s", categories[s_ProjSelectedIdx]);
   ImGui::Separator();
-  if (ImGui::Button("Apply & Save")) {
+  ImGui::Dummy(ImVec2(0, 10));
+
+  if (s_ProjSelectedIdx == 0) // General
+  {
+    if (ImGui::BeginTable("ProjectGeneralTable", 2,
+                          ImGuiTableFlags_SizingFixedFit)) {
+      ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed,
+                              150.0f);
+      ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+
+      // Project Name
+      ImGui::TableNextRow();
+      ImGui::TableSetColumnIndex(0);
+      ImGui::Text("Project Name");
+      ImGui::TableSetColumnIndex(1);
+      char nameBuffer[256];
+      memset(nameBuffer, 0, sizeof(nameBuffer));
+      strncpy(nameBuffer, m_ProjectName.c_str(), sizeof(nameBuffer) - 1);
+      ImGui::PushItemWidth(-1.0f);
+      if (ImGui::InputText("##ProjectName", nameBuffer, sizeof(nameBuffer))) {
+        m_ProjectName = nameBuffer;
+      }
+      ImGui::PopItemWidth();
+
+      // Version
+      ImGui::TableNextRow();
+      ImGui::TableSetColumnIndex(0);
+      ImGui::Text("Version");
+      ImGui::TableSetColumnIndex(1);
+      char versionBuffer[256];
+      memset(versionBuffer, 0, sizeof(versionBuffer));
+      strncpy(versionBuffer, m_ProjectVersion.c_str(),
+              sizeof(versionBuffer) - 1);
+      ImGui::PushItemWidth(-1.0f);
+      if (ImGui::InputText("##Version", versionBuffer, sizeof(versionBuffer))) {
+        m_ProjectVersion = versionBuffer;
+      }
+      ImGui::PopItemWidth();
+
+      ImGui::EndTable();
+    }
+  } else if (s_ProjSelectedIdx == 1) // Paths
+  {
+    ImGui::Text("Project Root:");
+    ImGui::TextDisabled("%s", m_ProjectRoot.string().c_str());
+    ImGui::Spacing();
+    ImGui::Text("Engine Assets:");
+    ImGui::TextDisabled("%s", m_EngineAssetsRoot.string().c_str());
+  }
+
+  ImGui::Spacing();
+  ImGui::Separator();
+  ImVec2 buttonSize = {120, 30};
+  ImGui::SetCursorPosY(ImGui::GetWindowHeight() - buttonSize.y -
+                       ImGui::GetStyle().WindowPadding.y * 2.0f);
+  ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - buttonSize.x);
+  if (ImGui::Button("Apply & Save", buttonSize)) {
     SaveManifest();
   }
 
+  ImGui::EndChild();
   ImGui::End();
 }
 
