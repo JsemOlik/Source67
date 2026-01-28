@@ -734,8 +734,8 @@ void Application::OpenScene(const std::string &filepath) {
         entity->Mesh = m_CubeMesh;
       }
 
-      // Recreate Physics Body (Skip Player)
-      if (entity->Name == "Player")
+      // Recreate Physics Body (Skip Player and Non-Collidable)
+      if (entity->Name == "Player" || !entity->Collidable)
         continue;
 
       glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
@@ -767,23 +767,28 @@ void Application::OnEntityCollidableChanged(Ref<Entity> entity) {
     bodyInterface.DestroyBody(entity->PhysicsBody);
   }
 
-  glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
-  bool isStatic = (entity->Name == "Static Floor");
+  if (entity->Collidable) {
+    glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
+    bool isStatic = (entity->Name == "Static Floor");
 
-  JPH::BodyCreationSettings settings(
-      PhysicsShapes::CreateBox({entity->Transform.Scale.x,
-                                entity->Transform.Scale.y,
-                                entity->Transform.Scale.z}),
-      JPH::RVec3(entity->Transform.Position.x, entity->Transform.Position.y,
-                 entity->Transform.Position.z),
-      JPH::Quat(q.x, q.y, q.z, q.w),
-      isStatic ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic,
-      isStatic ? Layers::NON_MOVING : Layers::MOVING);
+    JPH::BodyCreationSettings settings(
+        PhysicsShapes::CreateBox({entity->Transform.Scale.x,
+                                  entity->Transform.Scale.y,
+                                  entity->Transform.Scale.z}),
+        JPH::RVec3(entity->Transform.Position.x, entity->Transform.Position.y,
+                   entity->Transform.Position.z),
+        JPH::Quat(q.x, q.y, q.z, q.w),
+        isStatic ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic,
+        isStatic ? Layers::NON_MOVING : Layers::MOVING);
 
-  settings.mUserData = (uint64_t)entity.get();
+    settings.mUserData = (uint64_t)entity.get();
 
-  entity->PhysicsBody =
-      bodyInterface.CreateAndAddBody(settings, JPH::EActivation::Activate);
+    entity->PhysicsBody =
+        bodyInterface.CreateAndAddBody(settings, JPH::EActivation::Activate);
+  } else {
+    // Ensure the ID is invalidated if we just removed it
+    entity->PhysicsBody = JPH::BodyID();
+  }
 }
 
 void Application::OnEvent(Event &e) {
