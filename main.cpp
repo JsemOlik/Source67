@@ -14,8 +14,12 @@ int main(int argc, char **argv) {
 #endif
   S67::Logger::Init();
   S67_CORE_INFO("Source67 Engine Initialized");
+  S67_CORE_INFO("Command line: argc={0}", argc);
+  for (int i = 0; i < argc; i++) {
+    S67_CORE_INFO("argv[{0}] = {1}", i, argv[i]);
+  }
 
-  auto app = new S67::Application(argv[0]);
+  auto app = new S67::Application(argv[0], argc > 1 ? argv[1] : "");
   app->Run();
   delete app;
 

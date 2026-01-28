@@ -28,7 +28,7 @@ enum class EditorTheme { Unity = 0, Dracula = 1, Classic = 2, Light = 3 };
 
 class Application {
 public:
-  Application(const std::string &executablePath);
+  Application(const std::string &executablePath, const std::string &arg = "");
   virtual ~Application();
 
   void Run();

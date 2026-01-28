@@ -47,7 +47,8 @@ static SceneBackup s_SceneBackup;
 
 Application *Application::s_Instance = nullptr;
 
-Application::Application(const std::string &executablePath) {
+Application::Application(const std::string &executablePath,
+                         const std::string &arg) {
   S67_CORE_ASSERT(!s_Instance, "Application already exists!");
   s_Instance = this;
 
@@ -138,6 +139,26 @@ Application::Application(const std::string &executablePath) {
   }
 
   InitDefaultAssets();
+
+  if (!arg.empty()) {
+    std::string cleanArg = arg;
+    if (cleanArg.front() == '\"' && cleanArg.back() == '\"') {
+      cleanArg = cleanArg.substr(1, cleanArg.length() - 2);
+    }
+
+    std::filesystem::path p(cleanArg);
+    std::string ext = p.extension().string();
+    for (auto &c : ext)
+      c = std::tolower(c);
+
+    if (ext == ".s67") {
+      S67_CORE_INFO("Auto-loading level: {0}", cleanArg);
+      OpenScene(cleanArg);
+    } else if (ext == ".source") {
+      S67_CORE_INFO("Auto-loading project: {0}", cleanArg);
+      DiscoverProject(p);
+    }
+  }
 
   S67_CORE_INFO("Application initialized successfully");
 }
@@ -1790,9 +1811,9 @@ void Application::LoadSettings() {
   } else {
     // Defaults
     m_FontSize = 18.0f;
-    m_EditorTheme = EditorTheme::Dracula;
-    m_ImGuiLayer->SetDraculaThemeColors();
-    S67_CORE_INFO("No settings.json found, using defaults (Dracula, 18px)");
+    m_EditorTheme = EditorTheme::Unity;
+    m_ImGuiLayer->SetDarkThemeColors();
+    S67_CORE_INFO("No settings.json found, using defaults (Unity Dark, 18px)");
   }
 }
 
