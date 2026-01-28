@@ -127,7 +127,7 @@ list(APPEND SOURCES
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
 )
 
-add_executable(Source67 ${SOURCES})
+add_executable(Source67 WIN32 ${SOURCES})
 
 target_include_directories(Source67 PUBLIC 
     ${INCLUDE_DIR}

@@ -1,6 +1,8 @@
 #include "Application.h"
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
 #endif
 #include "Events/KeyEvent.h"
@@ -123,7 +125,6 @@ Application::Application(const std::string &executablePath,
   m_Skybox = CreateScope<Skybox>(
       ResolveAssetPath("assets/textures/skybox.png").string());
   LoadSettings();
-  SetDebugMode(m_DebugMode);
 
   if (!std::filesystem::exists("imgui.ini")) {
     m_ResetLayoutOnNextFrame = true;
@@ -583,16 +584,6 @@ void Application::CloseProject() {
   S67_CORE_INFO("Closed project");
 }
 
-void Application::SetDebugMode(bool enabled) {
-  m_DebugMode = enabled;
-#ifdef _WIN32
-  HWND hWnd = GetConsoleWindow();
-  if (hWnd) {
-    ShowWindow(hWnd, m_DebugMode ? SW_SHOW : SW_HIDE);
-  }
-#endif
-}
-
 void Application::UI_DeveloperConsole() {
   if (!m_ShowConsole)
     return;
@@ -855,7 +846,7 @@ void Application::OnEvent(Event &e) {
       bool super = Input::IsKeyPressed(GLFW_KEY_LEFT_SUPER) ||
                    Input::IsKeyPressed(GLFW_KEY_RIGHT_SUPER);
 
-      if (ek.GetKeyCode() == GLFW_KEY_GRAVE_ACCENT) {
+      if (ek.GetKeyCode() == GLFW_KEY_GRAVE_ACCENT && m_EnableConsole) {
         m_ShowConsole = !m_ShowConsole;
       }
 
@@ -1677,11 +1668,7 @@ void Application::UI_SettingsWindow() {
     ImGui::DragInt("Game FPS Cap (0 = Unlimited)", &m_FPSCap, 1.0f, 0, 1000);
 
     ImGui::Separator();
-    if (ImGui::Checkbox("Debug Mode (Terminal Visible)", &m_DebugMode)) {
-      SetDebugMode(m_DebugMode);
-    }
-    ImGui::SameLine();
-    ImGui::Checkbox("Show Builder Console (` toggles)", &m_ShowConsole);
+    ImGui::Checkbox("Enable Developer Console (`)", &m_EnableConsole);
   }
 
   ImGui::Separator();
@@ -1817,7 +1804,7 @@ void Application::SaveSettings() {
   j["ShowGame"] = m_ShowGame;
   j["ShowToolbar"] = m_ShowToolbar;
   j["ShowStats"] = m_ShowStats;
-  j["DebugMode"] = m_DebugMode;
+  j["EnableConsole"] = m_EnableConsole;
 
   j["RecentProjects"] = m_RecentProjects;
 
@@ -1858,8 +1845,8 @@ void Application::LoadSettings() {
         m_ShowToolbar = j["ShowToolbar"];
       if (j.contains("ShowStats"))
         m_ShowStats = j["ShowStats"];
-      if (j.contains("DebugMode"))
-        m_DebugMode = j["DebugMode"];
+      if (j.contains("EnableConsole"))
+        m_EnableConsole = j["EnableConsole"];
 
       if (j.contains("RecentProjects")) {
         m_RecentProjects = j["RecentProjects"].get<std::vector<std::string>>();

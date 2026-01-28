@@ -5,6 +5,15 @@
 #include <windows.h>
 #endif
 
+#ifdef _WIN32
+int main(int argc, char **argv);
+
+int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline,
+                     int cmdshow) {
+  return main(__argc, __argv);
+}
+#endif
+
 int main(int argc, char **argv) {
 #ifdef _WIN32
   // Per-Monitor V2 awareness is supported since Windows 10, version 1703.
