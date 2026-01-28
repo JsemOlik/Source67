@@ -87,9 +87,7 @@ Application::Application(const std::string &executablePath,
   }
 
   S67_CORE_INFO("Initializing Window...");
-  // Create Main Window without decorations
-  WindowProps props("Source67 Engine", 1920, 1080, false);
-  m_Window = std::unique_ptr<Window>(Window::Create(props));
+  m_Window = std::unique_ptr<Window>(Window::Create());
   m_Window->SetEventCallback(BIND_EVENT_FN(Application::OnEvent));
   m_Window->SetIcon(ResolveAssetPath("assets/engine/level_icon.png").string());
 
@@ -1602,8 +1600,6 @@ void Application::ResetLayout() {
 }
 
 void Application::RenderFrame(Timestep timestep) {
-  HandleCustomWindowDecorations();
-
   // Viewport Resize
   if (FramebufferSpecification spec = m_SceneFramebuffer->GetSpecification();
       m_SceneViewportSize.x > 0.0f && m_SceneViewportSize.y > 0.0f &&
@@ -1859,343 +1855,327 @@ void Application::RenderFrame(Timestep timestep) {
       ImGui::EndMainMenuBar();
     }
 
-    // Custom Title Bar Controls (Rendered on top of Main Menu Bar)
-    // We reopen the window to append to it, or just do it inside the
-    // BeginMainMenuBar block actually, BeginMainMenuBar returns true, so we are
-    // inside it. Wait, the previous block ended with EndMainMenuBar() and
-    // closing brace. I need to insert BEFORE EndMainMenuBar(). But I can't
-    // check line numbers easily if I replace a large chunk. I will replace the
-    // EndMainMenuBar() call with the new logic + EndMainMenuBar().
+    // Hierarchy
+    if (m_ShowHierarchy) {
+      ImGui::SetNextWindowSizeConstraints(ImVec2(200, 200),
+                                          ImVec2(FLT_MAX, FLT_MAX));
+      if (!m_ProjectRoot.empty() && m_LevelLoaded) {
+        m_SceneHierarchyPanel->OnImGuiRender();
 
-    // Re-reading logic:
-    // The previous content was:
-    //       ImGui::EndMenu(); // Window menu
-    //     }
-    //     ImGui::EndMainMenuBar();
-    //   }
+        if (m_SceneHierarchyPanel->GetPendingCreateType() !=
+            SceneHierarchyPanel::CreatePrimitiveType::None) {
+          auto type = m_SceneHierarchyPanel->GetPendingCreateType();
+          m_SceneHierarchyPanel->ClearPendingCreateType();
 
-    // I will replace the end of the Window menu and the EndMainMenuBar call.
-  }
+          Ref<VertexArray> mesh = nullptr;
+          std::string name = "Object";
+          std::string meshPath = "Cube";
 
-  // Hierarchy
-  if (m_ShowHierarchy) {
-    ImGui::SetNextWindowSizeConstraints(ImVec2(200, 200),
-                                        ImVec2(FLT_MAX, FLT_MAX));
-    if (!m_ProjectRoot.empty() && m_LevelLoaded) {
-      m_SceneHierarchyPanel->OnImGuiRender();
+          if (type == SceneHierarchyPanel::CreatePrimitiveType::Cube) {
+            mesh = m_CubeMesh;
+            name = "Cube";
+            meshPath = "Cube";
+          } else if (type == SceneHierarchyPanel::CreatePrimitiveType::Sphere) {
+            mesh = MeshLoader::LoadOBJ(
+                ResolveAssetPath("assets/engine/sphere.obj").string());
+            name = "Sphere";
+            meshPath = "assets/engine/sphere.obj";
+          } else if (type ==
+                     SceneHierarchyPanel::CreatePrimitiveType::Cylinder) {
+            mesh = MeshLoader::LoadOBJ(
+                ResolveAssetPath("assets/engine/cylinder.obj").string());
+            name = "Cylinder";
+            meshPath = "assets/engine/cylinder.obj";
+          }
 
-      if (m_SceneHierarchyPanel->GetPendingCreateType() !=
-          SceneHierarchyPanel::CreatePrimitiveType::None) {
-        auto type = m_SceneHierarchyPanel->GetPendingCreateType();
-        m_SceneHierarchyPanel->ClearPendingCreateType();
+          if (mesh) {
+            auto entity = CreateRef<Entity>(name, mesh, m_DefaultShader,
+                                            m_DefaultTexture);
+            entity->MeshPath = meshPath;
+            glm::vec3 spawnPos = m_EditorCamera->GetPosition() +
+                                 m_EditorCamera->GetForward() * 5.0f;
+            entity->Transform.Position = spawnPos;
 
-        Ref<VertexArray> mesh = nullptr;
-        std::string name = "Object";
-        std::string meshPath = "Cube";
+            auto &bodyInterface = PhysicsSystem::GetBodyInterface();
+            JPH::BodyCreationSettings settings(
+                PhysicsShapes::CreateBox({entity->Transform.Scale.x,
+                                          entity->Transform.Scale.y,
+                                          entity->Transform.Scale.z}),
+                JPH::RVec3(spawnPos.x, spawnPos.y, spawnPos.z),
+                JPH::Quat::sIdentity(), JPH::EMotionType::Static,
+                Layers::NON_MOVING);
+            entity->PhysicsBody = bodyInterface.CreateAndAddBody(
+                settings, JPH::EActivation::DontActivate);
 
-        if (type == SceneHierarchyPanel::CreatePrimitiveType::Cube) {
-          mesh = m_CubeMesh;
-          name = "Cube";
-          meshPath = "Cube";
-        } else if (type == SceneHierarchyPanel::CreatePrimitiveType::Sphere) {
-          mesh = MeshLoader::LoadOBJ(
-              ResolveAssetPath("assets/engine/sphere.obj").string());
-          name = "Sphere";
-          meshPath = "assets/engine/sphere.obj";
-        } else if (type == SceneHierarchyPanel::CreatePrimitiveType::Cylinder) {
-          mesh = MeshLoader::LoadOBJ(
-              ResolveAssetPath("assets/engine/cylinder.obj").string());
-          name = "Cylinder";
-          meshPath = "assets/engine/cylinder.obj";
+            m_Scene->AddEntity(entity);
+            m_SceneHierarchyPanel->SetSelectedEntity(entity);
+            m_SceneModified = true;
+          }
         }
-
-        if (mesh) {
-          auto entity =
-              CreateRef<Entity>(name, mesh, m_DefaultShader, m_DefaultTexture);
-          entity->MeshPath = meshPath;
-          glm::vec3 spawnPos = m_EditorCamera->GetPosition() +
-                               m_EditorCamera->GetForward() * 5.0f;
-          entity->Transform.Position = spawnPos;
-
-          auto &bodyInterface = PhysicsSystem::GetBodyInterface();
-          JPH::BodyCreationSettings settings(
-              PhysicsShapes::CreateBox({entity->Transform.Scale.x,
-                                        entity->Transform.Scale.y,
-                                        entity->Transform.Scale.z}),
-              JPH::RVec3(spawnPos.x, spawnPos.y, spawnPos.z),
-              JPH::Quat::sIdentity(), JPH::EMotionType::Static,
-              Layers::NON_MOVING);
-          entity->PhysicsBody = bodyInterface.CreateAndAddBody(
-              settings, JPH::EActivation::DontActivate);
-
-          m_Scene->AddEntity(entity);
-          m_SceneHierarchyPanel->SetSelectedEntity(entity);
-          m_SceneModified = true;
-        }
+      } else {
+        ImGui::Begin("Scene Hierarchy");
+        ImGui::End();
       }
-    } else {
-      ImGui::Begin("Scene Hierarchy");
+    }
+
+    // Content Browser
+    if (m_ShowContentBrowser) {
+      ImGui::SetNextWindowSizeConstraints(ImVec2(200, 200),
+                                          ImVec2(FLT_MAX, FLT_MAX));
+      if (!m_ProjectRoot.empty()) {
+        m_ContentBrowserPanel->OnImGuiRender();
+      } else {
+        ImGui::Begin("Content Browser");
+        ImGui::End();
+      }
+    }
+
+    // Inspector
+    if (m_ShowInspector) {
+      ImGui::SetNextWindowSizeConstraints(ImVec2(200, 200),
+                                          ImVec2(FLT_MAX, FLT_MAX));
+      ImGui::Begin("Inspector");
       ImGui::End();
     }
-  }
 
-  // Content Browser
-  if (m_ShowContentBrowser) {
-    ImGui::SetNextWindowSizeConstraints(ImVec2(200, 200),
-                                        ImVec2(FLT_MAX, FLT_MAX));
-    if (!m_ProjectRoot.empty()) {
-      m_ContentBrowserPanel->OnImGuiRender();
-    } else {
-      ImGui::Begin("Content Browser");
-      ImGui::End();
-    }
-  }
+    if (m_ShowSettingsWindow)
+      UI_SettingsWindow();
 
-  // Inspector
-  if (m_ShowInspector) {
-    ImGui::SetNextWindowSizeConstraints(ImVec2(200, 200),
-                                        ImVec2(FLT_MAX, FLT_MAX));
-    ImGui::Begin("Inspector");
-    ImGui::End();
-  }
+    if (m_ShowProjectSettingsWindow)
+      UI_ProjectSettingsWindow();
 
-  if (m_ShowSettingsWindow)
-    UI_SettingsWindow();
+    // Scene Viewport
+    if (m_ShowScene) {
+      ImGui::SetNextWindowSizeConstraints(ImVec2(300, 200),
+                                          ImVec2(FLT_MAX, FLT_MAX));
+      ImGui::Begin("Scene");
+      m_SceneViewportFocused = ImGui::IsWindowFocused();
+      m_SceneViewportHovered = ImGui::IsWindowHovered();
 
-  if (m_ShowProjectSettingsWindow)
-    UI_ProjectSettingsWindow();
+      ImVec2 viewportOffset = ImGui::GetCursorScreenPos();
+      m_SceneViewportPos = {viewportOffset.x, viewportOffset.y};
+      if (m_SceneState != SceneState::Play)
+        m_ImGuiLayer->SetBlockEvents(
+            (!m_SceneViewportFocused || !m_SceneViewportHovered) &&
+            !ImGuizmo::IsOver());
 
-  // Scene Viewport
-  if (m_ShowScene) {
-    ImGui::SetNextWindowSizeConstraints(ImVec2(300, 200),
-                                        ImVec2(FLT_MAX, FLT_MAX));
-    ImGui::Begin("Scene");
-    m_SceneViewportFocused = ImGui::IsWindowFocused();
-    m_SceneViewportHovered = ImGui::IsWindowHovered();
+      ImVec2 sceneSize = ImGui::GetContentRegionAvail();
+      m_SceneViewportSize = {sceneSize.x, sceneSize.y};
 
-    ImVec2 viewportOffset = ImGui::GetCursorScreenPos();
-    m_SceneViewportPos = {viewportOffset.x, viewportOffset.y};
-    if (m_SceneState != SceneState::Play)
-      m_ImGuiLayer->SetBlockEvents(
-          (!m_SceneViewportFocused || !m_SceneViewportHovered) &&
-          !ImGuizmo::IsOver());
+      if (!m_ProjectRoot.empty() && m_LevelLoaded) {
+        ImGui::Image((void *)(uint64_t)
+                         m_SceneFramebuffer->GetColorAttachmentRendererID(),
+                     sceneSize, {0, 1}, {1, 0});
 
-    ImVec2 sceneSize = ImGui::GetContentRegionAvail();
-    m_SceneViewportSize = {sceneSize.x, sceneSize.y};
+        // Drag & Drop
+        if (ImGui::BeginDragDropTarget()) {
+          if (const ImGuiPayload *payload =
+                  ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+            const char *path = (const char *)payload->Data;
+            std::filesystem::path assetPath = path;
 
-    if (!m_ProjectRoot.empty() && m_LevelLoaded) {
-      ImGui::Image(
-          (void *)(uint64_t)m_SceneFramebuffer->GetColorAttachmentRendererID(),
-          sceneSize, {0, 1}, {1, 0});
+            if (assetPath.extension() == ".obj" ||
+                assetPath.extension() == ".stl") {
+              Ref<VertexArray> mesh = nullptr;
+              if (assetPath.extension() == ".obj")
+                mesh = MeshLoader::LoadOBJ(assetPath.string());
+              else if (assetPath.extension() == ".stl")
+                mesh = MeshLoader::LoadSTL(assetPath.string());
 
-      // Drag & Drop
-      if (ImGui::BeginDragDropTarget()) {
-        if (const ImGuiPayload *payload =
-                ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
-          const char *path = (const char *)payload->Data;
-          std::filesystem::path assetPath = path;
+              if (mesh) {
+                auto entity =
+                    CreateRef<Entity>(assetPath.stem().string(), mesh,
+                                      m_DefaultShader, m_DefaultTexture);
+                entity->MeshPath = assetPath.string();
+                glm::vec3 dropPos = m_EditorCamera->GetPosition() +
+                                    m_EditorCamera->GetForward() * 5.0f;
+                entity->Transform.Position = dropPos;
 
-          if (assetPath.extension() == ".obj" ||
-              assetPath.extension() == ".stl") {
-            Ref<VertexArray> mesh = nullptr;
-            if (assetPath.extension() == ".obj")
-              mesh = MeshLoader::LoadOBJ(assetPath.string());
-            else if (assetPath.extension() == ".stl")
-              mesh = MeshLoader::LoadSTL(assetPath.string());
+                auto &bodyInterface = PhysicsSystem::GetBodyInterface();
+                JPH::BodyCreationSettings settings(
+                    PhysicsShapes::CreateBox({1.0f, 1.0f, 1.0f}),
+                    JPH::RVec3(dropPos.x, dropPos.y, dropPos.z),
+                    JPH::Quat::sIdentity(), JPH::EMotionType::Static,
+                    Layers::NON_MOVING);
+                entity->PhysicsBody = bodyInterface.CreateAndAddBody(
+                    settings, JPH::EActivation::DontActivate);
 
-            if (mesh) {
-              auto entity =
-                  CreateRef<Entity>(assetPath.stem().string(), mesh,
-                                    m_DefaultShader, m_DefaultTexture);
-              entity->MeshPath = assetPath.string();
-              glm::vec3 dropPos = m_EditorCamera->GetPosition() +
-                                  m_EditorCamera->GetForward() * 5.0f;
-              entity->Transform.Position = dropPos;
+                m_Scene->AddEntity(entity);
+                m_SceneHierarchyPanel->SetSelectedEntity(entity);
+                m_SceneModified = true;
+              }
+            }
+          }
+          ImGui::EndDragDropTarget();
+        }
 
-              auto &bodyInterface = PhysicsSystem::GetBodyInterface();
-              JPH::BodyCreationSettings settings(
-                  PhysicsShapes::CreateBox({1.0f, 1.0f, 1.0f}),
-                  JPH::RVec3(dropPos.x, dropPos.y, dropPos.z),
-                  JPH::Quat::sIdentity(), JPH::EMotionType::Static,
-                  Layers::NON_MOVING);
-              entity->PhysicsBody = bodyInterface.CreateAndAddBody(
-                  settings, JPH::EActivation::DontActivate);
+        // Gizmos
+        Ref<Entity> selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
+        if (selectedEntity && m_GizmoType != -1) {
+          ImGuizmo::SetOrthographic(false);
+          ImGuizmo::SetDrawlist();
 
-              m_Scene->AddEntity(entity);
-              m_SceneHierarchyPanel->SetSelectedEntity(entity);
+          ImGuizmo::SetRect(m_SceneViewportPos.x, m_SceneViewportPos.y,
+                            m_SceneViewportSize.x, m_SceneViewportSize.y);
+
+          // Editor camera
+          const glm::mat4 &cameraProjection =
+              m_EditorCamera->GetProjectionMatrix();
+          glm::mat4 cameraView = m_EditorCamera->GetViewMatrix();
+
+          // Entity transform
+          glm::mat4 transform = selectedEntity->Transform.GetTransform();
+
+          // Snapping
+          bool snap = Input::IsKeyPressed(GLFW_KEY_LEFT_CONTROL) ||
+                      Input::IsKeyPressed(GLFW_KEY_LEFT_SUPER);
+          float snapValue = 0.5f; // Snap to 0.5m for translation/scale
+          if (m_GizmoType == (int)ImGuizmo::OPERATION::ROTATE)
+            snapValue = 45.0f;
+
+          float snapValues[3] = {snapValue, snapValue, snapValue};
+
+          ImGuizmo::Manipulate(
+              glm::value_ptr(cameraView), glm::value_ptr(cameraProjection),
+              (ImGuizmo::OPERATION)m_GizmoType, ImGuizmo::LOCAL,
+              glm::value_ptr(transform), nullptr, snap ? snapValues : nullptr);
+
+          if (ImGuizmo::IsUsing()) {
+            if (!m_IsDraggingGizmo) {
+              m_IsDraggingGizmo = true;
+              m_InitialGizmoTransform = selectedEntity->Transform;
+            }
+
+            float translation[3], rotation[3], scale[3];
+            ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(transform),
+                                                  translation, rotation, scale);
+
+            selectedEntity->Transform.Position = {
+                translation[0], translation[1], translation[2]};
+            selectedEntity->Transform.Rotation = {rotation[0], rotation[1],
+                                                  rotation[2]};
+            selectedEntity->Transform.Scale = {scale[0], scale[1], scale[2]};
+          } else {
+            if (m_IsDraggingGizmo) {
+              m_IsDraggingGizmo = false;
+              m_UndoSystem.AddCommand(CreateScope<TransformCommand>(
+                  selectedEntity, m_InitialGizmoTransform,
+                  selectedEntity->Transform));
               m_SceneModified = true;
             }
           }
         }
-        ImGui::EndDragDropTarget();
+      } else {
+        std::string text =
+            m_ProjectRoot.empty() ? "No project open" : "No level open";
+        ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
+        ImGui::SetCursorPos({(sceneSize.x - textSize.x) * 0.5f,
+                             (sceneSize.y - textSize.y) * 0.5f});
+        ImGui::Text("%s", text.c_str());
       }
 
-      // Gizmos
-      Ref<Entity> selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
-      if (selectedEntity && m_GizmoType != -1) {
-        ImGuizmo::SetOrthographic(false);
-        ImGuizmo::SetDrawlist();
+      // Save notification popup (bottom-left corner)
+      if (m_ShowSaveNotification) {
+        float currentTime = (float)glfwGetTime();
+        float elapsed = currentTime - m_SaveNotificationTime;
 
-        ImGuizmo::SetRect(m_SceneViewportPos.x, m_SceneViewportPos.y,
-                          m_SceneViewportSize.x, m_SceneViewportSize.y);
+        if (elapsed < 3.0f) {
+          // Position in bottom-left corner
+          ImVec2 windowPos = ImGui::GetWindowPos();
+          ImVec2 windowSize = ImGui::GetWindowSize();
+          ImVec2 notificationSize = {200.0f, 50.0f};
+          ImVec2 padding = {10.0f, 10.0f};
 
-        // Editor camera
-        const glm::mat4 &cameraProjection =
-            m_EditorCamera->GetProjectionMatrix();
-        glm::mat4 cameraView = m_EditorCamera->GetViewMatrix();
+          ImGui::SetNextWindowPos(
+              {windowPos.x + padding.x,
+               windowPos.y + windowSize.y - notificationSize.y - padding.y});
+          ImGui::SetNextWindowSize(notificationSize);
 
-        // Entity transform
-        glm::mat4 transform = selectedEntity->Transform.GetTransform();
+          // Fade out in the last 0.5 seconds
+          float alpha = (elapsed > 2.5f) ? (3.0f - elapsed) / 0.5f : 1.0f;
+          ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
 
-        // Snapping
-        bool snap = Input::IsKeyPressed(GLFW_KEY_LEFT_CONTROL) ||
-                    Input::IsKeyPressed(GLFW_KEY_LEFT_SUPER);
-        float snapValue = 0.5f; // Snap to 0.5m for translation/scale
-        if (m_GizmoType == (int)ImGuizmo::OPERATION::ROTATE)
-          snapValue = 45.0f;
+          // Use standard theme background color (no PushStyleColor)
 
-        float snapValues[3] = {snapValue, snapValue, snapValue};
+          ImGui::Begin("##SaveNotification", nullptr,
+                       ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                           ImGuiWindowFlags_NoMove |
+                           ImGuiWindowFlags_NoScrollbar |
+                           ImGuiWindowFlags_NoInputs);
 
-        ImGuizmo::Manipulate(
-            glm::value_ptr(cameraView), glm::value_ptr(cameraProjection),
-            (ImGuizmo::OPERATION)m_GizmoType, ImGuizmo::LOCAL,
-            glm::value_ptr(transform), nullptr, snap ? snapValues : nullptr);
+          // Center text
+          const char *notifText = "Scene Saved!";
+          ImVec2 notifTextSize = ImGui::CalcTextSize(notifText);
+          ImGui::SetCursorPos({(notificationSize.x - notifTextSize.x) * 0.5f,
+                               (notificationSize.y - notifTextSize.y) * 0.5f});
+          ImGui::Text("%s", notifText);
 
-        if (ImGuizmo::IsUsing()) {
-          if (!m_IsDraggingGizmo) {
-            m_IsDraggingGizmo = true;
-            m_InitialGizmoTransform = selectedEntity->Transform;
-          }
-
-          float translation[3], rotation[3], scale[3];
-          ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(transform),
-                                                translation, rotation, scale);
-
-          selectedEntity->Transform.Position = {translation[0], translation[1],
-                                                translation[2]};
-          selectedEntity->Transform.Rotation = {rotation[0], rotation[1],
-                                                rotation[2]};
-          selectedEntity->Transform.Scale = {scale[0], scale[1], scale[2]};
+          ImGui::End();
+          ImGui::PopStyleVar();
         } else {
-          if (m_IsDraggingGizmo) {
-            m_IsDraggingGizmo = false;
-            m_UndoSystem.AddCommand(CreateScope<TransformCommand>(
-                selectedEntity, m_InitialGizmoTransform,
-                selectedEntity->Transform));
-            m_SceneModified = true;
-          }
+          m_ShowSaveNotification = false;
         }
       }
-    } else {
-      std::string text =
-          m_ProjectRoot.empty() ? "No project open" : "No level open";
-      ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
-      ImGui::SetCursorPos({(sceneSize.x - textSize.x) * 0.5f,
-                           (sceneSize.y - textSize.y) * 0.5f});
-      ImGui::Text("%s", text.c_str());
+
+      ImGui::End();
     }
 
-    // Save notification popup (bottom-left corner)
-    if (m_ShowSaveNotification) {
-      float currentTime = (float)glfwGetTime();
-      float elapsed = currentTime - m_SaveNotificationTime;
+    // Game Viewport
+    if (m_ShowGame) {
+      ImGui::SetNextWindowSizeConstraints(ImVec2(300, 200),
+                                          ImVec2(FLT_MAX, FLT_MAX));
+      ImGui::Begin("Game");
+      m_GameViewportFocused = ImGui::IsWindowFocused();
+      m_GameViewportHovered = ImGui::IsWindowHovered();
+      if (m_SceneState == SceneState::Play)
+        m_ImGuiLayer->SetBlockEvents(!m_GameViewportFocused ||
+                                     !m_GameViewportHovered);
 
-      if (elapsed < 3.0f) {
-        // Position in bottom-left corner
-        ImVec2 windowPos = ImGui::GetWindowPos();
-        ImVec2 windowSize = ImGui::GetWindowSize();
-        ImVec2 notificationSize = {200.0f, 50.0f};
-        ImVec2 padding = {10.0f, 10.0f};
+      ImVec2 gameSize = ImGui::GetContentRegionAvail();
+      m_GameViewportSize = {gameSize.x, gameSize.y};
 
-        ImGui::SetNextWindowPos(
-            {windowPos.x + padding.x,
-             windowPos.y + windowSize.y - notificationSize.y - padding.y});
-        ImGui::SetNextWindowSize(notificationSize);
-
-        // Fade out in the last 0.5 seconds
-        float alpha = (elapsed > 2.5f) ? (3.0f - elapsed) / 0.5f : 1.0f;
-        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
-
-        // Use standard theme background color (no PushStyleColor)
-
-        ImGui::Begin("##SaveNotification", nullptr,
-                     ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
-                         ImGuiWindowFlags_NoMove |
-                         ImGuiWindowFlags_NoScrollbar |
-                         ImGuiWindowFlags_NoInputs);
-
-        // Center text
-        const char *notifText = "Scene Saved!";
-        ImVec2 notifTextSize = ImGui::CalcTextSize(notifText);
-        ImGui::SetCursorPos({(notificationSize.x - notifTextSize.x) * 0.5f,
-                             (notificationSize.y - notifTextSize.y) * 0.5f});
-        ImGui::Text("%s", notifText);
-
-        ImGui::End();
-        ImGui::PopStyleVar();
+      if (!m_ProjectRoot.empty() && m_LevelLoaded) {
+        ImGui::Image(
+            (void *)(uint64_t)m_GameFramebuffer->GetColorAttachmentRendererID(),
+            gameSize, {0, 1}, {1, 0});
       } else {
-        m_ShowSaveNotification = false;
+        std::string text =
+            m_ProjectRoot.empty() ? "No project open" : "No level open";
+        ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
+        ImGui::SetCursorPos({(gameSize.x - textSize.x) * 0.5f,
+                             (gameSize.y - textSize.y) * 0.5f});
+        ImGui::Text("%s", text.c_str());
       }
+      ImGui::End();
     }
 
-    ImGui::End();
-  }
+    if (m_ShowToolbar) {
+      ImGui::SetNextWindowSizeConstraints(ImVec2(200, 50),
+                                          ImVec2(FLT_MAX, FLT_MAX));
+      ImGui::Begin("Toolbar");
 
-  // Game Viewport
-  if (m_ShowGame) {
-    ImGui::SetNextWindowSizeConstraints(ImVec2(300, 200),
-                                        ImVec2(FLT_MAX, FLT_MAX));
-    ImGui::Begin("Game");
-    m_GameViewportFocused = ImGui::IsWindowFocused();
-    m_GameViewportHovered = ImGui::IsWindowHovered();
-    if (m_SceneState == SceneState::Play)
-      m_ImGuiLayer->SetBlockEvents(!m_GameViewportFocused ||
-                                   !m_GameViewportHovered);
-
-    ImVec2 gameSize = ImGui::GetContentRegionAvail();
-    m_GameViewportSize = {gameSize.x, gameSize.y};
-
-    if (!m_ProjectRoot.empty() && m_LevelLoaded) {
-      ImGui::Image(
-          (void *)(uint64_t)m_GameFramebuffer->GetColorAttachmentRendererID(),
-          gameSize, {0, 1}, {1, 0});
-    } else {
-      std::string text =
-          m_ProjectRoot.empty() ? "No project open" : "No level open";
-      ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
-      ImGui::SetCursorPos(
-          {(gameSize.x - textSize.x) * 0.5f, (gameSize.y - textSize.y) * 0.5f});
-      ImGui::Text("%s", text.c_str());
-    }
-    ImGui::End();
-  }
-
-  if (m_ShowToolbar) {
-    ImGui::SetNextWindowSizeConstraints(ImVec2(200, 50),
-                                        ImVec2(FLT_MAX, FLT_MAX));
-    ImGui::Begin("Toolbar");
-
-    if (m_SceneState == SceneState::Edit) {
-      if (ImGui::Button("Play")) {
-        OnScenePlay();
-        ImGui::SetWindowFocus("Game");
+      if (m_SceneState == SceneState::Edit) {
+        if (ImGui::Button("Play")) {
+          OnScenePlay();
+          ImGui::SetWindowFocus("Game");
+        }
+      } else if (m_SceneState == SceneState::Pause) {
+        if (ImGui::Button("Resume")) {
+          OnScenePlay();
+          ImGui::SetWindowFocus("Game");
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Stop"))
+          OnSceneStop();
+      } else {
+        if (ImGui::Button("Pause"))
+          OnScenePause();
+        ImGui::SameLine();
+        if (ImGui::Button("Stop"))
+          OnSceneStop();
       }
-    } else if (m_SceneState == SceneState::Pause) {
-      if (ImGui::Button("Resume")) {
-        OnScenePlay();
-        ImGui::SetWindowFocus("Game");
-      }
-      ImGui::SameLine();
-      if (ImGui::Button("Stop"))
-        OnSceneStop();
-    } else {
-      if (ImGui::Button("Pause"))
-        OnScenePause();
-      ImGui::SameLine();
-      if (ImGui::Button("Stop"))
-        OnSceneStop();
+      ImGui::End();
     }
-    ImGui::End();
   }
 
   if (m_ShowStats) {
@@ -2328,114 +2308,6 @@ void Application::RenderFrame(Timestep timestep) {
   }
 
   m_ImGuiLayer->End();
-}
-
-void Application::HandleCustomWindowDecorations() {
-#ifdef _WIN32
-  GLFWwindow *window = (GLFWwindow *)m_Window->GetNativeWindow();
-  bool isMaximized = glfwGetWindowAttrib(window, GLFW_MAXIMIZED);
-
-  const int border = 5;
-  const int titleBarHeight = 40;
-
-  static bool s_Dragging = false;
-  static bool s_Resizing = false;
-  static int s_ResizeDir = 0;
-  static POINT s_StartCursorPos;
-  static RECT s_StartWindowRect;
-
-  double mx, my;
-  glfwGetCursorPos(window, &mx, &my);
-
-  int width, height;
-  glfwGetWindowSize(window, &width, &height);
-
-  if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE) {
-    s_Dragging = false;
-    s_Resizing = false;
-    s_ResizeDir = 0;
-  }
-
-  if (s_Dragging) {
-    POINT currentPos;
-    GetCursorPos(&currentPos);
-    int dx = currentPos.x - s_StartCursorPos.x;
-    int dy = currentPos.y - s_StartCursorPos.y;
-    glfwSetWindowPos(window, s_StartWindowRect.left + dx,
-                     s_StartWindowRect.top + dy);
-  } else if (s_Resizing) {
-    POINT currentPos;
-    GetCursorPos(&currentPos);
-    int dx = currentPos.x - s_StartCursorPos.x;
-    int dy = currentPos.y - s_StartCursorPos.y;
-
-    int newX = s_StartWindowRect.left;
-    int newY = s_StartWindowRect.top;
-    int newW = s_StartWindowRect.right;  // Storing Width
-    int newH = s_StartWindowRect.bottom; // Storing Height
-
-    if (s_ResizeDir & 1) { // Left
-      newX += dx;
-      newW -= dx;
-    }
-    if (s_ResizeDir & 2) { // Right
-      newW += dx;
-    }
-    if (s_ResizeDir & 4) { // Top
-      newY += dy;
-      newH -= dy;
-    }
-    if (s_ResizeDir & 8) { // Bottom
-      newH += dy;
-    }
-
-    if (newW < 100)
-      newW = 100;
-    if (newH < 100)
-      newH = 100;
-
-    glfwSetWindowPos(window, newX, newY);
-    glfwSetWindowSize(window, newW, newH);
-  } else if (!isMaximized) {
-    int dir = 0;
-    if (mx < border)
-      dir |= 1;
-    if (mx > width - border)
-      dir |= 2;
-    if (my < border)
-      dir |= 4;
-    if (my > height - border)
-      dir |= 8;
-
-    if (dir & 1 || dir & 2)
-      glfwSetCursor(window, glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR));
-    else if (dir & 4 || dir & 8)
-      glfwSetCursor(window, glfwCreateStandardCursor(GLFW_VRESIZE_CURSOR));
-    else
-      glfwSetCursor(window, NULL);
-
-    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-      if (dir != 0) {
-        s_Resizing = true;
-        s_ResizeDir = dir;
-        GetCursorPos(&s_StartCursorPos);
-        int wx, wy;
-        glfwGetWindowPos(window, &wx, &wy);
-        s_StartWindowRect.left = wx;
-        s_StartWindowRect.top = wy;
-        s_StartWindowRect.right = width;
-        s_StartWindowRect.bottom = height;
-      } else if (my < titleBarHeight && !ImGui::IsAnyItemHovered()) {
-        s_Dragging = true;
-        GetCursorPos(&s_StartCursorPos);
-        int wx, wy;
-        glfwGetWindowPos(window, &wx, &wy);
-        s_StartWindowRect.left = wx;
-        s_StartWindowRect.top = wy;
-      }
-    }
-  }
-#endif
 }
 
 } // namespace S67
