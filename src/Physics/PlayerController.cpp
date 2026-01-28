@@ -138,10 +138,20 @@ void PlayerController::OnUpdate(Timestep ts) {
   const float SV_AIRACCELERATE_HU = 12.0f;
   const float MAX_AIR_WISH_SPEED_HU = 30.0f;
 
+  // 1. Check Ground State & Jump (Jump must happen before Friction to enable
+  // Bhop)
   bool onGround = m_Character->GetGroundState() ==
                   JPH::CharacterVirtual::EGroundState::OnGround;
+  bool justJumped = false;
 
-  // 1. Friction (Ground Only)
+  if (m_JumpPressed && onGround) {
+    velocityHU.y = JUMP_VELOCITY_HU;
+    m_JumpPressed = false;
+    justJumped = true;
+    onGround = false; // Treat as air for rest of frame
+  }
+
+  // 2. Friction (Ground Only, skipped if we just jumped)
   if (onGround) {
     glm::vec3 speedVec = {velocityHU.x, 0.0f, velocityHU.z};
     float speed = glm::length(speedVec);
@@ -158,7 +168,7 @@ void PlayerController::OnUpdate(Timestep ts) {
     }
   }
 
-  // 2. Wish velocity calculation (HU)
+  // 3. Wish velocity calculation (HU)
   glm::vec3 wishDir;
   float wishSpeedHU;
   {
@@ -183,7 +193,7 @@ void PlayerController::OnUpdate(Timestep ts) {
     }
   }
 
-  // 3. Acceleration
+  // 4. Acceleration
   if (onGround) {
     // Accelerate
     float currentSpeed = velocityHU.x * wishDir.x + velocityHU.z * wishDir.z;
@@ -206,16 +216,13 @@ void PlayerController::OnUpdate(Timestep ts) {
     }
   }
 
-  // 4. Gravity & Jump
-  if (!onGround) {
+  // 5. Gravity
+  if (!onGround && !justJumped) {
     velocityHU.y -= SV_GRAVITY_HU * ts;
-  } else {
+  } else if (onGround) {
     velocityHU.y = -10.0f; // Small stick to ground force in HU
-    if (m_JumpPressed) {
-      velocityHU.y = JUMP_VELOCITY_HU;
-      m_JumpPressed = false;
-    }
   }
+  // If justJumped, Y is already set to JUMP_VELOCITY
 
   // Convert back to meters and update Jolt
   velocityMeters =
@@ -223,7 +230,7 @@ void PlayerController::OnUpdate(Timestep ts) {
                 velocityHU.z * HU_TO_METERS);
   m_Character->SetLinearVelocity(velocityMeters);
 
-  // 5. Move Character (Collision Handling)
+  // 6. Move Character (Collision Handling)
   JPH::TempAllocatorImpl allocator(10 * 1024 * 1024);
   PlayerBodyFilter bodyFilter;
   m_Character->Update(ts, JPH::Vec3(0, -9.81f, 0),
@@ -240,6 +247,11 @@ void PlayerController::OnUpdate(Timestep ts) {
   float eyeHeight = glm::mix(1.7f, 0.8f, 1.0f - m_CrouchTransition);
   m_Camera->SetPosition(
       {charPos.GetX(), charPos.GetY() + eyeHeight, charPos.GetZ()});
+}
+
+glm::vec3 PlayerController::GetVelocity() const {
+  JPH::Vec3 v = m_Character->GetLinearVelocity();
+  return {v.GetX(), v.GetY(), v.GetZ()};
 }
 
 void PlayerController::HandleInput(float dt) {

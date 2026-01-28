@@ -2182,10 +2182,14 @@ void Application::RenderFrame(Timestep timestep) {
     if (!m_ProjectRoot.empty()) {
       ImGui::Begin("Engine Statistics");
       float speed = m_PlayerController ? m_PlayerController->GetSpeed() : 0.0f;
-      ImGui::Text("%.3f ms/frame (%.1f Game FPS | %.1f Engine FPS) | Speed: "
-                  "%.2f units/s",
-                  1000.0f / m_GameFPS, m_GameFPS, ImGui::GetIO().Framerate,
-                  speed);
+      glm::vec3 vel = m_PlayerController ? m_PlayerController->GetVelocity()
+                                         : glm::vec3(0.0f);
+
+      ImGui::Text("%.3f ms/frame (%.1f Game FPS | %.1f Engine FPS)",
+                  1000.0f / m_GameFPS, m_GameFPS, ImGui::GetIO().Framerate);
+      ImGui::Separator();
+      ImGui::Text("Velocity:  X: %.2f  Y: %.2f  Z: %.2f", vel.x, vel.y, vel.z);
+      ImGui::Text("Speed (H): %.2f units/s", speed);
       ImGui::End();
     } else {
       ImGui::SetNextWindowSizeConstraints(ImVec2(200, 100),

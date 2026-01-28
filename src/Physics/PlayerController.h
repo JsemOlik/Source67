@@ -23,6 +23,7 @@ public:
   void SetPosition(const glm::vec3 &position);
   void SetRotation(float yaw, float pitch);
   glm::vec3 GetPosition() const;
+  glm::vec3 GetVelocity() const;
   float GetSpeed() const;
   float GetYaw() const { return m_Yaw; }
   float GetPitch() const { return m_Pitch; }
