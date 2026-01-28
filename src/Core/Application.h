@@ -67,6 +67,9 @@ public:
 
   void CreateTestScene();
 
+  // Renders a single frame (useful for both Run loop and resize events)
+  void RenderFrame(Timestep ts);
+
   inline Window &GetWindow() { return *m_Window; }
   ImGuiLayer &GetImGuiLayer() { return *m_ImGuiLayer; }
   inline static Application &Get() { return *s_Instance; }
