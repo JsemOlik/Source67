@@ -87,14 +87,9 @@ void ImGuiLayer::OnAttach() {
   (void)io;
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-  io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+  // ViewportsEnable removed to keep all windows inside main window
   io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports;
   io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
-
-  io.ConfigViewportsNoAutoMerge = false;
-  io.ConfigViewportsNoTaskBarIcon = true;
-  io.ConfigViewportsNoDecoration = false;
-  io.ConfigViewportsNoDefaultParent = false;
 
   // Load Font
   if (std::filesystem::exists("assets/fonts/Roboto-Medium.ttf")) {
