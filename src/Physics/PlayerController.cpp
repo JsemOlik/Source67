@@ -57,7 +57,6 @@ void PlayerController::Reset(const glm::vec3 &startPos) {
   m_FirstMouse = true;
 
   // Reset Source state
-  m_IsGrounded = false;
   m_IsSprinting = false;
   m_SprintRemaining = SPRINT_DURATION;
   m_SprintRecoveryTime = 0.0f;
@@ -269,16 +268,20 @@ void PlayerController::HandleInput(float dt) {
 void PlayerController::UpdateCrouch(float dt) {
   if (m_CrouchPressed && !m_IsCrouching) {
     m_IsCrouching = true;
-    m_CrouchTransition = 1.0f;
   } else if (!m_CrouchPressed && m_IsCrouching) {
     m_IsCrouching = false;
-    m_CrouchTransition = 1.0f;
   }
 
-  if (m_CrouchTransition > 0.0f) {
-    m_CrouchTransition -= dt / 0.2f; // 0.2s transition
-    if (m_CrouchTransition < 0.0f)
-      m_CrouchTransition = 0.0f;
+  // Animate transition: move toward target (0.0 = crouched, 1.0 = standing)
+  float target = m_IsCrouching ? 0.0f : 1.0f;
+  if (m_CrouchTransition != target) {
+    float direction = (target > m_CrouchTransition) ? 1.0f : -1.0f;
+    m_CrouchTransition += direction * dt / 0.2f; // 0.2s transition
+    // Clamp to target
+    if ((direction > 0.0f && m_CrouchTransition > target) ||
+        (direction < 0.0f && m_CrouchTransition < target)) {
+      m_CrouchTransition = target;
+    }
   }
 }
 
