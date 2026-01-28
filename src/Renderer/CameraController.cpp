@@ -4,7 +4,6 @@
 #include <filesystem>
 #include <utility>
 
-
 namespace S67 {
 
 CameraController::CameraController(const Ref<PerspectiveCamera> &camera)
@@ -13,6 +12,8 @@ CameraController::CameraController(const Ref<PerspectiveCamera> &camera)
 void CameraController::OnUpdate(Timestep ts) {
   m_CameraPosition = m_Camera->GetPosition();
   float speed = m_CameraTranslationSpeed * ts;
+  if (Input::IsKeyPressed(S67_KEY_LEFT_SHIFT))
+    speed *= 4.0f;
 
   if (Input::IsKeyPressed(S67_KEY_W))
     m_CameraPosition += m_Camera->GetForward() * speed;

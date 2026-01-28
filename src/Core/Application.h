@@ -146,6 +146,7 @@ private:
   bool m_ShowSettingsWindow = false;
   bool m_ShowProjectSettingsWindow = false;
   float m_FontSize = 18.0f;
+  float m_EditorFOV = 45.0f;
   std::string m_FontPath = "assets/fonts/Roboto-Medium.ttf";
   glm::vec4 m_CustomColor = {0.1f, 0.105f, 0.11f, 1.0f};
   EditorTheme m_EditorTheme = EditorTheme::Dracula;

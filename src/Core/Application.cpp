@@ -1189,6 +1189,21 @@ void Application::UI_SettingsWindow() {
       }
       ImGui::PopItemWidth();
 
+      // Editor FOV
+      ImGui::TableNextRow();
+      ImGui::TableSetColumnIndex(0);
+      ImGui::Text("Editor FOV");
+      ImGui::TableSetColumnIndex(1);
+      ImGui::PushItemWidth(-1.0f);
+      if (ImGui::DragFloat("##EditorFOV", &m_EditorFOV, 1.0f, 30.0f, 110.0f,
+                           "%.1f")) {
+        float aspect = 1.0f;
+        if (m_SceneViewportSize.y > 0)
+          aspect = m_SceneViewportSize.x / m_SceneViewportSize.y;
+        m_EditorCamera->SetProjection(m_EditorFOV, aspect, 0.1f, 1000.0f);
+      }
+      ImGui::PopItemWidth();
+
       // Window Background Color
       ImGui::TableNextRow();
       ImGui::TableSetColumnIndex(0);
@@ -1442,6 +1457,7 @@ void Application::UI_ProjectSettingsWindow() {
 void Application::SaveSettings() {
   nlohmann::json j;
   j["FontSize"] = m_FontSize;
+  j["EditorFOV"] = m_EditorFOV;
   j["FPSCap"] = m_FPSCap;
   j["Theme"] = (int)m_EditorTheme;
   j["CustomColor"] = {m_CustomColor.r, m_CustomColor.g, m_CustomColor.b,
@@ -1470,6 +1486,8 @@ void Application::LoadSettings() {
       nlohmann::json j;
       i >> j;
       m_FontSize = j.at("FontSize").get<float>();
+      if (j.contains("EditorFOV"))
+        m_EditorFOV = j["EditorFOV"];
       if (j.contains("FPSCap"))
         m_FPSCap = j["FPSCap"];
       m_EditorTheme = (EditorTheme)j.at("Theme").get<int>();
@@ -1536,6 +1554,12 @@ void Application::LoadSettings() {
     m_EditorTheme = EditorTheme::Unity;
     m_ImGuiLayer->SetDarkThemeColors();
     S67_CORE_INFO("No settings.json found, using defaults (Unity Dark, 18px)");
+  }
+
+  // Apply editor FOV to the camera if it exists
+  if (m_EditorCamera) {
+    float aspect = 1280.0f / 720.0f; // Default aspect ratio
+    m_EditorCamera->SetProjection(m_EditorFOV, aspect, 0.1f, 1000.0f);
   }
 }
 
@@ -1608,7 +1632,7 @@ void Application::RenderFrame(Timestep timestep) {
     m_SceneFramebuffer->Resize((uint32_t)m_SceneViewportSize.x,
                                (uint32_t)m_SceneViewportSize.y);
     m_EditorCamera->SetProjection(
-        45.0f, m_SceneViewportSize.x / m_SceneViewportSize.y, 0.1f, 100.0f);
+        m_EditorFOV, m_SceneViewportSize.x / m_SceneViewportSize.y, 0.1f, 100.0f);
   }
   if (FramebufferSpecification spec = m_GameFramebuffer->GetSpecification();
       m_GameViewportSize.x > 0.0f && m_GameViewportSize.y > 0.0f &&
@@ -1668,6 +1692,7 @@ void Application::RenderFrame(Timestep timestep) {
     // Real-time Player Sync (during Play/Pause)
     if (entity->Name == "Player" && (m_SceneState == SceneState::Play ||
                                      m_SceneState == SceneState::Pause)) {
+      m_PlayerController->SetSettings(entity->Movement);
       entity->Transform.Position =
           m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
       entity->Transform.Rotation.x = m_PlayerController->GetPitch();
@@ -2182,10 +2207,16 @@ void Application::RenderFrame(Timestep timestep) {
     if (!m_ProjectRoot.empty()) {
       ImGui::Begin("Engine Statistics");
       float speed = m_PlayerController ? m_PlayerController->GetSpeed() : 0.0f;
-      ImGui::Text("%.3f ms/frame (%.1f Game FPS | %.1f Engine FPS) | Speed: "
-                  "%.2f units/s",
-                  1000.0f / m_GameFPS, m_GameFPS, ImGui::GetIO().Framerate,
-                  speed);
+      glm::vec3 vel = m_PlayerController ? m_PlayerController->GetVelocity()
+                                         : glm::vec3(0.0f);
+
+      ImGui::Text("%.3f ms/frame (%.1f Game FPS | %.1f Engine FPS)",
+                  1000.0f / m_GameFPS, m_GameFPS, ImGui::GetIO().Framerate);
+      ImGui::Separator();
+      // Convert meters to Hammer Units (1 meter = 39.97 HU)
+      constexpr float METERS_TO_HU = 39.97f;
+      ImGui::Text("Velocity:  X: %.2f  Y: %.2f  Z: %.2f", vel.x * METERS_TO_HU, vel.y * METERS_TO_HU, vel.z * METERS_TO_HU);
+      ImGui::Text("Speed (H): %.2f units/s", speed * METERS_TO_HU);
       ImGui::End();
     } else {
       ImGui::SetNextWindowSizeConstraints(ImVec2(200, 100),
