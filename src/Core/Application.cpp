@@ -357,7 +357,8 @@ Application::ResolveAssetPath(const std::filesystem::path &path) {
 
 void Application::OnNewProject() {
   std::string path = FileDialogs::SaveFile(
-      "Source67 Manifest (manifest.json)\0manifest.json\0", "manifest", "json");
+      "Source67 Project (manifest.source)\0manifest.source\0", "manifest",
+      "source");
   if (!path.empty()) {
     std::filesystem::path manifestPath(path);
     // Create Project Directories
@@ -416,7 +417,7 @@ void Application::SaveManifest() {
   if (m_ProjectRoot.empty())
     return;
 
-  std::filesystem::path manifestPath = m_ProjectRoot / "manifest.json";
+  std::filesystem::path manifestPath = m_ProjectRoot / "manifest.source";
   std::ofstream fout(manifestPath);
   if (fout.is_open()) {
     fout << "ProjectName: " << m_ProjectName << "\n";
@@ -436,7 +437,7 @@ void Application::OnOpenProject() {
     SetProjectRoot(folderPath);
 
     // Try to find a manifest in this specific folder
-    std::filesystem::path manifestPath = folderPath / "manifest.json";
+    std::filesystem::path manifestPath = folderPath / "manifest.source";
     if (std::filesystem::exists(manifestPath)) {
       // If opening a level later, it will discover properly, but let's load it
       // now too
@@ -475,9 +476,9 @@ void Application::DiscoverProject(const std::filesystem::path &levelPath) {
   std::filesystem::path currentDir = levelPath.parent_path();
   bool found = false;
 
-  // Search upward for manifest.json
+  // Search upward for manifest.source
   while (!currentDir.empty() && currentDir != currentDir.root_path()) {
-    std::filesystem::path manifestPath = currentDir / "manifest.json";
+    std::filesystem::path manifestPath = currentDir / "manifest.source";
     if (std::filesystem::exists(manifestPath)) {
       m_ProjectFilePath = manifestPath;
       SetProjectRoot(currentDir);
@@ -1659,7 +1660,7 @@ void Application::UI_LauncherScreen() {
       std::string label = p.stem().string() + " (" + projectPath + ")";
       if (ImGui::Selectable(label.c_str(), false, 0, {contentSize.x, 0})) {
         SetProjectRoot(p);
-        DiscoverProject(p / "manifest.json");
+        DiscoverProject(p / "manifest.source");
         AddToRecentProjects(projectPath);
       }
       if (ImGui::IsItemHovered()) {
