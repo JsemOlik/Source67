@@ -95,9 +95,8 @@ void ImGuiLayer::OnAttach() {
   io.ConfigViewportsNoTaskBarIcon = true;
 
   // Load Font
-  std::filesystem::path fontPath = Application::Get().ResolveAssetPath("assets/fonts/Roboto-Medium.ttf");
-  if (std::filesystem::exists(fontPath)) {
-    io.Fonts->AddFontFromFileTTF(fontPath.string().c_str(), 18.0f);
+  if (std::filesystem::exists("assets/fonts/Roboto-Medium.ttf")) {
+    io.Fonts->AddFontFromFileTTF("assets/fonts/Roboto-Medium.ttf", 18.0f);
   }
 
   // Setup Dear ImGui style
