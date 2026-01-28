@@ -1,4 +1,8 @@
 #include "Application.h"
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 #include "Events/KeyEvent.h"
 #include "Events/MouseEvent.h"
 #include "Logger.h"
@@ -119,6 +123,7 @@ Application::Application(const std::string &executablePath,
   m_Skybox = CreateScope<Skybox>(
       ResolveAssetPath("assets/textures/skybox.png").string());
   LoadSettings();
+  SetDebugMode(m_DebugMode);
 
   if (!std::filesystem::exists("imgui.ini")) {
     m_ResetLayoutOnNextFrame = true;
@@ -578,6 +583,61 @@ void Application::CloseProject() {
   S67_CORE_INFO("Closed project");
 }
 
+void Application::SetDebugMode(bool enabled) {
+  m_DebugMode = enabled;
+#ifdef _WIN32
+  HWND hWnd = GetConsoleWindow();
+  if (hWnd) {
+    ShowWindow(hWnd, m_DebugMode ? SW_SHOW : SW_HIDE);
+  }
+#endif
+}
+
+void Application::UI_DeveloperConsole() {
+  if (!m_ShowConsole)
+    return;
+
+  ImGui::SetNextWindowSize({800, 450}, ImGuiCond_FirstUseEver);
+  if (ImGui::Begin("Developer Console (`)", &m_ShowConsole)) {
+    if (ImGui::Button("Clear")) {
+      Logger::ClearLogHistory();
+    }
+    ImGui::SameLine();
+    static bool scrollToBottom = true;
+    ImGui::Checkbox("Auto-scroll", &scrollToBottom);
+    ImGui::SameLine();
+    ImGui::TextDisabled("| %zu messages", Logger::GetLogHistory().size());
+
+    ImGui::Separator();
+
+    ImGui::BeginChild("ScrollingRegion", {0, 0}, false,
+                      ImGuiWindowFlags_HorizontalScrollbar);
+
+    const auto &logs = Logger::GetLogHistory();
+    for (const auto &log : logs) {
+      ImVec4 color = {0.8f, 0.8f, 0.8f, 1.0f};
+      if (log.Level == spdlog::level::warn)
+        color = {1.0f, 1.0f, 0.0f, 1.0f};
+      else if (log.Level == spdlog::level::err)
+        color = {1.0f, 0.3f, 0.3f, 1.0f};
+      else if (log.Level == spdlog::level::critical)
+        color = {1.0f, 0.0f, 1.0f, 1.0f};
+      else if (log.Level == spdlog::level::info)
+        color = {0.5f, 1.0f, 0.5f, 1.0f};
+
+      ImGui::PushStyleColor(ImGuiCol_Text, color);
+      ImGui::Text("[%s] %s", log.Timestamp.c_str(), log.Message.c_str());
+      ImGui::PopStyleColor();
+    }
+
+    if (scrollToBottom && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+      ImGui::SetScrollHereY(1.0f);
+
+    ImGui::EndChild();
+  }
+  ImGui::End();
+}
+
 void Application::OnSaveScene() {
   if (m_SceneState != SceneState::Edit) {
     S67_CORE_WARN("Cannot save while playing!");
@@ -794,6 +854,10 @@ void Application::OnEvent(Event &e) {
                      Input::IsKeyPressed(GLFW_KEY_RIGHT_CONTROL);
       bool super = Input::IsKeyPressed(GLFW_KEY_LEFT_SUPER) ||
                    Input::IsKeyPressed(GLFW_KEY_RIGHT_SUPER);
+
+      if (ek.GetKeyCode() == GLFW_KEY_GRAVE_ACCENT) {
+        m_ShowConsole = !m_ShowConsole;
+      }
 
       if (m_SceneState == SceneState::Edit) {
         if (ek.GetKeyCode() == GLFW_KEY_S && (control || super)) {
@@ -1146,6 +1210,8 @@ void Application::Run() {
             m_ShowToolbar = !m_ShowToolbar;
           if (ImGui::MenuItem("Statistics", nullptr, m_ShowStats))
             m_ShowStats = !m_ShowStats;
+          if (ImGui::MenuItem("Developer Console", "`", m_ShowConsole))
+            m_ShowConsole = !m_ShowConsole;
 
           ImGui::Separator();
           if (ImGui::MenuItem("Save Layout"))
@@ -1500,6 +1566,8 @@ void Application::Run() {
       }
     }
 
+    UI_DeveloperConsole();
+
     if (m_ProjectRoot.empty()) {
       UI_LauncherScreen();
     }
@@ -1606,8 +1674,14 @@ void Application::UI_SettingsWindow() {
     }
 
     ImGui::Separator();
-    ImGui::Text("Performance");
     ImGui::DragInt("Game FPS Cap (0 = Unlimited)", &m_FPSCap, 1.0f, 0, 1000);
+
+    ImGui::Separator();
+    if (ImGui::Checkbox("Debug Mode (Terminal Visible)", &m_DebugMode)) {
+      SetDebugMode(m_DebugMode);
+    }
+    ImGui::SameLine();
+    ImGui::Checkbox("Show Builder Console (` toggles)", &m_ShowConsole);
   }
 
   ImGui::Separator();
@@ -1743,6 +1817,7 @@ void Application::SaveSettings() {
   j["ShowGame"] = m_ShowGame;
   j["ShowToolbar"] = m_ShowToolbar;
   j["ShowStats"] = m_ShowStats;
+  j["DebugMode"] = m_DebugMode;
 
   j["RecentProjects"] = m_RecentProjects;
 
@@ -1783,6 +1858,8 @@ void Application::LoadSettings() {
         m_ShowToolbar = j["ShowToolbar"];
       if (j.contains("ShowStats"))
         m_ShowStats = j["ShowStats"];
+      if (j.contains("DebugMode"))
+        m_DebugMode = j["DebugMode"];
 
       if (j.contains("RecentProjects")) {
         m_RecentProjects = j["RecentProjects"].get<std::vector<std::string>>();

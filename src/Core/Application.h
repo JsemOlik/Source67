@@ -58,6 +58,9 @@ public:
 
   void OnEntityCollidableChanged(Ref<Entity> entity);
 
+  void UI_DeveloperConsole();
+  void SetDebugMode(bool enabled);
+
   void OnNewProject();
   void OnOpenProject();
   void DiscoverProject(const std::filesystem::path &levelPath);
@@ -154,6 +157,8 @@ private:
   bool m_ShowGame = true;
   bool m_ShowToolbar = true;
   bool m_ShowStats = true;
+  bool m_ShowConsole = false;
+  bool m_DebugMode = false;
   bool m_ResetLayoutOnNextFrame = false;
 
   Ref<Shader> m_DefaultShader;
