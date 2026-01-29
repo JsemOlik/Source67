@@ -24,12 +24,12 @@
 #include "Physics/PlayerController.h"
 #include "Renderer/Framebuffer.h"
 #include "Renderer/SceneSerializer.h"
+#include "Renderer/ScriptableEntity.h"
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <imgui.h>
 #include <imgui_internal.h>
-
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include "Renderer/Mesh.h"
@@ -103,7 +103,8 @@ Application::Application(const std::string &executablePath,
   m_Camera =
       CreateRef<PerspectiveCamera>(45.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
   m_Camera->SetPosition({0.0f, 2.0f, 8.0f});
-  m_PlayerController = CreateScope<PlayerController>(m_Camera);
+  m_Camera->SetPosition({0.0f, 2.0f, 8.0f});
+  // m_PlayerController managed by Scene Script now
 
   // Initialize tick system game state
   m_PreviousFrameTime = glfwGetTime();
@@ -319,13 +320,19 @@ void Application::OnScenePlay() {
         startPos = entity->Transform.Position;
         startRotation = entity->Transform.Rotation;
         fov = entity->CameraFOV;
+
+        // Scene now handles script instantiation via Update or Explicit call
+        // We will trust the instance is ready or handled by OnUpdate(0) call if
+        // we add it, or better, we will access it safely.
+
+        if (auto *pc = dynamic_cast<PlayerController *>(
+                entity->NativeScript.Instance)) {
+          pc->Reset(startPos);
+          pc->SetRotation(startRotation.y, startRotation.x);
+        }
         break;
       }
     }
-
-    m_PlayerController->Reset(startPos);
-    // Rotation: X is pitch, Y is yaw
-    m_PlayerController->SetRotation(startRotation.y, startRotation.x);
 
     float aspect = 1.0f;
     if (m_GameViewportSize.x > 0 && m_GameViewportSize.y > 0)
@@ -386,9 +393,13 @@ void Application::OnSceneStop() {
   // Final sync: Update PlayerController and Camera to the restored state
   for (auto &entity : m_Scene->GetEntities()) {
     if (entity->Name == "Player") {
-      m_PlayerController->Reset(entity->Transform.Position);
-      m_PlayerController->SetRotation(entity->Transform.Rotation.y,
-                                      entity->Transform.Rotation.x);
+      // Fetch Script
+      if (auto *pc =
+              dynamic_cast<PlayerController *>(entity->NativeScript.Instance)) {
+        pc->Reset(entity->Transform.Position);
+        pc->SetRotation(entity->Transform.Rotation.y,
+                        entity->Transform.Rotation.x);
+      }
 
       m_Camera->SetPosition(entity->Transform.Position +
                             glm::vec3(0.0f, 1.7f, 0.0f));
@@ -439,8 +450,34 @@ void Application::OnNewProject() {
     m_ProjectVersion = "1.0.0";
 
     std::filesystem::path projectAssets = projectRoot / "assets";
+    std::filesystem::path projectScripts =
+        projectRoot / "Scripts"; // Capitalized as requested
     std::filesystem::create_directories(projectAssets / "shaders");
     std::filesystem::create_directories(projectAssets / "textures");
+    std::filesystem::create_directories(projectScripts);
+
+    // Create Player.cpp Template
+    {
+      std::string playerScript = R"(#include <S67.h>
+
+class Player : public S67::ScriptableEntity {
+public:
+    void OnCreate() override {
+        S67::Console::Get().AddLog("Player Script Created!");
+    }
+
+    void OnUpdate(float ts) override {
+        // Movement Logic will go here...
+        // For now, this is just a template.
+    }
+};
+)";
+      std::ofstream out(projectScripts / "Player.cpp");
+      out << playerScript;
+      out.close();
+    }
+
+    // Copy Default Assets (Shaders)
 
     // Copy Default Assets (Shaders)
     try {
@@ -712,7 +749,7 @@ void Application::OpenScene(const std::string &filepath) {
 
   PhysicsSystem::Shutdown(); // Reset physics system to clear all bodies
   PhysicsSystem::Init();
-  m_PlayerController = CreateScope<PlayerController>(m_Camera);
+  // m_PlayerController is managed by Scene's script system now
 
   DiscoverProject(std::filesystem::path(filepath));
   SceneSerializer serializer(m_Scene.get(), m_ProjectRoot.string());
@@ -828,7 +865,14 @@ void Application::OnEvent(Event &e) {
   m_ImGuiLayer->OnEvent(e);
 
   if (m_SceneState == SceneState::Play) {
-    m_PlayerController->OnEvent(e);
+    if (m_Scene) {
+      if (auto entity = m_Scene->FindEntityByName("Player")) {
+        if (auto *pc = dynamic_cast<PlayerController *>(
+                entity->NativeScript.Instance)) {
+          pc->OnEvent(e);
+        }
+      }
+    }
 
     // Global ESC handler for Play Mode
     if (e.GetEventType() == EventType::KeyPressed) {
@@ -1066,20 +1110,27 @@ void Application::UpdateGameTick(float tick_dt) {
     return;
   }
 
-  // 1. Update player controller with fixed timestep
-  // The PlayerController handles input sampling, movement, and physics
-  if (!m_ShowConsole)
-    m_PlayerController->OnUpdate(Timestep(tick_dt));
+  // 1. Update Scene (includes Scripts -> PlayerController::On
+  if (m_Scene)
+    m_Scene->OnUpdate(tick_dt);
 
   // 2. Update Jolt Physics with fixed timestep
   PhysicsSystem::OnUpdate(Timestep(tick_dt));
 
   // 3. Update game state from player controller for interpolation
-  m_CurrentState.player_position =
-      m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
-  m_CurrentState.player_velocity = m_PlayerController->GetVelocity();
-  m_CurrentState.yaw = m_PlayerController->GetYaw();
-  m_CurrentState.pitch = m_PlayerController->GetPitch();
+  if (m_Scene) {
+    Ref<Entity> playerEntity = m_Scene->FindEntityByName("Player");
+    if (playerEntity && playerEntity->NativeScript.Instance) {
+      if (auto *pc = dynamic_cast<PlayerController *>(
+              playerEntity->NativeScript.Instance)) {
+        m_CurrentState.player_position =
+            m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
+        m_CurrentState.player_velocity = pc->GetVelocity();
+        m_CurrentState.yaw = pc->GetYaw();
+        m_CurrentState.pitch = pc->GetPitch();
+      }
+    }
+  }
 
   // Note: Additional movement state (sprinting, crouching, etc.) could be
   // synchronized here if exposed by PlayerController in the future
@@ -1763,11 +1814,14 @@ void Application::RenderFrame(float alpha) {
     // Real-time Player Sync (during Play/Pause)
     if (entity->Name == "Player" && (m_SceneState == SceneState::Play ||
                                      m_SceneState == SceneState::Pause)) {
-      m_PlayerController->SetSettings(entity->Movement);
-      entity->Transform.Position =
-          m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
-      entity->Transform.Rotation.x = m_PlayerController->GetPitch();
-      entity->Transform.Rotation.y = m_PlayerController->GetYaw() + 90.0f;
+      if (auto *pc =
+              dynamic_cast<PlayerController *>(entity->NativeScript.Instance)) {
+        pc->SetSettings(entity->Movement);
+        entity->Transform.Position =
+            m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
+        entity->Transform.Rotation.x = pc->GetPitch();
+        entity->Transform.Rotation.y = pc->GetYaw() + 90.0f;
+      }
       // No break here, we need to render it too
     }
 
@@ -1857,12 +1911,17 @@ void Application::RenderFrame(float alpha) {
   HUDRenderer::BeginHUD(m_GameViewportSize.x, m_GameViewportSize.y);
   HUDRenderer::RenderCrosshair();
 
-  if (m_PlayerController) {
-    // 1 unit = 0.75 inches
-    // 1 meter = 52.4934 Hammer Units
-    constexpr float METERS_TO_HU = 52.4934f;
-    float speedHU = m_PlayerController->GetSpeed() * METERS_TO_HU;
-    HUDRenderer::RenderSpeed(speedHU);
+  if (m_Scene) {
+    if (auto entity = m_Scene->FindEntityByName("Player")) {
+      if (auto *pc =
+              dynamic_cast<PlayerController *>(entity->NativeScript.Instance)) {
+        // 1 unit = 0.75 inches
+        // 1 meter = 52.4934 Hammer Units
+        constexpr float METERS_TO_HU = 52.4934f;
+        float speedHU = pc->GetSpeed() * METERS_TO_HU;
+        HUDRenderer::RenderSpeed(speedHU);
+      }
+    }
   }
 
   HUDRenderer::EndHUD();
@@ -2295,9 +2354,17 @@ void Application::RenderFrame(float alpha) {
   if (m_ShowStats) {
     if (!m_ProjectRoot.empty()) {
       ImGui::Begin("Engine Statistics");
-      float speed = m_PlayerController ? m_PlayerController->GetSpeed() : 0.0f;
-      glm::vec3 vel = m_PlayerController ? m_PlayerController->GetVelocity()
-                                         : glm::vec3(0.0f);
+      float speed = 0.0f;
+      glm::vec3 vel(0.0f);
+      if (m_Scene) {
+        if (auto entity = m_Scene->FindEntityByName("Player")) {
+          if (auto *pc = dynamic_cast<PlayerController *>(
+                  entity->NativeScript.Instance)) {
+            speed = pc->GetSpeed();
+            vel = pc->GetVelocity();
+          }
+        }
+      }
 
       ImGui::Text("%.3f ms/frame (%.1f Game FPS | %.1f Engine FPS)",
                   1000.0f / m_GameFPS, m_GameFPS, ImGui::GetIO().Framerate);

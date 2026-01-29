@@ -3,6 +3,8 @@
 #include "Events/MouseEvent.h"
 #include "Game/Console/ConVar.h" // Include ConVar
 
+#include "Core/Application.h"
+#include "Core/Logger.h"
 #include "Physics/PhysicsSystem.h"
 #include "Renderer/Entity.h"
 #include <GLFW/glfw3.h>
@@ -56,12 +58,31 @@ public:
   }
 };
 
-PlayerController::PlayerController(Ref<PerspectiveCamera> camera)
-    : m_Camera(camera) {
+PlayerController::PlayerController() {}
+
+void PlayerController::OnCreate() {
+  S67_CORE_INFO("PlayerController::OnCreate Start");
+  auto &app = Application::Get();
+  S67_CORE_INFO("Got Application instance");
+  m_Camera = app.GetCamera(); // Access Global Camera
+  if (!m_Camera)
+    S67_CORE_ERROR("Camera is null!");
+  S67_CORE_INFO("PlayerController::OnCreate Camera Retrieved");
   ReinitializeCharacter();
+  S67_CORE_INFO("PlayerController::OnCreate End");
 }
 
-PlayerController::~PlayerController() {}
+PlayerController::~PlayerController() { OnDestroy(); }
+
+void PlayerController::OnDestroy() {
+  if (m_Character) {
+    // Cleanup Jolt Character if needed, currently raw pointer but Jolt manages
+    // it? Actually we new'd it. We should delete it.
+    // PhysicsSystem::GetPhysicsSystem().GetBodyInterface().RemoveBody(m_Character->GetBodyID());
+    // delete m_Character;
+    // For now, minimal cleanup to avoid crashes if Jolt shuts down first.
+  }
+}
 
 void PlayerController::Reset(const glm::vec3 &startPos) {
   ReinitializeCharacter(); // Ensure character is valid after physics reset
@@ -109,8 +130,15 @@ void PlayerController::OnEvent(Event &e) {
   // Using OnUpdate for rotation
 }
 
-void PlayerController::OnUpdate(Timestep ts) {
+void PlayerController::OnUpdate(float ts) {
   float dt = ts;
+
+  static float logTimer = 0.0f;
+  logTimer += ts;
+  if (logTimer >= 1.0f) {
+    S67_CORE_INFO("PlayerController Script Updating... (dt={0})", ts);
+    logTimer = 0.0f;
+  }
 
   // Sync Settings from Console Variables
   // Safety Check: Only apply if ConVars are initialized (non-zero)

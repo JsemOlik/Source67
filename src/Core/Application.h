@@ -5,7 +5,7 @@
 #include "ImGui/ImGuiLayer.h"
 #include "ImGui/Panels/SceneHierarchyPanel.h"
 #include "Physics/PhysicsSystem.h"
-#include "Physics/PlayerController.h"
+// #include "Physics/PlayerController.h" // Removed to break potential cycle
 #include "Renderer/Camera.h"
 #include "Renderer/CameraController.h"
 #include "Renderer/Framebuffer.h"
@@ -78,6 +78,8 @@ public:
   ImGuiLayer &GetImGuiLayer() { return *m_ImGuiLayer; }
   inline static Application &Get() { return *s_Instance; }
 
+  Ref<PerspectiveCamera> GetCamera() { return m_Camera; }
+
   const std::filesystem::path &GetProjectRoot() const { return m_ProjectRoot; }
   void SetProjectRoot(const std::filesystem::path &root);
 
@@ -130,7 +132,7 @@ private:
 
   float m_LastFrameTime = 0.0f;
 
-  Scope<PlayerController> m_PlayerController;
+  // PlayerController *m_PlayerController = nullptr; // Removed
 
   Scope<ImGuiLayer> m_ImGuiLayer;
   Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
