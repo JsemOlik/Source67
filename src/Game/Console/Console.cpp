@@ -64,7 +64,11 @@ void Console::ExecuteCommand(const std::string &commandLine) {
   if (commandLine.empty())
     return;
 
-  AddLog("] " + commandLine);
+  // AddLog("] " + commandLine); // Removed
+  // Echo to logger with a special prefix or just Trace
+  // We'll use Trace, and ConsolePanel will need to distinguish it if possible.
+  // Or purely rely on the "] " prefix which we are about to add.
+  S67_CORE_TRACE("] {0}", commandLine);
 
   // Tokenize
   std::vector<std::string> args;
@@ -125,14 +129,6 @@ void Console::ExecuteCommand(const std::string &commandLine) {
   }
 
   S67_CORE_WARN("Unknown command: {0}", commandName);
-}
-
-void Console::AddLog(const std::string &message) {
-  m_LogHistory.push_back(message);
-  // Cap history?
-  if (m_LogHistory.size() > 1000) {
-    m_LogHistory.erase(m_LogHistory.begin());
-  }
 }
 
 // Implement Save and Load at the end of the namespace or before it end

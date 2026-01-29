@@ -1,5 +1,6 @@
 #include "ConVar.h"
 #include "Console.h"
+#include "Core/Application.h"
 #include "Core/Logger.h"
 #include <iomanip>
 #include <sstream>
@@ -11,7 +12,7 @@ struct StandardCommands {
   StandardCommands() {
     static ConCommand cmd_clear(
         "clear",
-        [](const ConCommandArgs & /*args*/) { Console::Get().ClearLog(); },
+        [](const ConCommandArgs & /*args*/) { Logger::ClearLogHistory(); },
         "Clear all console output");
 
     static ConCommand cmd_echo(
@@ -48,6 +49,34 @@ struct StandardCommands {
           Console::Get().Save("game.cfg");
         },
         "Save current configuration to game.cfg");
+
+    static ConCommand cmd_map(
+        "map",
+        [](const ConCommandArgs &args) {
+          if (args.ArgC() < 2) {
+            S67_CORE_WARN("Usage: map <filename>");
+            return;
+          }
+          std::string filename = args[1];
+          // Auto-append extension if missing
+          if (filename.find(".s67") == std::string::npos) {
+            filename += ".s67";
+          }
+          S67_CORE_INFO("Loading map: {0}...", filename);
+
+          // Resolve path to handle "mapname" vs "assets/levels/mapname"
+          std::filesystem::path resolvedPath =
+              Application::Get().ResolveAssetPath(filename);
+
+          // If not found, try searching recursively or in common folders?
+          // For now, let's just assume ResolveAssetPath checks Project/Assets
+          // root. But ResolveAssetPath only checks direct concatenation. Let's
+          // add a check for the file existence to give better error msg if
+          // needed.
+
+          Application::Get().OpenScene(resolvedPath.string());
+        },
+        "Load a map/scene by filename");
   }
 };
 

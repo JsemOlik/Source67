@@ -35,9 +35,10 @@ public:
   }
 
   // History
-  void AddLog(const std::string &message);
-  const std::vector<std::string> &GetLogHistory() const { return m_LogHistory; }
-  void ClearLog() { m_LogHistory.clear(); }
+  // Removed internal history in favor of Core::Logger
+  // void AddLog(const std::string &message);
+  // const std::vector<std::string> &GetLogHistory() const { return
+  // m_LogHistory; } void ClearLog() { m_LogHistory.clear(); }
 
 private:
   Console() = default;
@@ -48,8 +49,6 @@ private:
 
   std::unordered_map<std::string, ConVar *> m_ConVars;
   std::unordered_map<std::string, ConCommand *> m_Commands;
-
-  std::vector<std::string> m_LogHistory;
 };
 
 } // namespace S67

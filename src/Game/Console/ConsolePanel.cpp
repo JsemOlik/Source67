@@ -45,16 +45,28 @@ void ConsolePanel::OnImGuiRender(bool *pOpen) {
 
   for (const auto &log : logs) {
     ImVec4 color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-    if (log.Level == spdlog::level::trace)
-      color = ImVec4(0.7f, 0.7f, 0.7f, 1.0f);
-    else if (log.Level == spdlog::level::info)
-      color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-    else if (log.Level == spdlog::level::warn)
+
+    // Syntax Highlighting Logic
+    if (log.Level == spdlog::level::trace) {
+      if (log.Message.starts_with("] ")) {
+        color = ImVec4(0.0f, 1.0f, 1.0f, 1.0f); // Cyan for User Input
+      } else {
+        color = ImVec4(0.7f, 0.7f, 0.7f, 1.0f); // Grey for trace
+      }
+    } else if (log.Level == spdlog::level::info) {
+      // Check if it looks like a variable output "var = value : help"
+      if (log.Message.find(" = \"") != std::string::npos) {
+        color = ImVec4(0.2f, 1.0f, 0.2f, 1.0f); // Green for ConVars
+      } else {
+        color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f); // White for Info
+      }
+    } else if (log.Level == spdlog::level::warn) {
       color = ImVec4(1.0f, 0.8f, 0.0f, 1.0f);
-    else if (log.Level == spdlog::level::err)
+    } else if (log.Level == spdlog::level::err) {
       color = ImVec4(1.0f, 0.4f, 0.4f, 1.0f);
-    else if (log.Level == spdlog::level::critical)
+    } else if (log.Level == spdlog::level::critical) {
       color = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
+    }
 
     ImGui::PushStyleColor(ImGuiCol_Text, color);
     ImGui::TextUnformatted(log.Message.c_str());
