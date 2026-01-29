@@ -1,4 +1,5 @@
 #include "Base.h"
+#include "Core/Console/Console.h"
 #include "Core/GameState.h"
 #include "Core/UndoSystem.h"
 #include "Events/WindowEvent.h"
@@ -76,6 +77,7 @@ public:
   void RenderFrame(float alpha);
 
   inline Window &GetWindow() { return *m_Window; }
+  inline Window *GetWindowPointer() { return m_Window.get(); }
   ImGuiLayer &GetImGuiLayer() { return *m_ImGuiLayer; }
   inline static Application &Get() { return *s_Instance; }
 
@@ -92,6 +94,9 @@ public:
   const std::filesystem::path &GetEngineAssetsRoot() const {
     return m_EngineAssetsRoot;
   }
+
+  void SetFPSCap(int cap) { m_FPSCap = cap; }
+  int GetFPSCap() const { return m_FPSCap; }
 
 private:
   bool OnWindowClose(WindowCloseEvent &e);
