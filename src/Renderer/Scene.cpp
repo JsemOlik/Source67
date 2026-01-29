@@ -1,5 +1,6 @@
 #include "Scene.h"
 #include "Core/Application.h"
+#include "Core/Logger.h"
 #include "Mesh.h"
 #include "Texture.h"
 #include <algorithm>
