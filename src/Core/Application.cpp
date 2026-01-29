@@ -784,153 +784,30 @@ void Application::OnEntityCollidableChanged(Ref<Entity> entity) {
 }
 
 void Application::OnEvent(Event &e) {
-  m_ImGuiLayer->OnEvent(e);
+  if (e.GetEventType() == EventType::KeyPressed) {
+    auto &ek = (KeyPressedEvent &)e;
+    if (ek.GetKeyCode() == GLFW_KEY_GRAVE_ACCENT && m_EnableConsole) {
+      m_ShowConsole = !m_ShowConsole;
 
-  if (m_SceneState == SceneState::Play) {
-    // m_CameraController->OnEvent(e);
-    m_PlayerController->OnEvent(e);
-  } else {
-    // Editor Navigation logic
-    if (e.GetEventType() == EventType::MouseButtonPressed) {
-      auto &mb = (MouseButtonPressedEvent &)e;
-      if (mb.GetMouseButton() == 1) { // Right Click
-        if (m_SceneViewportHovered) {
-          m_Window->SetCursorLocked(true);
-          m_CursorLocked = true;
-          m_EditorCameraController->SetRotationEnabled(true);
-          m_EditorCameraController->SetFirstMouse(true);
-        }
-      } else if (mb.GetMouseButton() == 0) { // Left Click
-        if (m_SceneViewportHovered && m_SceneState != SceneState::Play) {
-          if (ImGuizmo::IsOver())
-            return;
-
-          // Mouse Picking
-          ImVec2 mousePos = ImGui::GetMousePos();
-          float x = mousePos.x - m_SceneViewportPos.x;
-          float y = mousePos.y - m_SceneViewportPos.y;
-
-          // NDC (-1 to 1)
-          float ndcX = (2.0f * x) / m_SceneViewportSize.x - 1.0f;
-          float ndcY = 1.0f - (2.0f * y) / m_SceneViewportSize.y;
-
-          glm::mat4 invVP =
-              glm::inverse(m_EditorCamera->GetViewProjectionMatrix());
-          glm::vec4 ndcRayNear = {ndcX, ndcY, -1.0f, 1.0f};
-          glm::vec4 ndcRayFar = {ndcX, ndcY, 1.0f, 1.0f};
-
-          glm::vec4 worldRayNear = invVP * ndcRayNear;
-          glm::vec4 worldRayFar = invVP * ndcRayFar;
-
-          worldRayNear /= worldRayNear.w;
-          worldRayFar /= worldRayFar.w;
-
-          glm::vec3 rayOrigin = glm::vec3(worldRayNear);
-          glm::vec3 rayDirection =
-              glm::normalize(glm::vec3(worldRayFar - worldRayNear));
-
-          JPH::BodyID hitID =
-              PhysicsSystem::Raycast(rayOrigin, rayDirection, 1000.0f);
-          if (!hitID.IsInvalid()) {
-            for (auto &entity : m_Scene->GetEntities()) {
-              if (entity->PhysicsBody == hitID) {
-                m_SceneHierarchyPanel->SetSelectedEntity(entity);
-                break;
-              }
-            }
-          } else {
-            m_SceneHierarchyPanel->SetSelectedEntity(nullptr);
-          }
-        }
-      }
-
-      m_EditorCameraController->OnEvent(e);
-    }
-
-    // Handle mouse button RELEASE separately (not inside the Press handler!)
-    if (e.GetEventType() == EventType::MouseButtonReleased) {
-      auto &mb = (MouseButtonReleasedEvent &)e;
-      if (mb.GetMouseButton() == 1) { // Right Click
+      // UX: Handle Cursor & Input Blocking
+      if (m_ShowConsole) {
+        // Console Opened: Unlock cursor for interaction
         m_Window->SetCursorLocked(false);
         m_CursorLocked = false;
-        m_EditorCameraController->SetRotationEnabled(false);
-      }
-    }
 
-    EventDispatcher dispatcher(e);
-    dispatcher.Dispatch<WindowCloseEvent>(
-        BIND_EVENT_FN(Application::OnWindowClose));
-    dispatcher.Dispatch<WindowResizeEvent>(
-        BIND_EVENT_FN(Application::OnWindowResize));
-    dispatcher.Dispatch<WindowDropEvent>(
-        BIND_EVENT_FN(Application::OnWindowDrop));
+        // Disable rotation if in editor
+        if (m_SceneState == SceneState::Edit)
+          m_EditorCameraController->SetRotationEnabled(false);
 
-    if (e.GetEventType() == EventType::KeyPressed) {
-      auto &ek = (KeyPressedEvent &)e;
-      bool control = Input::IsKeyPressed(GLFW_KEY_LEFT_CONTROL) ||
-                     Input::IsKeyPressed(GLFW_KEY_RIGHT_CONTROL);
-      bool super = Input::IsKeyPressed(GLFW_KEY_LEFT_SUPER) ||
-                   Input::IsKeyPressed(GLFW_KEY_RIGHT_SUPER);
-
-      if (ek.GetKeyCode() == GLFW_KEY_GRAVE_ACCENT && m_EnableConsole) {
-        m_ShowConsole = !m_ShowConsole;
-      }
-
-      if (m_SceneState == SceneState::Edit) {
-        if (ek.GetKeyCode() == GLFW_KEY_S && (control || super)) {
-          OnSaveScene();
-          m_ShowSaveNotification = true;
-          m_SaveNotificationTime = (float)glfwGetTime();
-        }
-
-        // Undo/Redo
-        if (control || super) {
-          if (ek.GetKeyCode() == GLFW_KEY_Z) {
-            if (Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT) ||
-                Input::IsKeyPressed(GLFW_KEY_RIGHT_SHIFT))
-              m_UndoSystem.Redo();
-            else
-              m_UndoSystem.Undo();
-          }
-          if (ek.GetKeyCode() == GLFW_KEY_Y) {
-            m_UndoSystem.Redo();
-          }
-        }
-
-        // Gizmo shortcuts
-        if (!m_EditorCameraController->IsRotationEnabled()) {
-          if (ek.GetKeyCode() == GLFW_KEY_Q)
-            m_GizmoType = -1;
-          if (ek.GetKeyCode() == GLFW_KEY_W)
-            m_GizmoType = (int)ImGuizmo::OPERATION::TRANSLATE;
-          if (ek.GetKeyCode() == GLFW_KEY_E)
-            m_GizmoType = (int)ImGuizmo::OPERATION::ROTATE;
-          if (ek.GetKeyCode() == GLFW_KEY_R)
-            m_GizmoType = (int)ImGuizmo::OPERATION::SCALE;
-        }
-
-        if (ek.GetKeyCode() == GLFW_KEY_F) {
-          auto selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
-          if (selectedEntity) {
-            glm::vec3 pos = selectedEntity->Transform.Position;
-            glm::vec3 scale = selectedEntity->Transform.Scale;
-            float maxScale = std::max({scale.x, scale.y, scale.z});
-
-            // Move camera to look at object
-            glm::vec3 offset = {0.0f, maxScale * 2.0f, maxScale * 5.0f};
-            m_EditorCamera->SetPosition(pos + offset);
-
-            // We could also set rotation here, but let's keep it simple first
-          }
-        }
-      }
-
-      if (ek.GetKeyCode() == GLFW_KEY_ESCAPE) {
-        S67_CORE_INFO("[ESC] ESC key pressed, current state: {0}",
-                      m_SceneState == SceneState::Play ? "PLAY" : "EDIT/PAUSE");
-        if (m_SceneState == SceneState::Play)
-          OnScenePause();
-        else {
+      } else {
+        // Console Closed: Restore state
+        if (m_SceneState == SceneState::Play) {
+          m_Window->SetCursorLocked(true);
+          m_CursorLocked = true;
+        } else if (m_SceneState == SceneState::Edit) {
+          // In Edit, we usually only lock cursor when right-clicking.
+          // So default to unlocked unless user is holding RMB (unlikely when
+          // just pressing `)
           m_Window->SetCursorLocked(false);
           m_CursorLocked = false;
         }
@@ -938,16 +815,88 @@ void Application::OnEvent(Event &e) {
     }
   }
 
-  // ESC handler - runs in ALL modes, including Play
-  if (e.GetEventType() == EventType::KeyPressed) {
-    auto &ek = (KeyPressedEvent &)e;
-    if (ek.GetKeyCode() == GLFW_KEY_ESCAPE) {
-      S67_CORE_INFO("[ESC] ESC key pressed (global handler), state: {0}",
-                    m_SceneState == SceneState::Play ? "PLAY" : "EDIT/PAUSE");
-      if (m_SceneState == SceneState::Play)
-        OnScenePause();
+  // If Console is open, it consumes input (except for the toggle key we just
+  // processed)
+  if (m_ShowConsole) {
+    m_ImGuiLayer->OnEvent(e);
+    // Block other game/editor events
+    return;
+  }
+
+  m_ImGuiLayer->OnEvent(e);
+
+  if (m_SceneState == SceneState::Edit) {
+    if (ek.GetKeyCode() == GLFW_KEY_S && (control || super)) {
+      OnSaveScene();
+      m_ShowSaveNotification = true;
+      m_SaveNotificationTime = (float)glfwGetTime();
+    }
+
+    // Undo/Redo
+    if (control || super) {
+      if (ek.GetKeyCode() == GLFW_KEY_Z) {
+        if (Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT) ||
+            Input::IsKeyPressed(GLFW_KEY_RIGHT_SHIFT))
+          m_UndoSystem.Redo();
+        else
+          m_UndoSystem.Undo();
+      }
+      if (ek.GetKeyCode() == GLFW_KEY_Y) {
+        m_UndoSystem.Redo();
+      }
+    }
+
+    // Gizmo shortcuts
+    if (!m_EditorCameraController->IsRotationEnabled()) {
+      if (ek.GetKeyCode() == GLFW_KEY_Q)
+        m_GizmoType = -1;
+      if (ek.GetKeyCode() == GLFW_KEY_W)
+        m_GizmoType = (int)ImGuizmo::OPERATION::TRANSLATE;
+      if (ek.GetKeyCode() == GLFW_KEY_E)
+        m_GizmoType = (int)ImGuizmo::OPERATION::ROTATE;
+      if (ek.GetKeyCode() == GLFW_KEY_R)
+        m_GizmoType = (int)ImGuizmo::OPERATION::SCALE;
+    }
+
+    if (ek.GetKeyCode() == GLFW_KEY_F) {
+      auto selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
+      if (selectedEntity) {
+        glm::vec3 pos = selectedEntity->Transform.Position;
+        glm::vec3 scale = selectedEntity->Transform.Scale;
+        float maxScale = std::max({scale.x, scale.y, scale.z});
+
+        // Move camera to look at object
+        glm::vec3 offset = {0.0f, maxScale * 2.0f, maxScale * 5.0f};
+        m_EditorCamera->SetPosition(pos + offset);
+
+        // We could also set rotation here, but let's keep it simple first
+      }
     }
   }
+
+  if (ek.GetKeyCode() == GLFW_KEY_ESCAPE) {
+    S67_CORE_INFO("[ESC] ESC key pressed, current state: {0}",
+                  m_SceneState == SceneState::Play ? "PLAY" : "EDIT/PAUSE");
+    if (m_SceneState == SceneState::Play)
+      OnScenePause();
+    else {
+      m_Window->SetCursorLocked(false);
+      m_CursorLocked = false;
+    }
+  }
+}
+}
+
+// ESC handler - runs in ALL modes, including Play
+if (e.GetEventType() == EventType::KeyPressed) {
+  auto &ek = (KeyPressedEvent &)e;
+  if (ek.GetKeyCode() == GLFW_KEY_ESCAPE) {
+    S67_CORE_INFO("[ESC] ESC key pressed (global handler), state: {0}",
+                  m_SceneState == SceneState::Play ? "PLAY" : "EDIT/PAUSE");
+    if (m_SceneState == SceneState::Play)
+      OnScenePause();
+  }
+}
 }
 
 void Application::Run() {
@@ -1033,7 +982,8 @@ void Application::UpdateGameTick(float tick_dt) {
 
   // 1. Update player controller with fixed timestep
   // The PlayerController handles input sampling, movement, and physics
-  m_PlayerController->OnUpdate(Timestep(tick_dt));
+  if (!m_ShowConsole)
+    m_PlayerController->OnUpdate(Timestep(tick_dt));
 
   // 2. Update Jolt Physics with fixed timestep
   PhysicsSystem::OnUpdate(Timestep(tick_dt));
