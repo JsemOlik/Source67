@@ -7,7 +7,6 @@
 #include <iostream>
 #include <sstream>
 
-
 namespace S67 {
 
 Console &Console::Get() {
@@ -135,8 +134,6 @@ void Console::AddLog(const std::string &message) {
     m_LogHistory.erase(m_LogHistory.begin());
   }
 }
-
-} // namespace S67
 
 // Implement Save and Load at the end of the namespace or before it end
 // Actually better to place before namespace closing bracket
