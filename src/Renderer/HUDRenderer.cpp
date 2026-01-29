@@ -239,10 +239,9 @@ void HUDRenderer::RenderSpeed(float speed) {
   if (!s_Data)
     return;
 
-  // Format: [speed] u/s using stringstream
+  // Format: [speed]hu/s using stringstream
   std::stringstream ss;
-  ss << std::fixed << std::setprecision(0) << "[" << (int)std::round(speed)
-     << "]u/s";
+  ss << std::fixed << std::setprecision(1) << "[" << speed << "]hu/s";
   std::string speedText = ss.str();
 
   float scale = 2.5f; // Scale factor for the font

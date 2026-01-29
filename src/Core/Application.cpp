@@ -840,7 +840,6 @@ void Application::OnEvent(Event &e) {
       auto &mb = (MouseButtonPressedEvent &)e;
       if (mb.GetMouseButton() == 1) { // Right Click
         if (m_SceneViewportHovered) {
-          m_RequestSceneFocus = true;
           m_Window->SetCursorLocked(true);
           m_CursorLocked = true;
           m_EditorCameraController->SetRotationEnabled(true);
@@ -1707,7 +1706,7 @@ void Application::RenderFrame(float alpha) {
   // Editor camera updates (still uses per-frame delta time, not affected by
   // tick system)
   if (m_SceneState == SceneState::Edit) {
-    if (m_SceneViewportFocused || m_CursorLocked) {
+    if (m_SceneViewportFocused) {
       // Calculate frame delta for editor camera (not physics)
       float current_time = static_cast<float>(glfwGetTime());
       static float last_editor_time = current_time;
@@ -1868,7 +1867,9 @@ void Application::RenderFrame(float alpha) {
   HUDRenderer::RenderCrosshair();
 
   if (m_PlayerController) {
-    HUDRenderer::RenderSpeed(m_PlayerController->GetSpeed());
+    // 1 meter = 39.97 Hammer Units
+    float speedHU = m_PlayerController->GetSpeed() * 39.97f;
+    HUDRenderer::RenderSpeed(speedHU);
   }
 
   HUDRenderer::EndHUD();
@@ -2068,10 +2069,6 @@ void Application::RenderFrame(float alpha) {
       ImGui::SetNextWindowSizeConstraints(ImVec2(300, 200),
                                           ImVec2(FLT_MAX, FLT_MAX));
       ImGui::Begin("Scene");
-      if (m_RequestSceneFocus) {
-        ImGui::SetWindowFocus();
-        m_RequestSceneFocus = false;
-      }
       m_SceneViewportFocused = ImGui::IsWindowFocused();
       m_SceneViewportHovered = ImGui::IsWindowHovered();
 
@@ -2312,12 +2309,11 @@ void Application::RenderFrame(float alpha) {
       ImGui::Text("%.3f ms/frame (%.1f Game FPS | %.1f Engine FPS)",
                   1000.0f / m_GameFPS, m_GameFPS, ImGui::GetIO().Framerate);
       ImGui::Separator();
-      // Convert meters to Hammer Units (1 unit = 0.01905 meters -> 1 meter
-      // = 52.4934 HU)
-      constexpr float METERS_TO_HU = 52.4934f;
+      // Convert meters to Hammer Units (1 meter = 39.97 HU)
+      constexpr float METERS_TO_HU = 39.97f;
       ImGui::Text("Velocity:  X: %.2f  Y: %.2f  Z: %.2f", vel.x * METERS_TO_HU,
                   vel.y * METERS_TO_HU, vel.z * METERS_TO_HU);
-      ImGui::Text("Speed (H): %.2f units/s", speed);
+      ImGui::Text("Speed (H): %.2f units/s", speed * METERS_TO_HU);
       ImGui::End();
     } else {
       ImGui::SetNextWindowSizeConstraints(ImVec2(200, 100),

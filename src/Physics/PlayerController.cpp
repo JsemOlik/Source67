@@ -93,8 +93,6 @@ void PlayerController::OnEvent(Event &e) {
 
 void PlayerController::OnUpdate(Timestep ts) {
   // Rotation
-
-  // 1. Update Rotation
   std::pair<float, float> mousePos = Input::GetMousePosition();
   float x = mousePos.first;
   float y = mousePos.second;
@@ -122,124 +120,121 @@ void PlayerController::OnUpdate(Timestep ts) {
   m_Camera->SetPitch(m_Pitch);
 
   HandleInput(ts);
-  float dt = ts;
 
-  // READ current velocity from Jolt (convert to HU/s)
-  JPH::Vec3 jVelocity = m_Character->GetLinearVelocity();
-  glm::vec3 velocity = {jVelocity.GetX() / HU_TO_METERS,
-                        jVelocity.GetY() / HU_TO_METERS,
-                        jVelocity.GetZ() / HU_TO_METERS};
+  // Read current velocity from Jolt and convert to Hammer Units (HU)
+  JPH::Vec3 velocityMeters = m_Character->GetLinearVelocity();
+  glm::vec3 velocityHU = {velocityMeters.GetX() / HU_TO_METERS,
+                          velocityMeters.GetY() / HU_TO_METERS,
+                          velocityMeters.GetZ() / HU_TO_METERS};
 
-  // 1. Check if grounded
-  CheckGround();
+  // 1. Check Ground State & Jump (Jump must happen before Friction to enable
+  // Bhop)
+  bool onGround = m_Character->GetGroundState() ==
+                  JPH::CharacterVirtual::EGroundState::OnGround;
+  bool justJumped = false;
 
-  // 2. Queue Jump (if pressed and grounded) - Standard Source/Quake Logic
-  // In Quake command tick, jump sets velocity.z (up) and unsets onground flag
-  // logic is usually: CheckGround() -> Friction() -> WalkMove/AirMove ->
-  // CheckGround() (Categorize Position) But for better responsiveness we can
-  // handle the jump "wish" here. Actually, Quake applies jump *inside*
-  // CheckJump/PlayerMove, modifying velocity immediatelly. If we jump, we MUST
-  // NOT apply friction this frame (or friction applies to the jump takeoff,
-  // which is wrong).
-
-  bool queueJump = false;
-  if (m_JumpPressed && m_OnGround) {
-    queueJump = true;
-    m_OnGround = false; // We are launching now
-
-    // Apply Jump Velocity
-    // Source preserves XZ velocity on jump (no friction applied this tick if we
-    // jump)
-    velocity.y = m_Settings.JumpVelocity;
+  if (m_JumpPressed && onGround) {
+    velocityHU.y = m_Settings.JumpVelocity;
+    m_JumpPressed = false;
+    justJumped = true;
+    onGround = false; // Treat as air for rest of frame
   }
 
-  // 3. Friction (only if on ground and didn't just jump)
-  if (m_OnGround) {
-    ApplyFriction(velocity, dt);
-  }
-
-  // 4. Calculate Wish Direction & Speed
-  glm::vec3 forward = GetForwardVector(m_Yaw, 0.0f);
-  glm::vec3 right = GetRightVector(m_Yaw);
-  glm::vec3 wishVel =
-      (forward * m_ForwardInput * 450.0f) + (right * m_SideInput * 450.0f);
-
-  float wishSpeed = glm::length(wishVel);
-  glm::vec3 wishDir =
-      (wishSpeed > 0.0f) ? glm::normalize(wishVel) : glm::vec3(0.0f);
-
-  // Cap wishSpeed to MaxSpeed types
-  float currentMaxSpeed = m_Settings.MaxSpeed;
-  if (m_IsSprinting && m_SprintRemaining > 0.0f)
-    currentMaxSpeed = m_Settings.MaxSprintSpeed;
-  else if (m_IsCrouching)
-    currentMaxSpeed = m_Settings.MaxCrouchSpeed;
-
-  if (wishSpeed > currentMaxSpeed) {
-    wishSpeed = currentMaxSpeed;
-  }
-
-  // 5. Accelerate
-  if (m_OnGround) {
-    // Walk Movement
-    // Source: WalkMove calls Accelerate
-    Accelerate(velocity, wishDir, wishSpeed, m_Settings.Acceleration, dt);
-
-    // Apply "gravity" for staying on slopes/stairs (snap to ground)?
-    // Jolt Character handles slope sliding, but we might want a small downward
-    // push to keep contact
-    velocity.y = 0.0f; // Reset Y velocity while walking
-  } else {
-    // Air Movement
-    // Source: AirMove calls AirAccelerate
-    // Standard Quake/Source AirAccelerate limits wishspeed to 30 for strafing
-    // logic
-    float airWishSpeed = wishSpeed;
-    if (airWishSpeed > m_Settings.MaxAirWishSpeed) {
-      airWishSpeed = m_Settings.MaxAirWishSpeed;
+  // 2. Friction (Ground Only, skipped if we just jumped)
+  if (onGround) {
+    glm::vec3 speedVec = {velocityHU.x, 0.0f, velocityHU.z};
+    float speed = glm::length(speedVec);
+    if (speed > 0.01f) {
+      float control = (speed < m_Settings.StopSpeed)
+                          ? m_Settings.StopSpeed
+                          : speed; // 100 HU/s stopspeed
+      float drop = control * m_Settings.Friction * ts;
+      float newSpeed = glm::max(0.0f, speed - drop);
+      newSpeed /= speed;
+      velocityHU.x *= newSpeed;
+      velocityHU.z *= newSpeed;
+    } else {
+      velocityHU.x = 0.0f;
+      velocityHU.z = 0.0f;
     }
-    AirAccelerate(velocity, wishDir, airWishSpeed, m_Settings.AirAcceleration,
-                  dt);
-
-    // Apple Gravity
-    velocity.y -= m_Settings.Gravity * dt;
   }
 
-  // WRITE velocity back to Jolt (Meters)
-  JPH::Vec3 newJVelocity = {velocity.x * HU_TO_METERS,
-                            velocity.y * HU_TO_METERS,
-                            velocity.z * HU_TO_METERS};
-  m_Character->SetLinearVelocity(newJVelocity);
+  // 3. Wish velocity calculation (HU)
+  glm::vec3 wishDir;
+  float wishSpeedHU;
+  {
+    glm::vec3 forward = GetForwardVector(m_Yaw, 0.0f);
+    glm::vec3 right = GetRightVector(m_Yaw);
+    glm::vec3 wishVel =
+        (forward * m_ForwardInput * 450.0f) + (right * m_SideInput * 450.0f);
 
-  // 6. Physics Step
+    float maxSpeed = m_Settings.MaxSpeed;
+    if (m_IsSprinting && m_SprintRemaining > 0.0f)
+      maxSpeed = m_Settings.MaxSprintSpeed;
+    else if (m_IsCrouching)
+      maxSpeed = m_Settings.MaxCrouchSpeed;
+
+    wishSpeedHU = glm::length(wishVel);
+    if (wishSpeedHU > 0.01f) {
+      wishDir = glm::normalize(wishVel);
+      wishSpeedHU = glm::min(wishSpeedHU, maxSpeed);
+    } else {
+      wishDir = glm::vec3(0.0f);
+      wishSpeedHU = 0.0f;
+    }
+  }
+
+  // 4. Acceleration
+  if (onGround) {
+    // Accelerate
+    float currentSpeed = velocityHU.x * wishDir.x + velocityHU.z * wishDir.z;
+    float addSpeed = wishSpeedHU - currentSpeed;
+    if (addSpeed > 0.0f) {
+      float accelSpeed = m_Settings.Acceleration * ts * wishSpeedHU;
+      velocityHU.x += (glm::min(accelSpeed, addSpeed) * wishDir.x);
+      velocityHU.z += (glm::min(accelSpeed, addSpeed) * wishDir.z);
+    }
+  } else {
+    // Air Accelerate
+    float wishSpeedCap = glm::min(wishSpeedHU, m_Settings.MaxAirWishSpeed);
+    float currentSpeed = velocityHU.x * wishDir.x + velocityHU.z * wishDir.z;
+    float addSpeed = wishSpeedCap - currentSpeed;
+    if (addSpeed > 0.0f) {
+      float accelSpeed = m_Settings.AirAcceleration * ts * wishSpeedHU;
+      float finalAccel = glm::min(accelSpeed, addSpeed);
+      velocityHU.x += finalAccel * wishDir.x;
+      velocityHU.z += finalAccel * wishDir.z;
+    }
+  }
+
+  // 5. Gravity
+  if (!onGround && !justJumped) {
+    velocityHU.y -= m_Settings.Gravity * ts;
+  } else if (onGround) {
+    velocityHU.y = -10.0f; // Small stick to ground force in HU
+  }
+  // If justJumped, Y is already set to JUMP_VELOCITY
+
+  // Convert back to meters and update Jolt
+  velocityMeters =
+      JPH::Vec3(velocityHU.x * HU_TO_METERS, velocityHU.y * HU_TO_METERS,
+                velocityHU.z * HU_TO_METERS);
+  m_Character->SetLinearVelocity(velocityMeters);
+
+  // 6. Move Character (Collision Handling)
   PlayerBodyFilter bodyFilter;
-  m_Character->Update(ts, JPH::Vec3::sZero(), // We handle gravity manually
+  m_Character->Update(ts, JPH::Vec3::sZero(), // Gravity handled manually
                       PhysicsSystem::GetBroadPhaseLayerFilter(),
                       PhysicsSystem::GetObjectLayerFilter(), bodyFilter,
                       JPH::ShapeFilter(), m_TempAllocator);
 
-  // Update Timers
+  // Update Sprint & Crouch timers
   UpdateSprint(ts);
   UpdateCrouch(ts);
 
-  // Reset Jump Input (processed)
-  m_JumpPressed = false;
-
   // Sync Camera
   JPH::RVec3 charPos = m_Character->GetPosition();
-  float eyeHeight =
-      glm::mix(1.7f * (1.0f / 0.0254f * 0.01905f),
-               0.8f * (1.0f / 0.0254f * 0.01905f), 1.0f - m_CrouchTransition);
-  // Wait, eyeHeight 1.7m is standard metric. 1.7m = 64 units approx in Quake?
-  // Quake ViewHeight: Standing 64 units, Crouching 28 units.
-  // 64 units * 0.01905 = 1.2192 meters.
-  // Existing code had 1.7f meters which is ~1.7/0.01905 = 89 units.
-  // Source default player height is 72 units (1.37m at 0.75 scale). View
-  // height 64. Let's stick roughly to what was there or map to Source units
-  // correctly. Let's use Source values: 64 units view height.
-  eyeHeight = glm::mix(64.0f * HU_TO_METERS, 28.0f * HU_TO_METERS,
-                       1.0f - m_CrouchTransition);
-
+  float eyeHeight = glm::mix(1.7f, 0.8f, 1.0f - m_CrouchTransition);
   m_Camera->SetPosition(
       {charPos.GetX(), charPos.GetY() + eyeHeight, charPos.GetZ()});
 }
@@ -315,76 +310,6 @@ void PlayerController::UpdateSprint(float dt) {
   }
 }
 
-void PlayerController::CheckGround() {
-  JPH::CharacterVirtual::EGroundState groundState =
-      m_Character->GetGroundState();
-  m_OnGround = (groundState == JPH::CharacterVirtual::EGroundState::OnGround);
-
-  // Update Jolt about our "Up" vector? It assumes Y up.
-}
-
-void PlayerController::ApplyFriction(glm::vec3 &velocity, float dt) {
-  glm::vec3 speedVec = {velocity.x, 0.0f, velocity.z};
-  float speed = glm::length(speedVec);
-
-  if (speed < 0.1f)
-    return;
-
-  float control = (speed < m_Settings.StopSpeed) ? m_Settings.StopSpeed : speed;
-  float drop = control * m_Settings.Friction * dt;
-
-  float newSpeed = speed - drop;
-  if (newSpeed < 0)
-    newSpeed = 0;
-
-  if (speed > 0)
-    newSpeed /= speed;
-
-  velocity.x *= newSpeed;
-  velocity.z *= newSpeed;
-}
-
-void PlayerController::Accelerate(glm::vec3 &velocity, const glm::vec3 &wishDir,
-                                  float wishSpeed, float accel, float dt) {
-  float currentSpeed = glm::dot(velocity, wishDir);
-  float addSpeed = wishSpeed - currentSpeed;
-
-  if (addSpeed <= 0)
-    return;
-
-  float accelSpeed = accel * dt * wishSpeed * m_Settings.Friction;
-  // Wait, Source `Accelerate` uses `wishSpeed`?
-  // Source: accelspeed = accel * dt * wishspeed * surfaceFriction;
-  // If we are AirAccelerating, surfaceFriction is usually 1?
-  // Actually Source AirAccelerate is diff function.
-
-  // Standard Quake Accelerate:
-  // if (!onGround) return; // handled by caller
-
-  if (accelSpeed > addSpeed)
-    accelSpeed = addSpeed;
-
-  velocity.x += accelSpeed * wishDir.x;
-  velocity.z += accelSpeed * wishDir.z;
-}
-
-void PlayerController::AirAccelerate(glm::vec3 &velocity,
-                                     const glm::vec3 &wishDir, float wishSpeed,
-                                     float accel, float dt) {
-  float currentSpeed = glm::dot(velocity, wishDir);
-  float addSpeed = wishSpeed - currentSpeed;
-
-  if (addSpeed <= 0)
-    return;
-
-  float accelSpeed = accel * wishSpeed * dt;
-  if (accelSpeed > addSpeed)
-    accelSpeed = addSpeed;
-
-  velocity.x += accelSpeed * wishDir.x;
-  velocity.z += accelSpeed * wishDir.z;
-}
-
 glm::vec3 PlayerController::GetForwardVector(float yaw, float pitch) {
   glm::vec3 front;
   front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
@@ -410,18 +335,12 @@ void PlayerController::SetRotation(float yaw, float pitch) {
 
 glm::vec3 PlayerController::GetPosition() const {
   JPH::RVec3 p = m_Character->GetPosition();
-  // Return meters? Or HU?
-  // The rest of the engine seems to be using meters (Rendering usually).
-  // But our logical position.. well, keeping it meters for now as it comes from
-  // Jolt.
   return {p.GetX(), p.GetY(), p.GetZ()};
 }
 
 float PlayerController::GetSpeed() const {
   JPH::Vec3 v = m_Character->GetLinearVelocity();
-  glm::vec3 velocity = {v.GetX() / HU_TO_METERS, v.GetY() / HU_TO_METERS,
-                        v.GetZ() / HU_TO_METERS};
-  return glm::length(glm::vec2(velocity.x, velocity.z));
+  return glm::length(glm::vec2(v.GetX(), v.GetZ()));
 }
 
 } // namespace S67

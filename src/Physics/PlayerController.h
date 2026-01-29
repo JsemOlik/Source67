@@ -5,9 +5,9 @@
 #include "Events/Event.h"
 #include "Renderer/Camera.h"
 #include "Renderer/Entity.h"
-#include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Character/CharacterVirtual.h>
+#include <Jolt/Core/TempAllocator.h>
 #include <glm/glm.hpp>
 
 namespace S67 {
@@ -41,13 +41,6 @@ private:
   glm::vec3 GetForwardVector(float yaw, float pitch);
   glm::vec3 GetRightVector(float yaw);
 
-  void ApplyFriction(glm::vec3 &velocity, float dt);
-  void Accelerate(glm::vec3 &velocity, const glm::vec3 &wishDir,
-                  float wishSpeed, float accel, float dt);
-  void AirAccelerate(glm::vec3 &velocity, const glm::vec3 &wishDir,
-                     float wishSpeed, float accel, float dt);
-  void CheckGround();
-
 private:
   Ref<PerspectiveCamera> m_Camera;
   JPH::Ref<JPH::CharacterVirtual> m_Character;
@@ -59,13 +52,12 @@ private:
   MovementSettings m_Settings;
 
   // Source Movement Constants (HU)
-  static constexpr float HU_TO_METERS = 0.01905f; // 1 unit = 0.75 inches
+  static constexpr float HU_TO_METERS = 1.0f / 39.97f;
 
   static constexpr float SPRINT_DURATION = 8.0f;
   static constexpr float SPRINT_RECOVERY = 8.0f;
 
   // Movement State
-  bool m_OnGround = false; // Cached from physics update
   bool m_IsSprinting = false;
   float m_SprintRemaining = SPRINT_DURATION;
   float m_SprintRecoveryTime = 0.0f;
