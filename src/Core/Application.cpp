@@ -2343,11 +2343,11 @@ void Application::RenderFrame(float alpha) {
   // Auto-save system (every 60 seconds)
   if (m_LevelLoaded && !m_LevelFilePath.empty() &&
       m_LevelFilePath != "Untitled.s67") {
-    m_LastAutoSaveTime += timestep;
-    if (m_LastAutoSaveTime >= 60.0f) {
+    float current_time = static_cast<float>(glfwGetTime());
+    if (current_time - m_LastAutoSaveTime >= 60.0f) {
       SceneSerializer serializer(m_Scene.get(), m_ProjectRoot.string());
       serializer.Serialize(m_LevelFilePath);
-      m_LastAutoSaveTime = 0.0f;
+      m_LastAutoSaveTime = current_time;
       S67_CORE_INFO("Auto-saved level: {0}", m_LevelFilePath);
     }
   }
