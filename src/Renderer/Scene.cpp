@@ -88,7 +88,7 @@ Ref<Entity> Scene::FindEntityByName(const std::string &name) {
   return nullptr;
 }
 
-void Scene::OnUpdate(float ts) {
+void Scene::InstantiateScripts() {
   for (auto &entity : m_Entities) {
     auto &nsc = entity->NativeScript;
     if (!nsc.Instance && nsc.InstantiateScript) {
@@ -98,10 +98,16 @@ void Scene::OnUpdate(float ts) {
       nsc.Instance->OnCreate();
       S67_CORE_INFO("Script instantiated successfully");
     }
+  }
+}
 
-    if (nsc.Instance) {
+void Scene::OnUpdate(float ts) {
+  InstantiateScripts();
+
+  for (auto &entity : m_Entities) {
+    if (entity->NativeScript.Instance) {
       // S67_CORE_TRACE("Updating script for {0}", entity->Name);
-      nsc.Instance->OnUpdate(ts);
+      entity->NativeScript.Instance->OnUpdate(ts);
     }
   }
 }

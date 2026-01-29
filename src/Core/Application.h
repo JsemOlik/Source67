@@ -5,7 +5,7 @@
 #include "ImGui/ImGuiLayer.h"
 #include "ImGui/Panels/SceneHierarchyPanel.h"
 #include "Physics/PhysicsSystem.h"
-#include "Physics/PlayerController.h"
+// #include "Physics/PlayerController.h" // Removed to break potential cycle
 #include "Renderer/Camera.h"
 #include "Renderer/CameraController.h"
 #include "Renderer/Framebuffer.h"
@@ -132,7 +132,7 @@ private:
 
   float m_LastFrameTime = 0.0f;
 
-  PlayerController *m_PlayerController = nullptr;
+  // PlayerController *m_PlayerController = nullptr; // Removed
 
   Scope<ImGuiLayer> m_ImGuiLayer;
   Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
