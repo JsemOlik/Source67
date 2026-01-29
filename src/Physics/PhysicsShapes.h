@@ -2,12 +2,15 @@
 
 #include "Renderer/Mesh.h"
 #include <Jolt/Jolt.h>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
+#include <Jolt/Physics/Collision/Shape/ScaledShape.h>
+#include <Jolt/Physics/Collision/Shape/SphereShape.h>
+
 
 #include <glm/glm.hpp>
 #include <vector>
-
 
 namespace S67 {
 
@@ -22,7 +25,8 @@ public:
     return new JPH::SphereShape(radius);
   }
 
-  static JPH::Ref<JPH::Shape> CreateMeshShape(const MeshGeometry &geometry) {
+  static JPH::Ref<JPH::Shape> CreateMeshShape(const MeshGeometry &geometry,
+                                              const glm::vec3 &scale) {
     JPH::TriangleList triangles;
     triangles.reserve(geometry.Indices.size() / 3);
     for (size_t i = 0; i < geometry.Indices.size(); i += 3) {
@@ -35,11 +39,21 @@ public:
     }
     JPH::MeshShapeSettings settings(triangles);
     JPH::Shape::ShapeResult result = settings.Create();
-    return result.IsValid() ? result.Get() : nullptr;
+    if (!result.IsValid())
+      return nullptr;
+
+    JPH::Ref<JPH::Shape> baseShape = result.Get();
+
+    // Enforce minimum scale to avoid Jolt assertions on thin/tiny objects
+    float sx = std::max(0.01f, std::abs(scale.x));
+    float sy = std::max(0.01f, std::abs(scale.y));
+    float sz = std::max(0.01f, std::abs(scale.z));
+
+    return new JPH::ScaledShape(baseShape, JPH::Vec3(sx, sy, sz));
   }
 
   static JPH::Ref<JPH::Shape>
-  CreateConvexHullShape(const MeshGeometry &geometry) {
+  CreateConvexHullShape(const MeshGeometry &geometry, const glm::vec3 &scale) {
     std::vector<JPH::Vec3> points;
     points.reserve(geometry.Vertices.size());
     for (const auto &v : geometry.Vertices) {
@@ -47,7 +61,17 @@ public:
     }
     JPH::ConvexHullShapeSettings settings(points.data(), (int)points.size());
     JPH::Shape::ShapeResult result = settings.Create();
-    return result.IsValid() ? result.Get() : nullptr;
+    if (!result.IsValid())
+      return nullptr;
+
+    JPH::Ref<JPH::Shape> baseShape = result.Get();
+
+    // Enforce minimum scale
+    float sx = std::max(0.01f, std::abs(scale.x));
+    float sy = std::max(0.01f, std::abs(scale.y));
+    float sz = std::max(0.01f, std::abs(scale.z));
+
+    return new JPH::ScaledShape(baseShape, JPH::Vec3(sx, sy, sz));
   }
 };
 

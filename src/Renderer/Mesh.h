@@ -1,10 +1,10 @@
 #pragma once
 
+#include "Core/Base.h"
 #include "VertexArray.h"
 #include <glm/glm.hpp>
 #include <string>
 #include <vector>
-
 
 namespace S67 {
 

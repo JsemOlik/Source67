@@ -765,31 +765,13 @@ void Application::OpenScene(const std::string &filepath) {
     auto &bodyInterface = PhysicsSystem::GetBodyInterface();
 
     for (auto &entity : m_Scene->GetEntities()) {
-
       // Assign cube mesh if MeshPath is "Cube"
       if (entity->MeshPath == "Cube") {
         entity->Mesh = m_CubeMesh;
       }
 
-      // Recreate Physics Body (Skip Player and Non-Collidable)
-      if (entity->Name == "Player" || !entity->Collidable)
-        continue;
-
-      glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
-      JPH::BodyCreationSettings settings(
-          PhysicsShapes::CreateBox({entity->Transform.Scale.x,
-                                    entity->Transform.Scale.y,
-                                    entity->Transform.Scale.z}),
-          JPH::RVec3(entity->Transform.Position.x, entity->Transform.Position.y,
-                     entity->Transform.Position.z),
-          JPH::Quat(q.x, q.y, q.z, q.w),
-          entity->Anchored ? JPH::EMotionType::Static
-                           : JPH::EMotionType::Dynamic,
-          entity->Anchored ? Layers::NON_MOVING : Layers::MOVING);
-
-      settings.mUserData = (uint64_t)entity.get();
-      entity->PhysicsBody =
-          bodyInterface.CreateAndAddBody(settings, JPH::EActivation::Activate);
+      // Recreate Physics Body
+      OnEntityCollidableChanged(entity);
     }
     m_Scene->EnsurePlayerExists();
   }
@@ -814,20 +796,28 @@ void Application::OnEntityCollidableChanged(Ref<Entity> entity) {
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
     if (ext == ".fbx" || ext == ".obj" || ext == ".stl") {
-      MeshGeometry geometry = MeshLoader::LoadGeometry(entity->MeshPath);
-      if (!geometry.Vertices.empty()) {
-        if (entity->Anchored) {
-          shape = PhysicsShapes::CreateMeshShape(geometry);
-        } else {
-          shape = PhysicsShapes::CreateConvexHullShape(geometry);
+      std::string resolvedPath = ResolveAssetPath(entity->MeshPath).string();
+      if (!resolvedPath.empty() && std::filesystem::exists(resolvedPath)) {
+        MeshGeometry geometry = MeshLoader::LoadGeometry(resolvedPath);
+        if (!geometry.Vertices.empty() && !geometry.Indices.empty()) {
+          if (entity->Anchored) {
+            shape = PhysicsShapes::CreateMeshShape(geometry,
+                                                   entity->Transform.Scale);
+          } else {
+            shape = PhysicsShapes::CreateConvexHullShape(
+                geometry, entity->Transform.Scale);
+          }
         }
       }
     }
 
     if (!shape) {
-      shape = PhysicsShapes::CreateBox({entity->Transform.Scale.x,
-                                        entity->Transform.Scale.y,
-                                        entity->Transform.Scale.z});
+      // Box half-extents must be at least some minimum to avoid Jolt assertions
+      // and we must divide by 2 because Jolt uses half-extents
+      float hx = std::max(0.01f, entity->Transform.Scale.x * 0.5f);
+      float hy = std::max(0.01f, entity->Transform.Scale.y * 0.5f);
+      float hz = std::max(0.01f, entity->Transform.Scale.z * 0.5f);
+      shape = PhysicsShapes::CreateBox({hx, hy, hz});
     }
 
     JPH::BodyCreationSettings settings(
