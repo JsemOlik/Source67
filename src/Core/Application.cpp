@@ -1119,31 +1119,62 @@ bool Application::OnWindowDrop(WindowDropEvent &e) {
     return false;
   }
 
-  std::filesystem::path targetDir =
-      m_ContentBrowserPanel->GetCurrentDirectory();
+  // Get mouse position for spawning
+  double xpos, ypos;
+  glfwGetCursorPos((GLFWwindow *)m_Window->GetNativeWindow(), &xpos, &ypos);
 
   for (const auto &pathStr : e.GetPaths()) {
     std::filesystem::path sourcePath(pathStr);
-    std::filesystem::path targetPath = targetDir / sourcePath.filename();
+    std::string ext = sourcePath.extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
-    try {
-      if (std::filesystem::exists(targetPath)) {
-        S67_CORE_WARN("File already exists: {0}. Skipping.",
+    // If it's a model file, spawn it in the scene
+    if (ext == ".fbx" || ext == ".obj" || ext == ".stl") {
+      auto entity = std::make_shared<Entity>();
+      entity->Name = sourcePath.stem().string();
+
+      // Load mesh based on extension
+      if (ext == ".fbx") {
+        entity->Mesh = MeshLoader::LoadModel(sourcePath.string());
+      } else if (ext == ".obj") {
+        entity->Mesh = MeshLoader::LoadOBJ(sourcePath.string());
+      } else if (ext == ".stl") {
+        entity->Mesh = MeshLoader::LoadSTL(sourcePath.string());
+      }
+
+      // Position: just spawn somewhere in front of camera or at origin for now
+      entity->Transform.Position =
+          m_Camera->GetPosition() + m_Camera->GetForward() * 5.0f;
+
+      m_Scene->AddEntity(entity);
+      m_SceneModified = true;
+
+      S67_CORE_INFO("Dropped and spawned entity: {0}", entity->Name);
+    } else {
+      // Traditional import to content browser
+      std::filesystem::path targetDir =
+          m_ContentBrowserPanel->GetCurrentDirectory();
+      std::filesystem::path targetPath = targetDir / sourcePath.filename();
+
+      try {
+        if (std::filesystem::exists(targetPath)) {
+          S67_CORE_WARN("File already exists: {0}. Skipping.",
+                        targetPath.string());
+          continue;
+        }
+
+        if (std::filesystem::is_directory(sourcePath)) {
+          std::filesystem::copy(sourcePath, targetPath,
+                                std::filesystem::copy_options::recursive);
+        } else {
+          std::filesystem::copy_file(sourcePath, targetPath);
+        }
+        S67_CORE_INFO("Imported: {0} -> {1}", sourcePath.string(),
                       targetPath.string());
-        continue;
+      } catch (const std::filesystem::filesystem_error &err) {
+        S67_CORE_ERROR("Failed to import {0}: {1}", sourcePath.string(),
+                       err.what());
       }
-
-      if (std::filesystem::is_directory(sourcePath)) {
-        std::filesystem::copy(sourcePath, targetPath,
-                              std::filesystem::copy_options::recursive);
-      } else {
-        std::filesystem::copy_file(sourcePath, targetPath);
-      }
-      S67_CORE_INFO("Imported: {0} -> {1}", sourcePath.string(),
-                    targetPath.string());
-    } catch (const std::filesystem::filesystem_error &err) {
-      S67_CORE_ERROR("Failed to import {0}: {1}", sourcePath.string(),
-                     err.what());
     }
   }
 
@@ -2094,13 +2125,11 @@ void Application::RenderFrame(float alpha) {
             const char *path = (const char *)payload->Data;
             std::filesystem::path assetPath = path;
 
-            if (assetPath.extension() == ".obj" ||
-                assetPath.extension() == ".stl") {
-              Ref<VertexArray> mesh = nullptr;
-              if (assetPath.extension() == ".obj")
-                mesh = MeshLoader::LoadOBJ(assetPath.string());
-              else if (assetPath.extension() == ".stl")
-                mesh = MeshLoader::LoadSTL(assetPath.string());
+            std::string ext = assetPath.extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+            if (ext == ".fbx" || ext == ".obj" || ext == ".stl") {
+              Ref<VertexArray> mesh = MeshLoader::LoadModel(assetPath.string());
 
               if (mesh) {
                 auto entity =

@@ -2,6 +2,8 @@
 #include "Core/Application.h"
 #include "Core/Logger.h"
 #include "Core/UndoSystem.h"
+#include "Physics/PhysicsShapes.h"
+#include "Renderer/Mesh.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -87,6 +89,51 @@ void SceneHierarchyPanel::OnImGuiRender() {
     ImGui::EndPopup();
   }
 
+  // Global Drag & Drop for spawning
+  if (ImGui::BeginDragDropTarget()) {
+    if (const ImGuiPayload *payload =
+            ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+      const char *path = (const char *)payload->Data;
+      std::filesystem::path assetPath = path;
+
+      std::string ext = assetPath.extension().string();
+      std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+      if (ext == ".fbx" || ext == ".obj" || ext == ".stl") {
+        Ref<VertexArray> mesh = MeshLoader::LoadModel(assetPath.string());
+        if (mesh) {
+          auto entity =
+              CreateRef<Entity>(assetPath.stem().string(), mesh,
+                                Application::Get().GetDefaultShader(),
+                                Application::Get().GetDefaultTexture());
+          entity->MeshPath = assetPath.string();
+
+          // Spawn in front of camera
+          const auto &camera = Application::Get().GetEditorCamera();
+          glm::vec3 spawnPos =
+              camera->GetPosition() + camera->GetForward() * 5.0f;
+          entity->Transform.Position = spawnPos;
+
+          // Physics
+          JPH::BodyCreationSettings settings(
+              PhysicsShapes::CreateBox({1.0f, 1.0f, 1.0f}),
+              JPH::RVec3(spawnPos.x, spawnPos.y, spawnPos.z),
+              JPH::Quat::sIdentity(), JPH::EMotionType::Dynamic,
+              Layers::MOVING);
+          settings.mUserData = (uint64_t)entity.get();
+          entity->PhysicsBody =
+              PhysicsSystem::GetBodyInterface().CreateAndAddBody(
+                  settings, JPH::EActivation::Activate);
+
+          (*m_Context)->AddEntity(entity);
+          m_SelectionContext = entity;
+          Application::Get().SetSceneModified(true);
+        }
+      }
+    }
+    ImGui::EndDragDropTarget();
+  }
+
   ImGui::End();
 
   ImGui::Begin("Inspector");
@@ -138,6 +185,8 @@ void SceneHierarchyPanel::DrawEntityNode(Ref<Entity> entity) {
       bool isImage = ext == ".png" || ext == ".jpg" || ext == ".jpeg" ||
                      ext == ".bmp" || ext == ".tga";
 
+      bool isMesh = ext == ".fbx" || ext == ".obj" || ext == ".stl";
+
       if (isImage) {
         auto newTexture = Texture2D::Create(assetPath.string());
         S67_CORE_INFO("Dropped texture {0} onto {1}", assetPath.string(),
@@ -146,6 +195,16 @@ void SceneHierarchyPanel::DrawEntityNode(Ref<Entity> entity) {
             CreateScope<TextureCommand>(entity, entity->Material.AlbedoMap,
                                         newTexture));
         entity->Material.AlbedoMap = newTexture;
+      } else if (isMesh) {
+        Ref<VertexArray> newMesh = MeshLoader::LoadModel(assetPath.string());
+        if (newMesh) {
+          S67_CORE_INFO("Dropped mesh {0} onto {1}", assetPath.string(),
+                        entity->Name);
+          entity->Mesh = newMesh;
+          entity->MeshPath = assetPath.string();
+          // Notify physics update
+          Application::Get().OnEntityCollidableChanged(entity);
+        }
       }
     }
     ImGui::EndDragDropTarget();
@@ -428,7 +487,7 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
       // Simple mesh selection placeholder text for now, could expand later
       ImGui::Text("Mesh Asset: %s", entity->MeshPath.c_str());
       ImGui::Checkbox("Collidable", &entity->Collidable);
-      
+
       if (ImGui::Checkbox("Anchored", &entity->Anchored)) {
         // Recreate physics body when Anchored changes
         Application::Get().OnEntityCollidableChanged(entity);
