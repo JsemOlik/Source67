@@ -16,6 +16,7 @@
 
 #include "Core/Input.h"
 #include "Core/PlatformUtils.h"
+#include "Game/Console/Console.h"
 #include "Game/Console/ConsolePanel.h"
 #include "ImGui/Panels/ContentBrowserPanel.h"
 #include "ImGuizmo/ImGuizmo.h"
@@ -28,6 +29,7 @@
 #include <glm/gtc/quaternion.hpp>
 #include <imgui.h>
 #include <imgui_internal.h>
+
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include "Renderer/Mesh.h"
@@ -155,6 +157,10 @@ Application::Application(const std::string &executablePath,
   }
 
   InitDefaultAssets();
+
+  // Load Game Configuration (ConVars)
+  S67_CORE_INFO("Loading game configuration...");
+  Console::Get().Load("game.cfg");
 
   // Initialize HUD Renderer
   S67_CORE_INFO("Initializing HUD Renderer...");

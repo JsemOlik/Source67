@@ -5,7 +5,6 @@
 #include <unordered_map>
 #include <vector>
 
-
 namespace S67 {
 
 class ConVar;
@@ -23,6 +22,9 @@ public:
   ConCommand *FindCommand(const std::string &name);
 
   void ExecuteCommand(const std::string &commandLine);
+
+  void Save(const std::string &filename = "game.cfg");
+  void Load(const std::string &filename = "game.cfg");
 
   // Helper for auto-completion or listing
   const std::unordered_map<std::string, ConVar *> &GetConVars() const {

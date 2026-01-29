@@ -33,16 +33,16 @@ struct Material {
 };
 
 struct MovementSettings {
-  float MaxSpeed = 320.0f;       // sv_maxspeed
-  float MaxSprintSpeed = 450.0f; // Custom sprint speed
-  float MaxCrouchSpeed = 110.0f; // sv_maxspeed (crouched) roughly 1/3
-  float Acceleration = 10.0f;    // sv_accelerate
-  float AirAcceleration = 10.0f; // sv_airaccelerate
-  float Friction = 4.0f;         // sv_friction
-  float StopSpeed = 100.0f;      // sv_stopspeed
-  float JumpVelocity = 270.0f;   // JUMP_VELOCITY
-  float Gravity = 800.0f;        // sv_gravity
-  float MaxAirWishSpeed = 30.0f; // MAX_AIR_WISH_SPEED
+  float MaxSpeed = 190.0f;        // sv_maxspeed
+  float MaxSprintSpeed = 320.0f;  // Custom sprint speed
+  float MaxCrouchSpeed = 63.3f;   // sv_maxspeed (crouched) roughly 1/3
+  float Acceleration = 5.6f;      // sv_accelerate
+  float AirAcceleration = 100.0f; // sv_airaccelerate
+  float Friction = 4.8f;          // sv_friction
+  float StopSpeed = 100.0f;       // sv_stopspeed
+  float JumpVelocity = 268.0f;    // JUMP_VELOCITY
+  float Gravity = 800.0f;         // sv_gravity
+  float MaxAirWishSpeed = 30.0f;  // MAX_AIR_WISH_SPEED
 };
 
 class Entity {

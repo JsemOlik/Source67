@@ -41,6 +41,13 @@ struct StandardCommands {
           }
         },
         "List all commands and variables");
+
+    static ConCommand cmd_writeconfig(
+        "host_writeconfig",
+        [](const ConCommandArgs & /*args*/) {
+          Console::Get().Save("game.cfg");
+        },
+        "Save current configuration to game.cfg");
   }
 };
 
