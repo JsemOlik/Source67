@@ -1,7 +1,11 @@
 #include "UIEditorPanel.h"
+#include "Core/Application.h"
+#include "Renderer/Scene.h"
 #include "UI/UISystem.h"
 #include <cstring> // for strncpy, memset
+#include <filesystem>
 #include <imgui.h>
+#include <string>
 
 
 namespace S67 {
@@ -11,18 +15,47 @@ UIEditorPanel::UIEditorPanel() {}
 void UIEditorPanel::OnImGuiRender() {
   ImGui::Begin("UI Editor");
 
+  auto &app = Application::Get();
+  auto *activeScene = app.GetActiveScene();
+
+  if (activeScene) {
+    char pathBuf[256];
+    memset(pathBuf, 0, sizeof(pathBuf));
+    std::strncpy(pathBuf, activeScene->GetUIPath().c_str(), sizeof(pathBuf));
+
+    ImGui::SetNextItemWidth(-100.0f);
+    if (ImGui::InputText("Linked UI", pathBuf, sizeof(pathBuf))) {
+      activeScene->SetUIPath(std::string(pathBuf));
+      app.SetSceneModified(true);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Sync")) {
+      std::string path = activeScene->GetUIPath();
+      if (!path.empty() && path != "None")
+        UISystem::LoadLayout(app.ResolveAssetPath(path));
+    }
+    ImGui::Separator();
+  }
+
   // Toolbar
   if (ImGui::Button("New Layout")) {
     UISystem::NewLayout();
   }
   ImGui::SameLine();
   if (ImGui::Button("Save")) {
-    // Hardcoded path for now or dialog later
-    UISystem::SaveLayout("assets/ui/layout.sui");
+    std::string path =
+        activeScene ? activeScene->GetUIPath() : "assets/ui/layout.sui";
+    if (path.empty() || path == "None")
+      path = "assets/ui/layout.sui";
+    UISystem::SaveLayout(app.ResolveAssetPath(path));
   }
   ImGui::SameLine();
   if (ImGui::Button("Load")) {
-    UISystem::LoadLayout("assets/ui/layout.sui");
+    std::string path =
+        activeScene ? activeScene->GetUIPath() : "assets/ui/layout.sui";
+    if (path.empty() || path == "None")
+      path = "assets/ui/layout.sui";
+    UISystem::LoadLayout(app.ResolveAssetPath(path));
   }
 
   ImGui::Separator();

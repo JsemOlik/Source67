@@ -62,6 +62,7 @@ void SceneSerializer::Serialize(const std::string &filepath) {
 
   std::stringstream ss;
   ss << "Scene: Untitled\n";
+  ss << "UIPath: " << MakeRelative(m_Scene->GetUIPath()) << "\n";
   ss << "Entities:\n";
 
   for (auto &entity : m_Scene->GetEntities()) {
@@ -138,7 +139,10 @@ bool SceneSerializer::Deserialize(const std::string &filepath) {
   Ref<Entity> currentEntity = nullptr;
 
   while (std::getline(fin, line)) {
-    if (line.find("- Entity:") != std::string::npos) {
+    if (line.find("UIPath:") != std::string::npos) {
+      std::string path = Trim(line.substr(line.find(":") + 1));
+      m_Scene->SetUIPath(path);
+    } else if (line.find("- Entity:") != std::string::npos) {
       std::string name = Trim(line.substr(line.find(":") + 2));
       currentEntity = CreateRef<Entity>();
       currentEntity->Name = name;

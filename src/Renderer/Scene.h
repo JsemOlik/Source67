@@ -25,8 +25,12 @@ public:
   void Clear() { m_Entities.clear(); }
   const std::vector<Ref<Entity>> &GetEntities() const { return m_Entities; }
 
+  const std::string &GetUIPath() const { return m_UIPath; }
+  void SetUIPath(const std::string &path) { m_UIPath = path; }
+
 private:
   std::vector<Ref<Entity>> m_Entities;
+  std::string m_UIPath;
 };
 
 } // namespace S67

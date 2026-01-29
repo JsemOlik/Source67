@@ -79,6 +79,9 @@ public:
   ImGuiLayer &GetImGuiLayer() { return *m_ImGuiLayer; }
   inline static Application &Get() { return *s_Instance; }
 
+  Scene *GetActiveScene() { return m_Scene.get(); }
+  void SetSceneModified(bool modified) { m_SceneModified = modified; }
+
   Ref<PerspectiveCamera> GetCamera() { return m_Camera; }
 
   const std::filesystem::path &GetProjectRoot() const { return m_ProjectRoot; }

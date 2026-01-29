@@ -1,4 +1,5 @@
 #include "Application.h"
+#include "UI/UISystem.h"
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -659,6 +660,7 @@ void Application::OnNewScene() {
   m_Window->SetCursorLocked(false);
   m_CursorLocked = false;
   m_SceneModified = false;
+  UISystem::NewLayout();
   ImGui::SetWindowFocus("Scene");
   S67_CORE_INFO("Created new level");
 }
@@ -767,6 +769,14 @@ void Application::OpenScene(const std::string &filepath) {
     m_LevelLoaded = true;
     m_LevelFilePath = filepath;
     m_SceneModified = false;
+
+    // UI Loading
+    UISystem::NewLayout();
+    std::string uiPath = m_Scene->GetUIPath();
+    if (!uiPath.empty() && uiPath != "None") {
+      UISystem::LoadLayout(ResolveAssetPath(uiPath));
+    }
+
     m_Window->SetCursorLocked(false);
     m_CursorLocked = false;
     ImGui::SetWindowFocus("Scene");
@@ -1934,13 +1944,8 @@ void Application::RenderFrame(float alpha) {
     }
   }
 
-  HUDRenderer::EndHUD();
-
-  // 4. Render User-Designed UI (on top of HUD)
-  HUDRenderer::BeginHUD(m_GameViewportSize.x, m_GameViewportSize.y);
   UISystem::Render();
   HUDRenderer::EndHUD();
-
   m_GameFramebuffer->Unbind();
 
   m_ImGuiLayer->Begin();

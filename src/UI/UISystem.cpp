@@ -1,7 +1,9 @@
 #include "UISystem.h"
 #include "Core/Logger.h"
 #include "Renderer/HUDRenderer.h"
+#include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <nlohmann/json.hpp>
 
 // Allow serialization of glm types
@@ -126,6 +128,10 @@ void UISystem::SaveLayout(const std::filesystem::path &path) {
     els.push_back(elJson);
   }
   j["Elements"] = els;
+
+  if (!path.parent_path().empty() &&
+      !std::filesystem::exists(path.parent_path()))
+    std::filesystem::create_directories(path.parent_path());
 
   std::ofstream o(path);
   o << std::setw(4) << j << std::endl;
