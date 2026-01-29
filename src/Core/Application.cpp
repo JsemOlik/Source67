@@ -102,7 +102,8 @@ Application::Application(const std::string &executablePath,
   m_Camera =
       CreateRef<PerspectiveCamera>(45.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
   m_Camera->SetPosition({0.0f, 2.0f, 8.0f});
-  m_PlayerController = CreateScope<PlayerController>(m_Camera);
+  m_Camera->SetPosition({0.0f, 2.0f, 8.0f});
+  // m_PlayerController managed by Scene Script now
 
   // Initialize tick system game state
   m_PreviousFrameTime = glfwGetTime();
@@ -1091,20 +1092,30 @@ void Application::UpdateGameTick(float tick_dt) {
     return;
   }
 
-  // 1. Update player controller with fixed timestep
-  // The PlayerController handles input sampling, movement, and physics
-  if (!m_ShowConsole)
-    m_PlayerController->OnUpdate(Timestep(tick_dt));
+  // 1. Update Scene (includes Scripts -> PlayerController::OnUpdate)
+  if (m_Scene)
+    m_Scene->OnUpdate(tick_dt);
+
+  // 1b. Locate Player Controller if needed
+  if (!m_PlayerController && m_Scene) {
+    Ref<Entity> playerEntity = m_Scene->FindEntityByName("Player");
+    if (playerEntity && playerEntity->NativeScript.Instance) {
+      m_PlayerController =
+          (PlayerController *)playerEntity->NativeScript.Instance;
+    }
+  }
 
   // 2. Update Jolt Physics with fixed timestep
   PhysicsSystem::OnUpdate(Timestep(tick_dt));
 
   // 3. Update game state from player controller for interpolation
-  m_CurrentState.player_position =
-      m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
-  m_CurrentState.player_velocity = m_PlayerController->GetVelocity();
-  m_CurrentState.yaw = m_PlayerController->GetYaw();
-  m_CurrentState.pitch = m_PlayerController->GetPitch();
+  if (m_PlayerController) {
+    m_CurrentState.player_position =
+        m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
+    m_CurrentState.player_velocity = m_PlayerController->GetVelocity();
+    m_CurrentState.yaw = m_PlayerController->GetYaw();
+    m_CurrentState.pitch = m_PlayerController->GetPitch();
+  }
 
   // Note: Additional movement state (sprinting, crouching, etc.) could be
   // synchronized here if exposed by PlayerController in the future

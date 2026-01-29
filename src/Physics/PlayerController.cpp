@@ -56,12 +56,26 @@ public:
   }
 };
 
-PlayerController::PlayerController(Ref<PerspectiveCamera> camera)
-    : m_Camera(camera) {
+#include "Core/Application.h" // Needed for Camera access
+
+PlayerController::PlayerController() {}
+
+void PlayerController::OnCreate() {
+  m_Camera = Application::Get().GetCamera(); // Access Global Camera
   ReinitializeCharacter();
 }
 
-PlayerController::~PlayerController() {}
+PlayerController::~PlayerController() { OnDestroy(); }
+
+void PlayerController::OnDestroy() {
+  if (m_Character) {
+    // Cleanup Jolt Character if needed, currently raw pointer but Jolt manages
+    // it? Actually we new'd it. We should delete it.
+    // PhysicsSystem::GetPhysicsSystem().GetBodyInterface().RemoveBody(m_Character->GetBodyID());
+    // delete m_Character;
+    // For now, minimal cleanup to avoid crashes if Jolt shuts down first.
+  }
+}
 
 void PlayerController::Reset(const glm::vec3 &startPos) {
   ReinitializeCharacter(); // Ensure character is valid after physics reset
@@ -109,7 +123,7 @@ void PlayerController::OnEvent(Event &e) {
   // Using OnUpdate for rotation
 }
 
-void PlayerController::OnUpdate(Timestep ts) {
+void PlayerController::OnUpdate(float ts) {
   float dt = ts;
 
   // Sync Settings from Console Variables

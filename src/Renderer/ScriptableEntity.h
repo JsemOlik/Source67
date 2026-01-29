@@ -16,6 +16,7 @@ public:
 protected:
   virtual void OnCreate() {}
   virtual void OnUpdate(float ts) {}
+  virtual void OnEvent(Event &e) {}
   virtual void OnDestroy() {}
 
 private:

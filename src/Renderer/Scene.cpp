@@ -2,6 +2,7 @@
 #include "Core/Application.h"
 #include "Core/Logger.h"
 #include "Mesh.h"
+#include "Physics/PlayerController.h"
 #include "Texture.h"
 #include <algorithm>
 
@@ -42,7 +43,8 @@ void Scene::EnsurePlayerExists() {
     if (texture) {
       player->Material.AlbedoMap = texture;
     } else {
-      S67_CORE_WARN("Failed to load player texture: assets/textures/level_icon.png");
+      S67_CORE_WARN(
+          "Failed to load player texture: assets/textures/level_icon.png");
     }
   }
 
@@ -56,20 +58,33 @@ void Scene::EnsurePlayerExists() {
     // We'll rely on "assets/shaders/FlatColor.glsl".
     // Ideally we shouldn't hardcode, but for "Player" default it's safer.
     // Or better: Re-use shader if we can get it? No easy way.
-    auto shader = Shader::Create(Application::Get()
-                       .ResolveAssetPath("assets/shaders/Texture.glsl")
-                       .string());
+    auto shader =
+        Shader::Create(Application::Get()
+                           .ResolveAssetPath("assets/shaders/Texture.glsl")
+                           .string());
     if (shader) {
       player->MaterialShader = shader;
     } else {
-      S67_CORE_WARN("Failed to load player shader: assets/shaders/Texture.glsl");
+      S67_CORE_WARN(
+          "Failed to load player shader: assets/shaders/Texture.glsl");
     }
   }
 
   // Ensure Physics Body is Invalid (or set to Character?)
   // User didn't ask for physics yet, just visual.
-  // But said "it will be a capsule shape... we can move it".
-  // If we move it, we update transform.
+
+  // Bind PlayerController Script
+  if (!player->NativeScript.Instance) {
+    player->NativeScript.Bind<PlayerController>();
+  }
+}
+
+Ref<Entity> Scene::FindEntityByName(const std::string &name) {
+  auto it = std::find_if(m_Entities.begin(), m_Entities.end(),
+                         [&](const Ref<Entity> &e) { return e->Name == name; });
+  if (it != m_Entities.end())
+    return *it;
+  return nullptr;
 }
 
 } // namespace S67

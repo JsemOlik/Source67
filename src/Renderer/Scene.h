@@ -20,6 +20,7 @@ public:
   }
   void EnsurePlayerExists();
   void OnUpdate(float ts);
+  Ref<Entity> FindEntityByName(const std::string &name);
   void Clear() { m_Entities.clear(); }
   const std::vector<Ref<Entity>> &GetEntities() const { return m_Entities; }
 

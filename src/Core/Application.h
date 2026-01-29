@@ -130,7 +130,7 @@ private:
 
   float m_LastFrameTime = 0.0f;
 
-  Scope<PlayerController> m_PlayerController;
+  PlayerController *m_PlayerController = nullptr;
 
   Scope<ImGuiLayer> m_ImGuiLayer;
   Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
