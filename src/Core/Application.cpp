@@ -1868,9 +1868,7 @@ void Application::RenderFrame(float alpha) {
   HUDRenderer::RenderCrosshair();
 
   if (m_PlayerController) {
-    // 1 meter = 39.97 Hammer Units
-    float speedHU = m_PlayerController->GetSpeed() * 39.97f;
-    HUDRenderer::RenderSpeed(speedHU);
+    HUDRenderer::RenderSpeed(m_PlayerController->GetSpeed());
   }
 
   HUDRenderer::EndHUD();
@@ -2314,11 +2312,12 @@ void Application::RenderFrame(float alpha) {
       ImGui::Text("%.3f ms/frame (%.1f Game FPS | %.1f Engine FPS)",
                   1000.0f / m_GameFPS, m_GameFPS, ImGui::GetIO().Framerate);
       ImGui::Separator();
-      // Convert meters to Hammer Units (1 meter = 39.97 HU)
-      constexpr float METERS_TO_HU = 39.97f;
+      // Convert meters to Hammer Units (1 unit = 0.01905 meters -> 1 meter
+      // = 52.4934 HU)
+      constexpr float METERS_TO_HU = 52.4934f;
       ImGui::Text("Velocity:  X: %.2f  Y: %.2f  Z: %.2f", vel.x * METERS_TO_HU,
                   vel.y * METERS_TO_HU, vel.z * METERS_TO_HU);
-      ImGui::Text("Speed (H): %.2f units/s", speed * METERS_TO_HU);
+      ImGui::Text("Speed (H): %.2f units/s", speed);
       ImGui::End();
     } else {
       ImGui::SetNextWindowSizeConstraints(ImVec2(200, 100),
