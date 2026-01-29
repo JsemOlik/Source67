@@ -1,4 +1,5 @@
 #include "Base.h"
+#include "Core/GameState.h"
 #include "Core/UndoSystem.h"
 #include "Events/WindowEvent.h"
 #include "ImGui/ImGuiLayer.h"
@@ -67,8 +68,11 @@ public:
 
   void CreateTestScene();
 
+  // Tick System Methods
+  void UpdateGameTick(float tick_dt);
+
   // Renders a single frame (useful for both Run loop and resize events)
-  void RenderFrame(Timestep ts);
+  void RenderFrame(float alpha);
 
   inline Window &GetWindow() { return *m_Window; }
   ImGuiLayer &GetImGuiLayer() { return *m_ImGuiLayer; }
@@ -102,6 +106,18 @@ private:
 
   std::unique_ptr<Window> m_Window;
   bool m_Running = true;
+
+  // Tick System Constants
+  static constexpr float TICK_RATE = 66.0f;              // Hz (ticks per second)
+  static constexpr float TICK_DURATION = 1.0f / 66.0f;   // ~0.015151515f seconds (15.15ms)
+  static constexpr float MAX_FRAME_TIME = 0.25f;         // Max 250ms per frame (prevents spiral of death)
+
+  // Tick System State
+  GameState m_CurrentState;
+  GameState m_PreviousState;
+  double m_Accumulator = 0.0;
+  double m_PreviousFrameTime = 0.0;
+  uint64_t m_TickNumber = 0;
 
   Ref<PerspectiveCamera> m_Camera; // Game Camera
   Ref<PerspectiveCamera> m_EditorCamera;

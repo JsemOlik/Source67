@@ -102,6 +102,13 @@ Application::Application(const std::string &executablePath,
   m_Camera->SetPosition({0.0f, 2.0f, 8.0f});
   m_PlayerController = CreateScope<PlayerController>(m_Camera);
 
+  // Initialize tick system game state
+  m_PreviousFrameTime = glfwGetTime();
+  m_CurrentState.player_position = m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
+  m_CurrentState.yaw = -90.0f;
+  m_CurrentState.pitch = 0.0f;
+  m_PreviousState = m_CurrentState;
+
   m_EditorCamera =
       CreateRef<PerspectiveCamera>(45.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
   m_EditorCamera->SetPosition({5.0f, 5.0f, 15.0f});
@@ -964,104 +971,70 @@ void Application::OnEvent(Event &e) {
 }
 
 void Application::Run() {
+  m_PreviousFrameTime = glfwGetTime();
+  
   while (m_Running) {
-    float time = (float)glfwGetTime();
+    // PHASE 1: Measure frame time
+    double current_frame_time = glfwGetTime();
+    double frame_time = current_frame_time - m_PreviousFrameTime;
+    m_PreviousFrameTime = current_frame_time;
 
-    // UI Cap (Max 144Hz) or Higher if Game Cap is higher
-    {
-      float uiCap = 144.0f;
-      float targetFPS = m_FPSCap > 0 ? std::max(uiCap, (float)m_FPSCap) : 0.0f;
-      float minFrameTime = targetFPS > 0.0f ? 1.0f / targetFPS : 0.0f;
-
-      float elapsed = time - m_LastFrameTime;
-
-      if (minFrameTime > 0.0f && elapsed < minFrameTime) {
-        while ((float)glfwGetTime() - m_LastFrameTime < minFrameTime) {
-          // Spin wait
-        }
-        // Spin wait
-      }
-
-      time = (float)glfwGetTime();
+    // PHASE 2: Prevent spiral of death (lag spike safety)
+    if (frame_time > MAX_FRAME_TIME) {
+      frame_time = MAX_FRAME_TIME;  // Clamp to max 250ms
     }
 
-    Timestep timestep = time - m_LastFrameTime;
-    m_LastFrameTime = time;
+    // PHASE 3: Accumulate real time
+    m_Accumulator += frame_time;
 
-    // Game/Scene Logic & Render
-    bool shouldRenderGame = true;
-    if (m_FPSCap > 0) {
-      float minGameFrameTime = 1.0f / (float)m_FPSCap;
-      if (time - m_LastGameTime < minGameFrameTime)
-        shouldRenderGame = false;
+    // PHASE 4: Process all due physics ticks
+    int tick_count = 0;
+    while (m_Accumulator >= TICK_DURATION) {
+      // Save previous state for interpolation
+      m_PreviousState = m_CurrentState;
+
+      // Run one physics tick with fixed delta time
+      UpdateGameTick(TICK_DURATION);
+
+      // Deduct from accumulator
+      m_Accumulator -= TICK_DURATION;
+      tick_count++;
+      m_TickNumber++;
     }
 
-    if (shouldRenderGame) {
-      Timestep gameTimestep = time - m_LastGameTime; // Use game delta
+    // PHASE 5: Render frame with interpolation
+    float alpha = static_cast<float>(m_Accumulator / TICK_DURATION);
+    RenderFrame(alpha);
 
-      // Prevent huge delta on first frame or after pause
-      if (gameTimestep > 1.0f)
-        gameTimestep = 1.0f / 60.0f;
-
-      m_LastGameTime = time;
-      m_GameFPS = 1.0f / (float)gameTimestep;
-
-      RenderFrame(gameTimestep);
-    } else {
-      RenderFrame(0); // Render UI but not game physics? Wait, RenderFrame does
-                      // everything.
-      // If !shouldRenderGame, we typically skip the GAME RENDER pass but still
-      // do UI. BUT my RenderFrame implementation does EVERYTHING. And it calls
-      // `m_PlayerController->OnUpdate(timestep)`.
-
-      // If I pass 0, physics won't step.
-      // But `RenderFrame` also includes `m_SceneFramebuffer->Bind() ...
-      // Renderer::BeginScene`. If I want to skip game rendering, I should
-      // probably split RenderFrame or just let it render (it's UI cap anyway).
-
-      // In the original code:
-      /*
-      if (shouldRenderGame) {
-          // ... Update & Render Game/Scene ...
-      }
-      m_ImGuiLayer->Begin();
-      // ... UI ...
-      */
-
-      // My `RenderFrame` implementation INCLUDES the `shouldRenderGame` block's
-      // logic AND the ImGui logic. So if I call `RenderFrame`, I am rendering
-      // the game too.
-
-      // If I want to respect the FPS cap separation (Game vs UI), I have a
-      // problem with the unified `RenderFrame`. However, `RenderFrame` is
-      // primarily for "Redraw everything". During normal execution,
-      // `shouldRenderGame` logic separated out Game updates/renders from UI
-      // updates.
-
-      // If I use `RenderFrame(timestep)` it will do BOTH.
-      // If `shouldRenderGame` is false, we want to SKIP Game Update/Render but
-      // DO UI Render.
-
-      // I should have put `RenderFrame` contents inside a check?
-      // OR, I can just not respect the separation for now, or assume 144Hz UI
-      // matches Game often. Actually, the original code allowed UI to run
-      // faster (144Hz) than Game (e.g. 60Hz).
-
-      // To support this, `RenderFrame` should take a flag `renderGame`.
-      // But I made it `RenderFrame(Timestep)`.
-
-      // I'll proceed with calling `RenderFrame(timestep)` always for now,
-      // effectively coupling Game/UI framerate which is acceptable for
-      // "realtime resizing" goal, and simpler. IF performance is an issue, I
-      // can refactor later. Actually, `RenderFrame` uses `timestep` for
-      // physics. If I call it every UI frame, physics runs every UI frame. I'll
-      // update `Run` to just calculate timestep and call `RenderFrame`.
-
-      RenderFrame(timestep);
-    }
-
+    // PHASE 6: Window update (swap buffers, poll events)
     m_Window->OnUpdate();
   }
+}
+
+void Application::UpdateGameTick(float tick_dt) {
+  // This function runs at exactly 66 Hz with fixed TICK_DURATION
+  // CRITICAL: Always use tick_dt, NEVER variable frame delta time
+
+  if (m_SceneState != SceneState::Play) {
+    // Only run physics ticks during play mode
+    return;
+  }
+
+  // 1. Update player controller with fixed timestep
+  // The PlayerController handles input sampling, movement, and physics
+  m_PlayerController->OnUpdate(Timestep(tick_dt));
+
+  // 2. Update Jolt Physics with fixed timestep
+  PhysicsSystem::OnUpdate(Timestep(tick_dt));
+
+  // 3. Update game state from player controller for interpolation
+  m_CurrentState.player_position = m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
+  m_CurrentState.player_velocity = m_PlayerController->GetVelocity();
+  m_CurrentState.yaw = m_PlayerController->GetYaw();
+  m_CurrentState.pitch = m_PlayerController->GetPitch();
+  
+  // Note: Additional movement state (sprinting, crouching, etc.) could be
+  // synchronized here if exposed by PlayerController in the future
 }
 
 bool Application::OnWindowClose(WindowCloseEvent &e) {
@@ -1075,9 +1048,9 @@ bool Application::OnWindowResize(WindowResizeEvent &e) {
   }
 
   // Realtime resizing support
-  // Render with 0 timestep (pause physics during resize)
+  // Render with alpha=1.0 (current state, no interpolation during resize)
   // Ensure we manually swap buffers because the main loop is blocked
-  RenderFrame(0);
+  RenderFrame(1.0f);
   glfwSwapBuffers((GLFWwindow *)m_Window->GetNativeWindow());
 
   return false;
@@ -1628,7 +1601,12 @@ void Application::ResetLayout() {
   S67_CORE_INFO("Reset window layout to default");
 }
 
-void Application::RenderFrame(Timestep timestep) {
+void Application::RenderFrame(float alpha) {
+  // alpha is the interpolation factor between previous and current physics states
+  // 0.0 = at previous tick state
+  // 0.5 = halfway between previous and current tick
+  // ~0.999 = almost at current tick
+  
   // Viewport Resize
   if (FramebufferSpecification spec = m_SceneFramebuffer->GetSpecification();
       m_SceneViewportSize.x > 0.0f && m_SceneViewportSize.y > 0.0f &&
@@ -1649,14 +1627,16 @@ void Application::RenderFrame(Timestep timestep) {
                             0.1f, 100.0f);
   }
 
-  if (m_SceneState == SceneState::Play || m_SceneState == SceneState::Pause) {
-    if (m_SceneState == SceneState::Play) {
-      m_PlayerController->OnUpdate(timestep);
-      PhysicsSystem::OnUpdate(timestep);
-    }
-  } else if (m_SceneState == SceneState::Edit) {
+  // Editor camera updates (still uses per-frame delta time, not affected by tick system)
+  if (m_SceneState == SceneState::Edit) {
     if (m_SceneViewportFocused) {
-      m_EditorCameraController->OnUpdate(timestep);
+      // Calculate frame delta for editor camera (not physics)
+      float current_time = static_cast<float>(glfwGetTime());
+      static float last_editor_time = current_time;
+      float editor_dt = current_time - last_editor_time;
+      last_editor_time = current_time;
+      
+      m_EditorCameraController->OnUpdate(Timestep(editor_dt));
     }
 
     // Sync Game Camera to Player Entity (Edit Mode)
@@ -1681,6 +1661,31 @@ void Application::RenderFrame(Timestep timestep) {
       m_CursorLocked = false;
       m_EditorCameraController->SetRotationEnabled(false);
     }
+  } else if (m_SceneState == SceneState::Play || m_SceneState == SceneState::Pause) {
+    // Interpolate camera position for smooth rendering
+    // Note: Physics ticks run in UpdateGameTick(), here we only interpolate for display
+    glm::vec3 interpolated_position = glm::mix(
+        m_PreviousState.player_position,
+        m_CurrentState.player_position,
+        alpha
+    );
+    
+    float interpolated_yaw = glm::mix(
+        m_PreviousState.yaw,
+        m_CurrentState.yaw,
+        alpha
+    );
+    
+    float interpolated_pitch = glm::mix(
+        m_PreviousState.pitch,
+        m_CurrentState.pitch,
+        alpha
+    );
+    
+    // Apply interpolated values to camera for smooth rendering
+    m_Camera->SetPosition(interpolated_position + glm::vec3(0.0f, 1.7f, 0.0f));
+    m_Camera->SetYaw(interpolated_yaw);
+    m_Camera->SetPitch(interpolated_pitch);
   }
 
   auto &bodyInterface = PhysicsSystem::GetBodyInterface();
