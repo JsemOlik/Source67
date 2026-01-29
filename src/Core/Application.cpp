@@ -232,7 +232,9 @@ void Application::CreateTestScene() {
 
   JPH::BodyCreationSettings floorSettings(
       PhysicsShapes::CreateBox({20.0f, 1.0f, 20.0f}), JPH::RVec3(0, -2, 0),
-      JPH::Quat::sIdentity(), JPH::EMotionType::Static, Layers::NON_MOVING);
+      JPH::Quat::sIdentity(),
+      floor->Anchored ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic,
+      floor->Anchored ? Layers::NON_MOVING : Layers::MOVING);
   floorSettings.mUserData = (uint64_t)floor.get();
   floor->PhysicsBody = bodyInterface.CreateAndAddBody(
       floorSettings, JPH::EActivation::DontActivate);
@@ -245,12 +247,15 @@ void Application::CreateTestScene() {
         CreateRef<Entity>(name, m_CubeMesh, m_DefaultShader, m_DefaultTexture);
     cube->Transform.Position = {(float)i * 2.0f - 4.0f, 10.0f + (float)i * 2.0f,
                                 0.0f};
+    cube->Anchored = false;
 
     JPH::BodyCreationSettings cubeSettings(
         PhysicsShapes::CreateBox({1.0f, 1.0f, 1.0f}),
         JPH::RVec3(cube->Transform.Position.x, cube->Transform.Position.y,
                    cube->Transform.Position.z),
-        JPH::Quat::sIdentity(), JPH::EMotionType::Dynamic, Layers::MOVING);
+        JPH::Quat::sIdentity(),
+        cube->Anchored ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic,
+        cube->Anchored ? Layers::NON_MOVING : Layers::MOVING);
     cubeSettings.mUserData = (uint64_t)cube.get();
     cube->PhysicsBody = bodyInterface.CreateAndAddBody(
         cubeSettings, JPH::EActivation::Activate);
@@ -750,6 +755,7 @@ void Application::OpenScene(const std::string &filepath) {
           entity->Anchored ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic,
           entity->Anchored ? Layers::NON_MOVING : Layers::MOVING);
 
+      settings.mUserData = (uint64_t)entity.get();
       entity->PhysicsBody =
           bodyInterface.CreateAndAddBody(settings, JPH::EActivation::Activate);
     }
@@ -1926,10 +1932,12 @@ void Application::RenderFrame(Timestep timestep) {
                                           entity->Transform.Scale.y,
                                           entity->Transform.Scale.z}),
                 JPH::RVec3(spawnPos.x, spawnPos.y, spawnPos.z),
-                JPH::Quat::sIdentity(), JPH::EMotionType::Static,
-                Layers::NON_MOVING);
+                JPH::Quat::sIdentity(),
+                entity->Anchored ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic,
+                entity->Anchored ? Layers::NON_MOVING : Layers::MOVING);
+            settings.mUserData = (uint64_t)entity.get();
             entity->PhysicsBody = bodyInterface.CreateAndAddBody(
-                settings, JPH::EActivation::DontActivate);
+                settings, JPH::EActivation::Activate);
 
             m_Scene->AddEntity(entity);
             m_SceneHierarchyPanel->SetSelectedEntity(entity);
@@ -2019,10 +2027,12 @@ void Application::RenderFrame(Timestep timestep) {
                 JPH::BodyCreationSettings settings(
                     PhysicsShapes::CreateBox({1.0f, 1.0f, 1.0f}),
                     JPH::RVec3(dropPos.x, dropPos.y, dropPos.z),
-                    JPH::Quat::sIdentity(), JPH::EMotionType::Static,
-                    Layers::NON_MOVING);
+                    JPH::Quat::sIdentity(),
+                    entity->Anchored ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic,
+                    entity->Anchored ? Layers::NON_MOVING : Layers::MOVING);
+                settings.mUserData = (uint64_t)entity.get();
                 entity->PhysicsBody = bodyInterface.CreateAndAddBody(
-                    settings, JPH::EActivation::DontActivate);
+                    settings, JPH::EActivation::Activate);
 
                 m_Scene->AddEntity(entity);
                 m_SceneHierarchyPanel->SetSelectedEntity(entity);
