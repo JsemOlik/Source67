@@ -91,7 +91,7 @@ Source67/
   - Viewport management (Scene & Game viewports)
   - Project discovery and manifest management
 - **Window.h/mm**: Platform window abstraction (Objective-C++ for macOS)
-- **Logger.h/cpp**: spdlog wrapper with S67*CORE*_ and S67\__ macros
+- **Logger.h/cpp**: spdlog wrapper with S67*CORE*\_ and S67\_\_ macros
 - **Input.h/cpp**: Input polling system
 - **UndoSystem.h**: Command pattern for editor undo/redo
 - **Timer.h**: High-resolution timing
@@ -137,6 +137,14 @@ Source67/
 - **ImGuiLayer.h/cpp**: ImGui initialization, docking setup, theme management
 - **Panels/SceneHierarchyPanel.h/cpp**: Entity hierarchy and inspector
 - **Panels/ContentBrowserPanel.h/cpp**: Asset browser panel
+
+### Dev Console & Scripting (`src/Game/`, `scripts/`)
+
+- **Developer Console**: Quake-style console (toggle with `~`)
+  - **ConVar**: Console variables (e.g., `sv_gravity`, `sv_maxspeed`)
+  - **Commands**: Custom commands (e.g., `map`, `host_writeconfig`)
+  - **C++ Scripting**: Native C++ scripting via `ScriptableEntity`
+  - **ScriptRegistry**: Registration for user scripts
 
 ### Shaders (`assets/shaders/`)
 
@@ -230,6 +238,41 @@ Entities have:
 - Character controller in `PlayerController` class
 - Collision callbacks for entity interactions
 - Debug visualization available
+
+## 📜 Scripting & Developer Console
+
+### Developer Console
+
+The engine features a Quake-style developer console for runtime configuration and debugging.
+
+- **Access**: Press `~` (Tilde) to open/close.
+- **ConVars**: Variables like `sv_gravity` or `r_wireframe`. Used to tweak game/engine state live.
+- **Commands**: Functions like `map <level>` or `quit`.
+- **Config**: Auto-loads `game.cfg` on startup. Use `host_writeconfig` to save current settings.
+
+### C++ Native Scripting
+
+The engine supports writing game logic in C++ by inheriting from `S67::ScriptableEntity`.
+**Workflow**:
+
+1. Create a class inheriting from `S67::ScriptableEntity`.
+2. Override `OnCreate`, `OnUpdate(ts)`, `OnEvent(e)`, `OnDestroy`.
+3. Use `GetEntity()` to look up other components or `GetComponent<T>()` shortcuts.
+4. Bind to an entity using `NativeScriptComponent`.
+
+**Example**:
+
+```cpp
+class MyScript : public S67::ScriptableEntity {
+    void OnCreate() { S67_INFO("Script Created!"); }
+    void OnUpdate(float ts) {
+        if(Input::IsKeyPressed(Key::Space))
+            GetEntity().GetComponent<Transform>(); // access
+    }
+};
+```
+
+_Note_: Currently requires static linking/binding in `Scene::OnUpdate` or `Application` until DLL reloading is fully integrated.
 
 ## 🐛 Known Issues & Code Review Findings
 

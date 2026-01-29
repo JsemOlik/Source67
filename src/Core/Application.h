@@ -5,7 +5,7 @@
 #include "ImGui/ImGuiLayer.h"
 #include "ImGui/Panels/SceneHierarchyPanel.h"
 #include "Physics/PhysicsSystem.h"
-#include "Physics/PlayerController.h"
+// #include "Physics/PlayerController.h" // Removed to break potential cycle
 #include "Renderer/Camera.h"
 #include "Renderer/CameraController.h"
 #include "Renderer/Framebuffer.h"
@@ -23,6 +23,7 @@
 namespace S67 {
 
 class ContentBrowserPanel;
+class ConsolePanel;
 
 enum class SceneState { Edit = 0, Play = 1, Pause = 2 };
 
@@ -60,8 +61,6 @@ public:
 
   void OnEntityCollidableChanged(Ref<Entity> entity);
 
-  void UI_DeveloperConsole();
-
   void OnNewProject();
   void OnOpenProject();
   void DiscoverProject(const std::filesystem::path &levelPath);
@@ -78,6 +77,8 @@ public:
   inline Window &GetWindow() { return *m_Window; }
   ImGuiLayer &GetImGuiLayer() { return *m_ImGuiLayer; }
   inline static Application &Get() { return *s_Instance; }
+
+  Ref<PerspectiveCamera> GetCamera() { return m_Camera; }
 
   const std::filesystem::path &GetProjectRoot() const { return m_ProjectRoot; }
   void SetProjectRoot(const std::filesystem::path &root);
@@ -131,11 +132,12 @@ private:
 
   float m_LastFrameTime = 0.0f;
 
-  Scope<PlayerController> m_PlayerController;
+  // PlayerController *m_PlayerController = nullptr; // Removed
 
   Scope<ImGuiLayer> m_ImGuiLayer;
   Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
   Scope<ContentBrowserPanel> m_ContentBrowserPanel;
+  Scope<ConsolePanel> m_ConsolePanel;
   Scope<Skybox> m_Skybox;
 
   std::filesystem::path m_ProjectRoot;

@@ -1,6 +1,10 @@
 #include "PlayerController.h"
 #include "Core/Input.h"
 #include "Events/MouseEvent.h"
+#include "Game/Console/ConVar.h" // Include ConVar
+
+#include "Core/Application.h"
+#include "Core/Logger.h"
 #include "Physics/PhysicsSystem.h"
 #include "Renderer/Entity.h"
 #include <GLFW/glfw3.h>
@@ -11,6 +15,35 @@
 #include <utility>
 
 namespace S67 {
+
+// Console Variables for Player Physics (Valve Naming Convention)
+static ConVar sv_maxspeed("sv_maxspeed", "190.0", FCVAR_ARCHIVE | FCVAR_NOTIFY,
+                          "Maximum player speed on ground");
+static ConVar sv_sprint_speed("sv_sprint_speed", "320.0",
+                              FCVAR_ARCHIVE | FCVAR_NOTIFY,
+                              "Maximum player speed when sprinting");
+static ConVar sv_crouch_speed("sv_crouch_speed", "63.3",
+                              FCVAR_ARCHIVE | FCVAR_NOTIFY,
+                              "Maximum player speed when crouching");
+static ConVar sv_accelerate("sv_accelerate", "5.6",
+                            FCVAR_ARCHIVE | FCVAR_NOTIFY,
+                            "Ground acceleration setting");
+static ConVar sv_airaccelerate("sv_airaccelerate", "100.0",
+                               FCVAR_ARCHIVE | FCVAR_NOTIFY,
+                               "Air acceleration setting");
+static ConVar sv_friction("sv_friction", "4.8", FCVAR_ARCHIVE | FCVAR_NOTIFY,
+                          "Ground friction setting");
+static ConVar sv_stopspeed("sv_stopspeed", "100.0",
+                           FCVAR_ARCHIVE | FCVAR_NOTIFY,
+                           "Minimum stopping speed when on ground");
+static ConVar sv_jump_velocity("sv_jump_velocity", "268.0",
+                               FCVAR_ARCHIVE | FCVAR_NOTIFY,
+                               "Initial velocity for jumps");
+static ConVar sv_gravity("sv_gravity", "800.0", FCVAR_ARCHIVE | FCVAR_NOTIFY,
+                         "Gravity setting");
+static ConVar sv_max_air_wishspeed(
+    "sv_max_air_wishspeed", "30.0", FCVAR_ARCHIVE | FCVAR_NOTIFY,
+    "Maximum speed the player can wish for in air (clamps strafing)");
 
 class PlayerBodyFilter : public JPH::BodyFilter {
 public:
@@ -25,12 +58,31 @@ public:
   }
 };
 
-PlayerController::PlayerController(Ref<PerspectiveCamera> camera)
-    : m_Camera(camera) {
+PlayerController::PlayerController() {}
+
+void PlayerController::OnCreate() {
+  S67_CORE_INFO("PlayerController::OnCreate Start");
+  auto &app = Application::Get();
+  S67_CORE_INFO("Got Application instance");
+  m_Camera = app.GetCamera(); // Access Global Camera
+  if (!m_Camera)
+    S67_CORE_ERROR("Camera is null!");
+  S67_CORE_INFO("PlayerController::OnCreate Camera Retrieved");
   ReinitializeCharacter();
+  S67_CORE_INFO("PlayerController::OnCreate End");
 }
 
-PlayerController::~PlayerController() {}
+PlayerController::~PlayerController() { OnDestroy(); }
+
+void PlayerController::OnDestroy() {
+  if (m_Character) {
+    // Cleanup Jolt Character if needed, currently raw pointer but Jolt manages
+    // it? Actually we new'd it. We should delete it.
+    // PhysicsSystem::GetPhysicsSystem().GetBodyInterface().RemoveBody(m_Character->GetBodyID());
+    // delete m_Character;
+    // For now, minimal cleanup to avoid crashes if Jolt shuts down first.
+  }
+}
 
 void PlayerController::Reset(const glm::vec3 &startPos) {
   ReinitializeCharacter(); // Ensure character is valid after physics reset
@@ -78,8 +130,30 @@ void PlayerController::OnEvent(Event &e) {
   // Using OnUpdate for rotation
 }
 
-void PlayerController::OnUpdate(Timestep ts) {
+void PlayerController::OnUpdate(float ts) {
   float dt = ts;
+
+  static float logTimer = 0.0f;
+  logTimer += ts;
+  if (logTimer >= 1.0f) {
+    S67_CORE_INFO("PlayerController Script Updating... (dt={0})", ts);
+    logTimer = 0.0f;
+  }
+
+  // Sync Settings from Console Variables
+  // Safety Check: Only apply if ConVars are initialized (non-zero)
+  if (sv_maxspeed.GetFloat() != 0.0f) {
+    m_Settings.MaxSpeed = sv_maxspeed.GetFloat();
+    m_Settings.MaxSprintSpeed = sv_sprint_speed.GetFloat();
+    m_Settings.MaxCrouchSpeed = sv_crouch_speed.GetFloat();
+    m_Settings.Acceleration = sv_accelerate.GetFloat();
+    m_Settings.AirAcceleration = sv_airaccelerate.GetFloat();
+    m_Settings.Friction = sv_friction.GetFloat();
+    m_Settings.StopSpeed = sv_stopspeed.GetFloat();
+    m_Settings.JumpVelocity = sv_jump_velocity.GetFloat();
+    m_Settings.Gravity = sv_gravity.GetFloat();
+    m_Settings.MaxAirWishSpeed = sv_max_air_wishspeed.GetFloat();
+  }
 
   // 1. Rotation Update
   std::pair<float, float> mousePos = Input::GetMousePosition();

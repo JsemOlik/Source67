@@ -16,12 +16,15 @@
 
 #include "Core/Input.h"
 #include "Core/PlatformUtils.h"
+#include "Game/Console/Console.h"
+#include "Game/Console/ConsolePanel.h"
 #include "ImGui/Panels/ContentBrowserPanel.h"
 #include "ImGuizmo/ImGuizmo.h"
 #include "Physics/PhysicsShapes.h"
 #include "Physics/PlayerController.h"
 #include "Renderer/Framebuffer.h"
 #include "Renderer/SceneSerializer.h"
+#include "Renderer/ScriptableEntity.h"
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -100,7 +103,8 @@ Application::Application(const std::string &executablePath,
   m_Camera =
       CreateRef<PerspectiveCamera>(45.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
   m_Camera->SetPosition({0.0f, 2.0f, 8.0f});
-  m_PlayerController = CreateScope<PlayerController>(m_Camera);
+  m_Camera->SetPosition({0.0f, 2.0f, 8.0f});
+  // m_PlayerController managed by Scene Script now
 
   // Initialize tick system game state
   m_PreviousFrameTime = glfwGetTime();
@@ -130,6 +134,7 @@ Application::Application(const std::string &executablePath,
 
   m_SceneHierarchyPanel = CreateScope<SceneHierarchyPanel>(m_Scene);
   m_ContentBrowserPanel = CreateScope<ContentBrowserPanel>();
+  m_ConsolePanel = CreateScope<ConsolePanel>();
   m_Skybox = CreateScope<Skybox>(
       ResolveAssetPath("assets/textures/sky-3.png").string());
   LoadSettings();
@@ -153,6 +158,10 @@ Application::Application(const std::string &executablePath,
   }
 
   InitDefaultAssets();
+
+  // Load Game Configuration (ConVars)
+  S67_CORE_INFO("Loading game configuration...");
+  Console::Get().Load("game.cfg");
 
   // Initialize HUD Renderer
   S67_CORE_INFO("Initializing HUD Renderer...");
@@ -311,13 +320,19 @@ void Application::OnScenePlay() {
         startPos = entity->Transform.Position;
         startRotation = entity->Transform.Rotation;
         fov = entity->CameraFOV;
+
+        // Scene now handles script instantiation via Update or Explicit call
+        // We will trust the instance is ready or handled by OnUpdate(0) call if
+        // we add it, or better, we will access it safely.
+
+        if (auto *pc = dynamic_cast<PlayerController *>(
+                entity->NativeScript.Instance)) {
+          pc->Reset(startPos);
+          pc->SetRotation(startRotation.y, startRotation.x);
+        }
         break;
       }
     }
-
-    m_PlayerController->Reset(startPos);
-    // Rotation: X is pitch, Y is yaw
-    m_PlayerController->SetRotation(startRotation.y, startRotation.x);
 
     float aspect = 1.0f;
     if (m_GameViewportSize.x > 0 && m_GameViewportSize.y > 0)
@@ -378,9 +393,13 @@ void Application::OnSceneStop() {
   // Final sync: Update PlayerController and Camera to the restored state
   for (auto &entity : m_Scene->GetEntities()) {
     if (entity->Name == "Player") {
-      m_PlayerController->Reset(entity->Transform.Position);
-      m_PlayerController->SetRotation(entity->Transform.Rotation.y,
-                                      entity->Transform.Rotation.x);
+      // Fetch Script
+      if (auto *pc =
+              dynamic_cast<PlayerController *>(entity->NativeScript.Instance)) {
+        pc->Reset(entity->Transform.Position);
+        pc->SetRotation(entity->Transform.Rotation.y,
+                        entity->Transform.Rotation.x);
+      }
 
       m_Camera->SetPosition(entity->Transform.Position +
                             glm::vec3(0.0f, 1.7f, 0.0f));
@@ -431,8 +450,34 @@ void Application::OnNewProject() {
     m_ProjectVersion = "1.0.0";
 
     std::filesystem::path projectAssets = projectRoot / "assets";
+    std::filesystem::path projectScripts =
+        projectRoot / "Scripts"; // Capitalized as requested
     std::filesystem::create_directories(projectAssets / "shaders");
     std::filesystem::create_directories(projectAssets / "textures");
+    std::filesystem::create_directories(projectScripts);
+
+    // Create Player.cpp Template
+    {
+      std::string playerScript = R"(#include <S67.h>
+
+class Player : public S67::ScriptableEntity {
+public:
+    void OnCreate() override {
+        S67::Console::Get().AddLog("Player Script Created!");
+    }
+
+    void OnUpdate(float ts) override {
+        // Movement Logic will go here...
+        // For now, this is just a template.
+    }
+};
+)";
+      std::ofstream out(projectScripts / "Player.cpp");
+      out << playerScript;
+      out.close();
+    }
+
+    // Copy Default Assets (Shaders)
 
     // Copy Default Assets (Shaders)
     try {
@@ -628,53 +673,6 @@ void Application::CloseProject() {
   S67_CORE_INFO("Closed project");
 }
 
-void Application::UI_DeveloperConsole() {
-  if (!m_ShowConsole)
-    return;
-
-  ImGui::SetNextWindowSizeConstraints(ImVec2(400, 200),
-                                      ImVec2(FLT_MAX, FLT_MAX));
-  ImGui::SetNextWindowSize({800, 450}, ImGuiCond_FirstUseEver);
-  if (ImGui::Begin("Developer Console (`)", &m_ShowConsole)) {
-    if (ImGui::Button("Clear")) {
-      Logger::ClearLogHistory();
-    }
-    ImGui::SameLine();
-    static bool scrollToBottom = true;
-    ImGui::Checkbox("Auto-scroll", &scrollToBottom);
-    ImGui::SameLine();
-    ImGui::TextDisabled("| %zu messages", Logger::GetLogHistory().size());
-
-    ImGui::Separator();
-
-    ImGui::BeginChild("ScrollingRegion", {0, 0}, false,
-                      ImGuiWindowFlags_HorizontalScrollbar);
-
-    const auto &logs = Logger::GetLogHistory();
-    for (const auto &log : logs) {
-      ImVec4 color = {0.8f, 0.8f, 0.8f, 1.0f};
-      if (log.Level == spdlog::level::warn)
-        color = {1.0f, 1.0f, 0.0f, 1.0f};
-      else if (log.Level == spdlog::level::err)
-        color = {1.0f, 0.3f, 0.3f, 1.0f};
-      else if (log.Level == spdlog::level::critical)
-        color = {1.0f, 0.0f, 1.0f, 1.0f};
-      else if (log.Level == spdlog::level::info)
-        color = {0.5f, 1.0f, 0.5f, 1.0f};
-
-      ImGui::PushStyleColor(ImGuiCol_Text, color);
-      ImGui::Text("[%s] %s", log.Timestamp.c_str(), log.Message.c_str());
-      ImGui::PopStyleColor();
-    }
-
-    if (scrollToBottom && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
-      ImGui::SetScrollHereY(1.0f);
-
-    ImGui::EndChild();
-  }
-  ImGui::End();
-}
-
 void Application::OnSaveScene() {
   if (m_SceneState != SceneState::Edit) {
     S67_CORE_WARN("Cannot save while playing!");
@@ -751,7 +749,7 @@ void Application::OpenScene(const std::string &filepath) {
 
   PhysicsSystem::Shutdown(); // Reset physics system to clear all bodies
   PhysicsSystem::Init();
-  m_PlayerController = CreateScope<PlayerController>(m_Camera);
+  // m_PlayerController is managed by Scene's script system now
 
   DiscoverProject(std::filesystem::path(filepath));
   SceneSerializer serializer(m_Scene.get(), m_ProjectRoot.string());
@@ -829,11 +827,60 @@ void Application::OnEntityCollidableChanged(Ref<Entity> entity) {
 }
 
 void Application::OnEvent(Event &e) {
+  // 1. Console Toggle (Global Priority)
+  if (e.GetEventType() == EventType::KeyPressed) {
+    auto &ek = (KeyPressedEvent &)e;
+    if (ek.GetKeyCode() == GLFW_KEY_GRAVE_ACCENT && m_EnableConsole) {
+      m_ShowConsole = !m_ShowConsole;
+
+      // UX: Handle Cursor & Input Blocking
+      if (m_ShowConsole) {
+        // Console Opened: Unlock cursor for interaction
+        m_Window->SetCursorLocked(false);
+        m_CursorLocked = false;
+
+        // Disable rotation if in editor
+        if (m_SceneState == SceneState::Edit)
+          m_EditorCameraController->SetRotationEnabled(false);
+
+      } else {
+        // Console Closed: Restore state
+        if (m_SceneState == SceneState::Play) {
+          m_Window->SetCursorLocked(true);
+          m_CursorLocked = true;
+        } else if (m_SceneState == SceneState::Edit) {
+          m_Window->SetCursorLocked(false);
+          m_CursorLocked = false;
+        }
+      }
+    }
+  }
+
+  // 2. Console Input Blocking
+  if (m_ShowConsole) {
+    m_ImGuiLayer->OnEvent(e);
+    return;
+  }
+
   m_ImGuiLayer->OnEvent(e);
 
   if (m_SceneState == SceneState::Play) {
-    // m_CameraController->OnEvent(e);
-    m_PlayerController->OnEvent(e);
+    if (m_Scene) {
+      if (auto entity = m_Scene->FindEntityByName("Player")) {
+        if (auto *pc = dynamic_cast<PlayerController *>(
+                entity->NativeScript.Instance)) {
+          pc->OnEvent(e);
+        }
+      }
+    }
+
+    // Global ESC handler for Play Mode
+    if (e.GetEventType() == EventType::KeyPressed) {
+      auto &ek = (KeyPressedEvent &)e;
+      if (ek.GetKeyCode() == GLFW_KEY_ESCAPE)
+        OnScenePause();
+    }
+
   } else {
     // Editor Navigation logic
     if (e.GetEventType() == EventType::MouseButtonPressed) {
@@ -892,7 +939,7 @@ void Application::OnEvent(Event &e) {
       m_EditorCameraController->OnEvent(e);
     }
 
-    // Handle mouse button RELEASE separately (not inside the Press handler!)
+    // Handle mouse button RELEASE
     if (e.GetEventType() == EventType::MouseButtonReleased) {
       auto &mb = (MouseButtonReleasedEvent &)e;
       if (mb.GetMouseButton() == 1) { // Right Click
@@ -910,6 +957,7 @@ void Application::OnEvent(Event &e) {
     dispatcher.Dispatch<WindowDropEvent>(
         BIND_EVENT_FN(Application::OnWindowDrop));
 
+    // Editor Shortcuts
     if (e.GetEventType() == EventType::KeyPressed) {
       auto &ek = (KeyPressedEvent &)e;
       bool control = Input::IsKeyPressed(GLFW_KEY_LEFT_CONTROL) ||
@@ -917,80 +965,66 @@ void Application::OnEvent(Event &e) {
       bool super = Input::IsKeyPressed(GLFW_KEY_LEFT_SUPER) ||
                    Input::IsKeyPressed(GLFW_KEY_RIGHT_SUPER);
 
-      if (ek.GetKeyCode() == GLFW_KEY_GRAVE_ACCENT && m_EnableConsole) {
-        m_ShowConsole = !m_ShowConsole;
+      if (ek.GetKeyCode() == GLFW_KEY_S && (control || super)) {
+        OnSaveScene();
+        m_ShowSaveNotification = true;
+        m_SaveNotificationTime = (float)glfwGetTime();
       }
 
-      if (m_SceneState == SceneState::Edit) {
-        if (ek.GetKeyCode() == GLFW_KEY_S && (control || super)) {
-          OnSaveScene();
-          m_ShowSaveNotification = true;
-          m_SaveNotificationTime = (float)glfwGetTime();
-        }
-
-        // Undo/Redo
-        if (control || super) {
-          if (ek.GetKeyCode() == GLFW_KEY_Z) {
-            if (Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT) ||
-                Input::IsKeyPressed(GLFW_KEY_RIGHT_SHIFT))
-              m_UndoSystem.Redo();
-            else
-              m_UndoSystem.Undo();
-          }
-          if (ek.GetKeyCode() == GLFW_KEY_Y) {
+      // Undo/Redo
+      if (control || super) {
+        if (ek.GetKeyCode() == GLFW_KEY_Z) {
+          if (Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT) ||
+              Input::IsKeyPressed(GLFW_KEY_RIGHT_SHIFT))
             m_UndoSystem.Redo();
-          }
+          else
+            m_UndoSystem.Undo();
         }
-
-        // Gizmo shortcuts
-        if (!m_EditorCameraController->IsRotationEnabled()) {
-          if (ek.GetKeyCode() == GLFW_KEY_Q)
-            m_GizmoType = -1;
-          if (ek.GetKeyCode() == GLFW_KEY_W)
-            m_GizmoType = (int)ImGuizmo::OPERATION::TRANSLATE;
-          if (ek.GetKeyCode() == GLFW_KEY_E)
-            m_GizmoType = (int)ImGuizmo::OPERATION::ROTATE;
-          if (ek.GetKeyCode() == GLFW_KEY_R)
-            m_GizmoType = (int)ImGuizmo::OPERATION::SCALE;
-        }
-
-        if (ek.GetKeyCode() == GLFW_KEY_F) {
-          auto selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
-          if (selectedEntity) {
-            glm::vec3 pos = selectedEntity->Transform.Position;
-            glm::vec3 scale = selectedEntity->Transform.Scale;
-            float maxScale = std::max({scale.x, scale.y, scale.z});
-
-            // Move camera to look at object
-            glm::vec3 offset = {0.0f, maxScale * 2.0f, maxScale * 5.0f};
-            m_EditorCamera->SetPosition(pos + offset);
-
-            // We could also set rotation here, but let's keep it simple first
-          }
+        if (ek.GetKeyCode() == GLFW_KEY_Y) {
+          m_UndoSystem.Redo();
         }
       }
 
-      if (ek.GetKeyCode() == GLFW_KEY_ESCAPE) {
-        S67_CORE_INFO("[ESC] ESC key pressed, current state: {0}",
-                      m_SceneState == SceneState::Play ? "PLAY" : "EDIT/PAUSE");
-        if (m_SceneState == SceneState::Play)
-          OnScenePause();
-        else {
-          m_Window->SetCursorLocked(false);
-          m_CursorLocked = false;
+      // Gizmo shortcuts
+      if (!m_EditorCameraController->IsRotationEnabled()) {
+        if (ek.GetKeyCode() == GLFW_KEY_Q)
+          m_GizmoType = -1;
+        if (ek.GetKeyCode() == GLFW_KEY_W)
+          m_GizmoType = (int)ImGuizmo::OPERATION::TRANSLATE;
+        if (ek.GetKeyCode() == GLFW_KEY_E)
+          m_GizmoType = (int)ImGuizmo::OPERATION::ROTATE;
+        if (ek.GetKeyCode() == GLFW_KEY_R)
+          m_GizmoType = (int)ImGuizmo::OPERATION::SCALE;
+      }
+
+      if (ek.GetKeyCode() == GLFW_KEY_F) {
+        auto selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
+        if (selectedEntity) {
+          glm::vec3 pos = selectedEntity->Transform.Position;
+          glm::vec3 scale = selectedEntity->Transform.Scale;
+          float maxScale = std::max({scale.x, scale.y, scale.z});
+
+          // Move camera to look at object
+          glm::vec3 offset = {0.0f, maxScale * 2.0f, maxScale * 5.0f};
+          m_EditorCamera->SetPosition(pos + offset);
         }
       }
     }
   }
 
-  // ESC handler - runs in ALL modes, including Play
+  // Global ESC handler (fallback)
   if (e.GetEventType() == EventType::KeyPressed) {
     auto &ek = (KeyPressedEvent &)e;
     if (ek.GetKeyCode() == GLFW_KEY_ESCAPE) {
-      S67_CORE_INFO("[ESC] ESC key pressed (global handler), state: {0}",
-                    m_SceneState == SceneState::Play ? "PLAY" : "EDIT/PAUSE");
-      if (m_SceneState == SceneState::Play)
+      if (m_SceneState == SceneState::Play) {
         OnScenePause();
+      }
+      // In other modes we might just want to ensure cursor is unlocked if user
+      // jams ESC
+      else {
+        m_Window->SetCursorLocked(false);
+        m_CursorLocked = false;
+      }
     }
   }
 }
@@ -1076,19 +1110,27 @@ void Application::UpdateGameTick(float tick_dt) {
     return;
   }
 
-  // 1. Update player controller with fixed timestep
-  // The PlayerController handles input sampling, movement, and physics
-  m_PlayerController->OnUpdate(Timestep(tick_dt));
+  // 1. Update Scene (includes Scripts -> PlayerController::On
+  if (m_Scene)
+    m_Scene->OnUpdate(tick_dt);
 
   // 2. Update Jolt Physics with fixed timestep
   PhysicsSystem::OnUpdate(Timestep(tick_dt));
 
   // 3. Update game state from player controller for interpolation
-  m_CurrentState.player_position =
-      m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
-  m_CurrentState.player_velocity = m_PlayerController->GetVelocity();
-  m_CurrentState.yaw = m_PlayerController->GetYaw();
-  m_CurrentState.pitch = m_PlayerController->GetPitch();
+  if (m_Scene) {
+    Ref<Entity> playerEntity = m_Scene->FindEntityByName("Player");
+    if (playerEntity && playerEntity->NativeScript.Instance) {
+      if (auto *pc = dynamic_cast<PlayerController *>(
+              playerEntity->NativeScript.Instance)) {
+        m_CurrentState.player_position =
+            m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
+        m_CurrentState.player_velocity = pc->GetVelocity();
+        m_CurrentState.yaw = pc->GetYaw();
+        m_CurrentState.pitch = pc->GetPitch();
+      }
+    }
+  }
 
   // Note: Additional movement state (sprinting, crouching, etc.) could be
   // synchronized here if exposed by PlayerController in the future
@@ -1772,11 +1814,14 @@ void Application::RenderFrame(float alpha) {
     // Real-time Player Sync (during Play/Pause)
     if (entity->Name == "Player" && (m_SceneState == SceneState::Play ||
                                      m_SceneState == SceneState::Pause)) {
-      m_PlayerController->SetSettings(entity->Movement);
-      entity->Transform.Position =
-          m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
-      entity->Transform.Rotation.x = m_PlayerController->GetPitch();
-      entity->Transform.Rotation.y = m_PlayerController->GetYaw() + 90.0f;
+      if (auto *pc =
+              dynamic_cast<PlayerController *>(entity->NativeScript.Instance)) {
+        pc->SetSettings(entity->Movement);
+        entity->Transform.Position =
+            m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
+        entity->Transform.Rotation.x = pc->GetPitch();
+        entity->Transform.Rotation.y = pc->GetYaw() + 90.0f;
+      }
       // No break here, we need to render it too
     }
 
@@ -1866,12 +1911,17 @@ void Application::RenderFrame(float alpha) {
   HUDRenderer::BeginHUD(m_GameViewportSize.x, m_GameViewportSize.y);
   HUDRenderer::RenderCrosshair();
 
-  if (m_PlayerController) {
-    // 1 unit = 0.75 inches
-    // 1 meter = 52.4934 Hammer Units
-    constexpr float METERS_TO_HU = 52.4934f;
-    float speedHU = m_PlayerController->GetSpeed() * METERS_TO_HU;
-    HUDRenderer::RenderSpeed(speedHU);
+  if (m_Scene) {
+    if (auto entity = m_Scene->FindEntityByName("Player")) {
+      if (auto *pc =
+              dynamic_cast<PlayerController *>(entity->NativeScript.Instance)) {
+        // 1 unit = 0.75 inches
+        // 1 meter = 52.4934 Hammer Units
+        constexpr float METERS_TO_HU = 52.4934f;
+        float speedHU = pc->GetSpeed() * METERS_TO_HU;
+        HUDRenderer::RenderSpeed(speedHU);
+      }
+    }
   }
 
   HUDRenderer::EndHUD();
@@ -2304,9 +2354,17 @@ void Application::RenderFrame(float alpha) {
   if (m_ShowStats) {
     if (!m_ProjectRoot.empty()) {
       ImGui::Begin("Engine Statistics");
-      float speed = m_PlayerController ? m_PlayerController->GetSpeed() : 0.0f;
-      glm::vec3 vel = m_PlayerController ? m_PlayerController->GetVelocity()
-                                         : glm::vec3(0.0f);
+      float speed = 0.0f;
+      glm::vec3 vel(0.0f);
+      if (m_Scene) {
+        if (auto entity = m_Scene->FindEntityByName("Player")) {
+          if (auto *pc = dynamic_cast<PlayerController *>(
+                  entity->NativeScript.Instance)) {
+            speed = pc->GetSpeed();
+            vel = pc->GetVelocity();
+          }
+        }
+      }
 
       ImGui::Text("%.3f ms/frame (%.1f Game FPS | %.1f Engine FPS)",
                   1000.0f / m_GameFPS, m_GameFPS, ImGui::GetIO().Framerate);
@@ -2326,7 +2384,8 @@ void Application::RenderFrame(float alpha) {
     }
   }
 
-  UI_DeveloperConsole();
+  if (m_ConsolePanel)
+    m_ConsolePanel->OnImGuiRender(&m_ShowConsole);
 
   if (m_ProjectRoot.empty()) {
     UI_LauncherScreen();
