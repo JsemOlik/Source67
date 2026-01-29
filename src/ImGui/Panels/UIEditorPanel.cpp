@@ -7,7 +7,6 @@
 #include <imgui.h>
 #include <string>
 
-
 namespace S67 {
 
 UIEditorPanel::UIEditorPanel() {}
@@ -23,16 +22,21 @@ void UIEditorPanel::OnImGuiRender() {
     memset(pathBuf, 0, sizeof(pathBuf));
     std::strncpy(pathBuf, activeScene->GetUIPath().c_str(), sizeof(pathBuf));
 
-    ImGui::SetNextItemWidth(-100.0f);
-    if (ImGui::InputText("Linked UI", pathBuf, sizeof(pathBuf))) {
+    ImGui::AlignTextToFramePadding();
+    ImGui::Text("Linked UI");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(-60.0f);
+    if (ImGui::InputText("##SceneUIPath", pathBuf, sizeof(pathBuf))) {
       activeScene->SetUIPath(std::string(pathBuf));
       app.SetSceneModified(true);
     }
     ImGui::SameLine();
     if (ImGui::Button("Sync")) {
       std::string path = activeScene->GetUIPath();
-      if (!path.empty() && path != "None")
+      if (!path.empty() && path != "None") {
         UISystem::LoadLayout(app.ResolveAssetPath(path));
+        m_SelectedElementIndex = -1;
+      }
     }
     ImGui::Separator();
   }
@@ -40,6 +44,7 @@ void UIEditorPanel::OnImGuiRender() {
   // Toolbar
   if (ImGui::Button("New Layout")) {
     UISystem::NewLayout();
+    m_SelectedElementIndex = -1;
   }
   ImGui::SameLine();
   if (ImGui::Button("Save")) {
@@ -56,6 +61,7 @@ void UIEditorPanel::OnImGuiRender() {
     if (path.empty() || path == "None")
       path = "assets/ui/layout.sui";
     UISystem::LoadLayout(app.ResolveAssetPath(path));
+    m_SelectedElementIndex = -1;
   }
 
   ImGui::Separator();
@@ -117,7 +123,6 @@ void UIEditorPanel::DrawHierarchy() {
     ImGui::TreeNodeEx(label.c_str(), flags);
     if (ImGui::IsItemClicked()) {
       m_SelectedElementIndex = i;
-      m_SelectedElement = &layout.Elements[i];
     }
 
     // Context menu to delete
@@ -125,7 +130,6 @@ void UIEditorPanel::DrawHierarchy() {
       if (ImGui::MenuItem("Delete")) {
         UISystem::RemoveElement(i);
         m_SelectedElementIndex = -1;
-        m_SelectedElement = nullptr;
         ImGui::EndPopup();
         break; // Break loop since we modified container
       }
@@ -135,12 +139,14 @@ void UIEditorPanel::DrawHierarchy() {
 }
 
 void UIEditorPanel::DrawInspector() {
-  if (!m_SelectedElement) {
+  auto &layout = UISystem::GetActiveLayout();
+  if (m_SelectedElementIndex < 0 ||
+      m_SelectedElementIndex >= layout.Elements.size()) {
     ImGui::Text("Select an element to edit.");
     return;
   }
 
-  UIElement &el = *m_SelectedElement;
+  UIElement &el = layout.Elements[m_SelectedElementIndex];
 
   ImGui::Text("Properties");
   ImGui::Separator();
