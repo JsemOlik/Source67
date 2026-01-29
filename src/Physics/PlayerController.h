@@ -7,6 +7,7 @@
 #include "Renderer/Entity.h"
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Character/CharacterVirtual.h>
+#include <Jolt/Core/TempAllocator.h>
 #include <glm/glm.hpp>
 
 namespace S67 {
@@ -44,6 +45,9 @@ private:
   Ref<PerspectiveCamera> m_Camera;
   JPH::Ref<JPH::CharacterVirtual> m_Character;
   glm::vec3 m_Position = {0.0f, 2.0f, 0.0f};
+
+  // Temp allocator for character updates (avoids per-frame allocation)
+  JPH::TempAllocatorImpl m_TempAllocator{10 * 1024 * 1024};
 
   MovementSettings m_Settings;
 

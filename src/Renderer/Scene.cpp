@@ -1,5 +1,6 @@
 #include "Scene.h"
 #include "Core/Application.h"
+#include "Core/Logger.h"
 #include "Mesh.h"
 #include "Texture.h"
 #include <algorithm>
@@ -37,8 +38,12 @@ void Scene::EnsurePlayerExists() {
 
   // Enforce Texture (level_icon.png) only if missing
   if (!player->Material.AlbedoMap) {
-    player->Material.AlbedoMap =
-        Texture2D::Create("assets/textures/level_icon.png");
+    auto texture = Texture2D::Create("assets/textures/level_icon.png");
+    if (texture) {
+      player->Material.AlbedoMap = texture;
+    } else {
+      S67_CORE_WARN("Failed to load player texture: assets/textures/level_icon.png");
+    }
   }
 
   // Ensure Shader logic:
@@ -51,10 +56,14 @@ void Scene::EnsurePlayerExists() {
     // We'll rely on "assets/shaders/FlatColor.glsl".
     // Ideally we shouldn't hardcode, but for "Player" default it's safer.
     // Or better: Re-use shader if we can get it? No easy way.
-    player->MaterialShader =
-        Shader::Create(Application::Get()
-                           .ResolveAssetPath("assets/shaders/Texture.glsl")
-                           .string());
+    auto shader = Shader::Create(Application::Get()
+                       .ResolveAssetPath("assets/shaders/Texture.glsl")
+                       .string());
+    if (shader) {
+      player->MaterialShader = shader;
+    } else {
+      S67_CORE_WARN("Failed to load player shader: assets/shaders/Texture.glsl");
+    }
   }
 
   // Ensure Physics Body is Invalid (or set to Character?)

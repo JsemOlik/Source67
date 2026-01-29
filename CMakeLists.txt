@@ -59,7 +59,7 @@ set(SPDLOG_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
     jolt
     GIT_REPOSITORY https://github.com/jrouwe/JoltPhysics.git
-    GIT_TAG        master
+    GIT_TAG        v5.0.0
     SOURCE_SUBDIR  Build
 )
 
@@ -82,10 +82,19 @@ set(GENERATE_DEBUG_SYMBOLS OFF CACHE BOOL "" FORCE)
 set(UNITTESTS OFF CACHE BOOL "" FORCE)
 set(SAMPLES OFF CACHE BOOL "" FORCE)
 set(PERFORMANCE_TEST OFF CACHE BOOL "" FORCE)
+# Disable warnings-as-errors for Jolt to avoid Windows SDK header warnings
+set(CROSS_PLATFORM_DETERMINISTIC OFF CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(glfw glm spdlog jolt imgui json)
 
-# GLAD
+# Override /WX flag for Jolt target on MSVC to prevent Windows SDK warnings from failing the build
+# Using /WX- explicitly disables warnings-as-errors and overrides any /WX set by Jolt's CMake
+if(MSVC AND TARGET Jolt)
+    target_compile_options(Jolt PRIVATE /WX-)
+endif()
+
+# GLAD - Using latest commit from master branch
+# TODO: Pin to specific commit once a stable tag is available
 FetchContent_Declare(
     glad
     GIT_REPOSITORY https://github.com/phoenix-engine/glad-4.1-core.git
@@ -105,7 +114,7 @@ endif()
 # (Note: Touching this file triggers a re-scan of the src/ and vendor/ directories)
 # Added Skybox.cpp
 
-file(GLOB_RECURSE SOURCES 
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "src/**/*.cpp"
     "src/**/*.mm"
     "src/**/*.h"
@@ -126,6 +135,15 @@ list(APPEND SOURCES
     ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
 )
+
+# On non-Apple platforms, compile .mm files as regular C++
+if(NOT APPLE)
+    foreach(source ${SOURCES})
+        if(source MATCHES "\\.mm$")
+            set_source_files_properties(${source} PROPERTIES LANGUAGE CXX)
+        endif()
+    endforeach()
+endif()
 
 add_executable(Source67 WIN32 ${SOURCES})
 
@@ -150,6 +168,21 @@ target_link_libraries(Source67 PUBLIC
     nlohmann_json::nlohmann_json
 )
 
+# Compiler warnings
+if(MSVC)
+    target_compile_options(Source67 PRIVATE /W4)
+else()
+    target_compile_options(Source67 PRIVATE -Wall -Wextra -Wpedantic -Wno-changes-meaning)
+endif()
+
+# Sanitizers for debug builds
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+    if(NOT MSVC)
+        target_compile_options(Source67 PRIVATE -fsanitize=address,undefined)
+        target_link_options(Source67 PRIVATE -fsanitize=address,undefined)
+    endif()
+endif()
+
 if(MSVC)
     target_compile_definitions(Source67 PUBLIC 
         _CRT_SECURE_NO_WARNINGS
@@ -159,6 +192,9 @@ endif()
 
 if(APPLE)
     target_link_libraries(Source67 PUBLIC "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
+elseif(UNIX)
+    find_package(OpenGL REQUIRED)
+    target_link_libraries(Source67 PUBLIC OpenGL::GL)
 endif()
 
 # Copy assets to build directory

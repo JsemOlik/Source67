@@ -14,7 +14,37 @@ namespace S67 {
         }
 
         virtual ~OpenGLVertexBuffer() {
-            glDeleteBuffers(1, &m_RendererID);
+            if (m_RendererID != 0) {
+                glDeleteBuffers(1, &m_RendererID);
+            }
+        }
+
+        // Delete copy operations
+        OpenGLVertexBuffer(const OpenGLVertexBuffer&) = delete;
+        OpenGLVertexBuffer& operator=(const OpenGLVertexBuffer&) = delete;
+
+        // Implement move operations
+        OpenGLVertexBuffer(OpenGLVertexBuffer&& other) noexcept
+            : m_RendererID(other.m_RendererID),
+              m_Layout(std::move(other.m_Layout)) {
+            other.m_RendererID = 0;
+        }
+
+        OpenGLVertexBuffer& operator=(OpenGLVertexBuffer&& other) noexcept {
+            if (this != &other) {
+                // Clean up existing resource
+                if (m_RendererID != 0) {
+                    glDeleteBuffers(1, &m_RendererID);
+                }
+                
+                // Move data
+                m_RendererID = other.m_RendererID;
+                m_Layout = std::move(other.m_Layout);
+                
+                // Nullify moved-from object
+                other.m_RendererID = 0;
+            }
+            return *this;
         }
 
         virtual void Bind() const override {
@@ -29,7 +59,7 @@ namespace S67 {
         virtual const BufferLayout& GetLayout() const override { return m_Layout; }
 
     private:
-        uint32_t m_RendererID;
+        uint32_t m_RendererID = 0;
         BufferLayout m_Layout;
     };
 
@@ -49,7 +79,39 @@ namespace S67 {
         }
 
         virtual ~OpenGLIndexBuffer() {
-            glDeleteBuffers(1, &m_RendererID);
+            if (m_RendererID != 0) {
+                glDeleteBuffers(1, &m_RendererID);
+            }
+        }
+
+        // Delete copy operations
+        OpenGLIndexBuffer(const OpenGLIndexBuffer&) = delete;
+        OpenGLIndexBuffer& operator=(const OpenGLIndexBuffer&) = delete;
+
+        // Implement move operations
+        OpenGLIndexBuffer(OpenGLIndexBuffer&& other) noexcept
+            : m_RendererID(other.m_RendererID),
+              m_Count(other.m_Count) {
+            other.m_RendererID = 0;
+            other.m_Count = 0;
+        }
+
+        OpenGLIndexBuffer& operator=(OpenGLIndexBuffer&& other) noexcept {
+            if (this != &other) {
+                // Clean up existing resource
+                if (m_RendererID != 0) {
+                    glDeleteBuffers(1, &m_RendererID);
+                }
+                
+                // Move data
+                m_RendererID = other.m_RendererID;
+                m_Count = other.m_Count;
+                
+                // Nullify moved-from object
+                other.m_RendererID = 0;
+                other.m_Count = 0;
+            }
+            return *this;
         }
 
         virtual void Bind() const override {
@@ -63,8 +125,8 @@ namespace S67 {
         virtual uint32_t GetCount() const override { return m_Count; }
 
     private:
-        uint32_t m_RendererID;
-        uint32_t m_Count;
+        uint32_t m_RendererID = 0;
+        uint32_t m_Count = 0;
     };
 
     Ref<IndexBuffer> IndexBuffer::Create(uint32_t* indices, uint32_t count) {

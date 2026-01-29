@@ -29,7 +29,39 @@ namespace S67 {
         }
 
         virtual ~OpenGLVertexArray() {
-            glDeleteVertexArrays(1, &m_RendererID);
+            if (m_RendererID != 0) {
+                glDeleteVertexArrays(1, &m_RendererID);
+            }
+        }
+
+        // Delete copy operations
+        OpenGLVertexArray(const OpenGLVertexArray&) = delete;
+        OpenGLVertexArray& operator=(const OpenGLVertexArray&) = delete;
+
+        // Implement move operations
+        OpenGLVertexArray(OpenGLVertexArray&& other) noexcept
+            : m_RendererID(other.m_RendererID),
+              m_VertexBuffers(std::move(other.m_VertexBuffers)),
+              m_IndexBuffer(std::move(other.m_IndexBuffer)) {
+            other.m_RendererID = 0;
+        }
+
+        OpenGLVertexArray& operator=(OpenGLVertexArray&& other) noexcept {
+            if (this != &other) {
+                // Clean up existing resource
+                if (m_RendererID != 0) {
+                    glDeleteVertexArrays(1, &m_RendererID);
+                }
+                
+                // Move data
+                m_RendererID = other.m_RendererID;
+                m_VertexBuffers = std::move(other.m_VertexBuffers);
+                m_IndexBuffer = std::move(other.m_IndexBuffer);
+                
+                // Nullify moved-from object
+                other.m_RendererID = 0;
+            }
+            return *this;
         }
 
         virtual void Bind() const override {
@@ -73,7 +105,7 @@ namespace S67 {
         virtual const Ref<IndexBuffer>& GetIndexBuffer() const override { return m_IndexBuffer; }
 
     private:
-        uint32_t m_RendererID;
+        uint32_t m_RendererID = 0;
         std::vector<Ref<VertexBuffer>> m_VertexBuffers;
         Ref<IndexBuffer> m_IndexBuffer;
     };

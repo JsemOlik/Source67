@@ -1,5 +1,6 @@
 #include "Core/Application.h"
 #include "Core/Logger.h"
+#include <memory>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -28,9 +29,9 @@ int main(int argc, char **argv) {
     S67_CORE_INFO("argv[{0}] = {1}", i, argv[i]);
   }
 
-  auto app = new S67::Application(argv[0], argc > 1 ? argv[1] : "");
+  auto app = std::make_unique<S67::Application>(argv[0], argc > 1 ? argv[1] : "");
   app->Run();
-  delete app;
+  // No delete needed - automatic cleanup
 
   return 0;
 }

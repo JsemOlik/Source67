@@ -188,7 +188,12 @@ bool SceneSerializer::Deserialize(const std::string &filepath) {
               (path.find("Lighting.glsl") != std::string::npos)) {
             currentEntity->MaterialShader = defaultShader;
           } else {
-            currentEntity->MaterialShader = Shader::Create(resolvedPath);
+            auto shader = Shader::Create(resolvedPath);
+            if (shader) {
+              currentEntity->MaterialShader = shader;
+            } else {
+              S67_CORE_WARN("Failed to load shader: {0}", resolvedPath);
+            }
           }
         }
       } else if (line.find("TexturePath:") != std::string::npos) {
@@ -203,7 +208,12 @@ bool SceneSerializer::Deserialize(const std::string &filepath) {
               (path.find("Checkerboard.png") != std::string::npos)) {
             currentEntity->Material.AlbedoMap = defaultTex;
           } else {
-            currentEntity->Material.AlbedoMap = Texture2D::Create(resolvedPath);
+            auto texture = Texture2D::Create(resolvedPath);
+            if (texture) {
+              currentEntity->Material.AlbedoMap = texture;
+            } else {
+              S67_CORE_WARN("Failed to load texture: {0}", resolvedPath);
+            }
           }
         }
       } else if (line.find("TextureTiling:") != std::string::npos) {

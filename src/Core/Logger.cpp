@@ -15,6 +15,7 @@ namespace S67 {
 std::shared_ptr<spdlog::logger> Logger::s_CoreLogger;
 std::shared_ptr<spdlog::logger> Logger::s_ClientLogger;
 std::vector<LogEntry> Logger::s_LogHistory;
+std::mutex Logger::s_LogMutex;
 
 template <typename Mutex>
 class ImGuiSink : public spdlog::sinks::base_sink<Mutex> {

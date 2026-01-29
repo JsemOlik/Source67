@@ -8,6 +8,13 @@
 
 namespace S67 {
 
+    // Fixed timestep accumulator
+    namespace {
+        static float s_PhysicsAccumulator = 0.0f;
+        static constexpr float FIXED_PHYSICS_DT = 1.0f / 60.0f;
+        static constexpr int MAX_PHYSICS_STEPS = 5;
+    }
+
     // --- Jolt Boilerplate ---
 
     namespace BroadPhaseLayers {
@@ -97,8 +104,19 @@ namespace S67 {
     }
 
     void PhysicsSystem::OnUpdate(Timestep ts) {
-        const float physicsDeltaTime = 1.0f / 60.0f;
-        s_PhysicsSystem->Update(physicsDeltaTime, 1, s_TempAllocator, s_JobSystem);
+        s_PhysicsAccumulator += ts.GetSeconds();
+        
+        int steps = 0;
+        while (s_PhysicsAccumulator >= FIXED_PHYSICS_DT && steps < MAX_PHYSICS_STEPS) {
+            s_PhysicsSystem->Update(FIXED_PHYSICS_DT, 1, s_TempAllocator, s_JobSystem);
+            s_PhysicsAccumulator -= FIXED_PHYSICS_DT;
+            steps++;
+        }
+        
+        // Prevent spiral of death
+        if (s_PhysicsAccumulator > FIXED_PHYSICS_DT * MAX_PHYSICS_STEPS) {
+            s_PhysicsAccumulator = FIXED_PHYSICS_DT;
+        }
     }
 
     JPH::BodyID PhysicsSystem::Raycast(const glm::vec3& origin, const glm::vec3& direction, float distance) {

@@ -17,6 +17,7 @@
 namespace S67 {
 
 static bool s_GLFWInitialized = false;
+static int s_WindowCount = 0;
 
 static void GLFWErrorCallback(int error, const char *description) {
   S67_CORE_ERROR("GLFW Error ({0}): {1}", error, description);
@@ -56,7 +57,24 @@ void Window::Init(const WindowProps &props) {
 
   m_Window = glfwCreateWindow((int)props.Width, (int)props.Height,
                               m_Data.Title.c_str(), nullptr, nullptr);
+  if (!m_Window) {
+    S67_CORE_ERROR("Failed to create GLFW window!");
+    glfwTerminate();
+    s_GLFWInitialized = false;
+    return;
+  }
+
   glfwMakeContextCurrent(m_Window);
+  if (!glfwGetCurrentContext()) {
+    S67_CORE_ERROR("Failed to make OpenGL context current!");
+    glfwDestroyWindow(m_Window);
+    m_Window = nullptr;
+    glfwTerminate();
+    s_GLFWInitialized = false;
+    return;
+  }
+  
+  s_WindowCount++;
   glfwSetWindowUserPointer(m_Window, &m_Data);
 
   int status = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
@@ -65,43 +83,46 @@ void Window::Init(const WindowProps &props) {
   // Set GLFW callbacks
   glfwSetWindowSizeCallback(
       m_Window, [](GLFWwindow *window, int width, int height) {
-        WindowData &data = *(WindowData *)glfwGetWindowUserPointer(window);
-        data.Width = width;
-        data.Height = height;
+        WindowData *data = (WindowData *)glfwGetWindowUserPointer(window);
+        if (!data) return;
+        data->Width = width;
+        data->Height = height;
 
-        if (data.EventCallback) {
+        if (data->EventCallback) {
           WindowResizeEvent event(width, height);
-          data.EventCallback(event);
+          data->EventCallback(event);
         }
       });
 
   glfwSetWindowCloseCallback(m_Window, [](GLFWwindow *window) {
-    WindowData &data = *(WindowData *)glfwGetWindowUserPointer(window);
-    if (data.EventCallback) {
+    WindowData *data = (WindowData *)glfwGetWindowUserPointer(window);
+    if (!data) return;
+    if (data->EventCallback) {
       WindowCloseEvent event;
-      data.EventCallback(event);
+      data->EventCallback(event);
     }
   });
 
   glfwSetKeyCallback(m_Window, [](GLFWwindow *window, int key, int scancode,
                                   int action, int mods) {
-    WindowData &data = *(WindowData *)glfwGetWindowUserPointer(window);
+    WindowData *data = (WindowData *)glfwGetWindowUserPointer(window);
+    if (!data) return;
 
-    if (data.EventCallback) {
+    if (data->EventCallback) {
       switch (action) {
       case GLFW_PRESS: {
         KeyPressedEvent event(key, 0);
-        data.EventCallback(event);
+        data->EventCallback(event);
         break;
       }
       case GLFW_RELEASE: {
         KeyReleasedEvent event(key);
-        data.EventCallback(event);
+        data->EventCallback(event);
         break;
       }
       case GLFW_REPEAT: {
         KeyPressedEvent event(key, 1);
-        data.EventCallback(event);
+        data->EventCallback(event);
         break;
       }
       }
@@ -110,18 +131,19 @@ void Window::Init(const WindowProps &props) {
 
   glfwSetMouseButtonCallback(
       m_Window, [](GLFWwindow *window, int button, int action, int mods) {
-        WindowData &data = *(WindowData *)glfwGetWindowUserPointer(window);
+        WindowData *data = (WindowData *)glfwGetWindowUserPointer(window);
+        if (!data) return;
 
-        if (data.EventCallback) {
+        if (data->EventCallback) {
           switch (action) {
           case GLFW_PRESS: {
             MouseButtonPressedEvent event(button);
-            data.EventCallback(event);
+            data->EventCallback(event);
             break;
           }
           case GLFW_RELEASE: {
             MouseButtonReleasedEvent event(button);
-            data.EventCallback(event);
+            data->EventCallback(event);
             break;
           }
           }
@@ -130,36 +152,38 @@ void Window::Init(const WindowProps &props) {
 
   glfwSetScrollCallback(
       m_Window, [](GLFWwindow *window, double xOffset, double yOffset) {
-        WindowData &data = *(WindowData *)glfwGetWindowUserPointer(window);
+        WindowData *data = (WindowData *)glfwGetWindowUserPointer(window);
+        if (!data) return;
 
-        if (data.EventCallback) {
+        if (data->EventCallback) {
           MouseScrolledEvent event((float)xOffset, (float)yOffset);
-          data.EventCallback(event);
+          data->EventCallback(event);
         }
       });
 
   glfwSetCursorPosCallback(
       m_Window, [](GLFWwindow *window, double xPos, double yPos) {
-        WindowData &data = *(WindowData *)glfwGetWindowUserPointer(window);
-
-        if (data.EventCallback) {
+        WindowData *data = (WindowData *)glfwGetWindowUserPointer(window);
+        if (!data) return;
+        if (data->EventCallback) {
           MouseMovedEvent event((float)xPos, (float)yPos);
-          data.EventCallback(event);
+          data->EventCallback(event);
         }
       });
 
   glfwSetDropCallback(
       m_Window, [](GLFWwindow *window, int count, const char **paths) {
-        WindowData &data = *(WindowData *)glfwGetWindowUserPointer(window);
+        WindowData *data = (WindowData *)glfwGetWindowUserPointer(window);
+        if (!data) return;
 
         std::vector<std::string> pathList;
         for (int i = 0; i < count; i++) {
           pathList.push_back(paths[i]);
         }
 
-        if (data.EventCallback) {
+        if (data->EventCallback) {
           WindowDropEvent event(pathList);
-          data.EventCallback(event);
+          data->EventCallback(event);
         }
       });
 
@@ -215,7 +239,18 @@ void Window::SetIcon(const std::string &path) {
   }
 }
 
-void Window::Shutdown() { glfwDestroyWindow(m_Window); }
+void Window::Shutdown() { 
+  if (m_Window) {
+    glfwDestroyWindow(m_Window);
+    m_Window = nullptr;
+  }
+  
+  s_WindowCount--;
+  if (s_WindowCount == 0 && s_GLFWInitialized) {
+    glfwTerminate();
+    s_GLFWInitialized = false;
+  }
+}
 
 void Window::OnUpdate() {
   glfwPollEvents();

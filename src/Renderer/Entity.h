@@ -60,7 +60,7 @@ public:
   Ref<Shader> MaterialShader;
   Material Material;
 
-  JPH::BodyID PhysicsBody;
+  JPH::BodyID PhysicsBody = JPH::BodyID();
   std::string Name = "Entity";
   std::string MeshPath = "Cube";
   bool Collidable = true;

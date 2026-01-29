@@ -45,7 +45,38 @@ Shader::Shader(const std::string &name, const std::string &vertexSrc,
   Compile(sources);
 }
 
-Shader::~Shader() { glDeleteProgram(m_RendererID); }
+Shader::~Shader() { 
+  if (m_RendererID != 0) {
+    glDeleteProgram(m_RendererID); 
+  }
+}
+
+// Move constructor
+Shader::Shader(Shader&& other) noexcept
+    : m_RendererID(other.m_RendererID),
+      m_Name(std::move(other.m_Name)),
+      m_FilePath(std::move(other.m_FilePath)) {
+  other.m_RendererID = 0;
+}
+
+// Move assignment
+Shader& Shader::operator=(Shader&& other) noexcept {
+  if (this != &other) {
+    // Clean up existing resource
+    if (m_RendererID != 0) {
+      glDeleteProgram(m_RendererID);
+    }
+    
+    // Move data
+    m_RendererID = other.m_RendererID;
+    m_Name = std::move(other.m_Name);
+    m_FilePath = std::move(other.m_FilePath);
+    
+    // Nullify moved-from object
+    other.m_RendererID = 0;
+  }
+  return *this;
+}
 
 std::string Shader::ReadFile(const std::string &filepath) {
   std::string result;
@@ -151,9 +182,15 @@ void Shader::Compile(
 
       glDeleteShader(shader);
 
+      // Clean up program and all previously compiled shaders
+      glDeleteProgram(program);
+      for (auto id : shaderIDs) {
+        glDeleteShader(id);
+      }
+
       S67_CORE_ERROR("{0}", infoLog.data());
       S67_CORE_ASSERT(false, "Shader compilation failure!");
-      break;
+      return;  // Use return instead of break
     }
 
     glAttachShader(program, shader);

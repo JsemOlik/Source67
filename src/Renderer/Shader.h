@@ -15,6 +15,14 @@ public:
          const std::string &fragmentSrc);
   ~Shader();
 
+  // Delete copy operations
+  Shader(const Shader&) = delete;
+  Shader& operator=(const Shader&) = delete;
+
+  // Implement move operations
+  Shader(Shader&& other) noexcept;
+  Shader& operator=(Shader&& other) noexcept;
+
   void Bind() const;
   void Unbind() const;
 

@@ -14,9 +14,57 @@ namespace S67 {
         }
 
         virtual ~OpenGLFramebuffer() {
-            glDeleteFramebuffers(1, &m_RendererID);
-            glDeleteTextures(1, &m_ColorAttachment);
-            glDeleteTextures(1, &m_DepthAttachment);
+            if (m_RendererID != 0) {
+                glDeleteFramebuffers(1, &m_RendererID);
+            }
+            if (m_ColorAttachment != 0) {
+                glDeleteTextures(1, &m_ColorAttachment);
+            }
+            if (m_DepthAttachment != 0) {
+                glDeleteTextures(1, &m_DepthAttachment);
+            }
+        }
+
+        // Delete copy operations
+        OpenGLFramebuffer(const OpenGLFramebuffer&) = delete;
+        OpenGLFramebuffer& operator=(const OpenGLFramebuffer&) = delete;
+
+        // Implement move operations
+        OpenGLFramebuffer(OpenGLFramebuffer&& other) noexcept
+            : m_RendererID(other.m_RendererID),
+              m_ColorAttachment(other.m_ColorAttachment),
+              m_DepthAttachment(other.m_DepthAttachment),
+              m_Specification(other.m_Specification) {
+            other.m_RendererID = 0;
+            other.m_ColorAttachment = 0;
+            other.m_DepthAttachment = 0;
+        }
+
+        OpenGLFramebuffer& operator=(OpenGLFramebuffer&& other) noexcept {
+            if (this != &other) {
+                // Clean up existing resources
+                if (m_RendererID != 0) {
+                    glDeleteFramebuffers(1, &m_RendererID);
+                }
+                if (m_ColorAttachment != 0) {
+                    glDeleteTextures(1, &m_ColorAttachment);
+                }
+                if (m_DepthAttachment != 0) {
+                    glDeleteTextures(1, &m_DepthAttachment);
+                }
+                
+                // Move data
+                m_RendererID = other.m_RendererID;
+                m_ColorAttachment = other.m_ColorAttachment;
+                m_DepthAttachment = other.m_DepthAttachment;
+                m_Specification = other.m_Specification;
+                
+                // Nullify moved-from object
+                other.m_RendererID = 0;
+                other.m_ColorAttachment = 0;
+                other.m_DepthAttachment = 0;
+            }
+            return *this;
         }
 
         void Invalidate() {
