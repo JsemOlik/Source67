@@ -4,6 +4,7 @@
 #include "Events/WindowEvent.h"
 #include "ImGui/ImGuiLayer.h"
 #include "ImGui/Panels/SceneHierarchyPanel.h"
+#include "ImGui/Panels/UIEditorPanel.h"
 #include "Physics/PhysicsSystem.h"
 // #include "Physics/PlayerController.h" // Removed to break potential cycle
 #include "Renderer/Camera.h"
@@ -137,6 +138,7 @@ private:
   Scope<ImGuiLayer> m_ImGuiLayer;
   Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
   Scope<ContentBrowserPanel> m_ContentBrowserPanel;
+  Scope<UIEditorPanel> m_UIEditorPanel; // UI Designer
   Scope<ConsolePanel> m_ConsolePanel;
   Scope<Skybox> m_Skybox;
 

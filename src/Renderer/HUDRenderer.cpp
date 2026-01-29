@@ -343,4 +343,9 @@ void HUDRenderer::RenderQuad(const glm::vec2 &position, const glm::vec2 &size,
                  GL_UNSIGNED_INT, nullptr);
 }
 
+void HUDRenderer::RenderRect(const glm::vec2 &position, const glm::vec2 &size,
+                             const glm::vec4 &color) {
+  RenderQuad(position, size, color);
+}
+
 } // namespace S67

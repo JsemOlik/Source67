@@ -7,7 +7,6 @@
 #include <glm/glm.hpp>
 #include <string>
 
-
 namespace S67 {
 
 class HUDRenderer {
@@ -24,6 +23,9 @@ public:
 
   static void DrawString(const std::string &text, const glm::vec2 &position,
                          float scale, const glm::vec4 &color);
+
+  static void RenderRect(const glm::vec2 &position, const glm::vec2 &size,
+                         const glm::vec4 &color);
 
 private:
   static void RenderQuad(const glm::vec2 &position, const glm::vec2 &size,
