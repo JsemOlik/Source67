@@ -23,6 +23,7 @@
 namespace S67 {
 
 class ContentBrowserPanel;
+class ConsolePanel;
 
 enum class SceneState { Edit = 0, Play = 1, Pause = 2 };
 
@@ -59,8 +60,6 @@ public:
   void CloseProject();
 
   void OnEntityCollidableChanged(Ref<Entity> entity);
-
-  void UI_DeveloperConsole();
 
   void OnNewProject();
   void OnOpenProject();
@@ -136,6 +135,7 @@ private:
   Scope<ImGuiLayer> m_ImGuiLayer;
   Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
   Scope<ContentBrowserPanel> m_ContentBrowserPanel;
+  Scope<ConsolePanel> m_ConsolePanel;
   Scope<Skybox> m_Skybox;
 
   std::filesystem::path m_ProjectRoot;

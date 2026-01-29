@@ -16,6 +16,7 @@
 
 #include "Core/Input.h"
 #include "Core/PlatformUtils.h"
+#include "Game/Console/ConsolePanel.h"
 #include "ImGui/Panels/ContentBrowserPanel.h"
 #include "ImGuizmo/ImGuizmo.h"
 #include "Physics/PhysicsShapes.h"
@@ -130,6 +131,7 @@ Application::Application(const std::string &executablePath,
 
   m_SceneHierarchyPanel = CreateScope<SceneHierarchyPanel>(m_Scene);
   m_ContentBrowserPanel = CreateScope<ContentBrowserPanel>();
+  m_ConsolePanel = CreateScope<ConsolePanel>();
   m_Skybox = CreateScope<Skybox>(
       ResolveAssetPath("assets/textures/sky-3.png").string());
   LoadSettings();
@@ -626,53 +628,6 @@ void Application::CloseProject() {
   m_ProjectVersion = "N/A";
   m_ContentBrowserPanel->SetRoot("");
   S67_CORE_INFO("Closed project");
-}
-
-void Application::UI_DeveloperConsole() {
-  if (!m_ShowConsole)
-    return;
-
-  ImGui::SetNextWindowSizeConstraints(ImVec2(400, 200),
-                                      ImVec2(FLT_MAX, FLT_MAX));
-  ImGui::SetNextWindowSize({800, 450}, ImGuiCond_FirstUseEver);
-  if (ImGui::Begin("Developer Console (`)", &m_ShowConsole)) {
-    if (ImGui::Button("Clear")) {
-      Logger::ClearLogHistory();
-    }
-    ImGui::SameLine();
-    static bool scrollToBottom = true;
-    ImGui::Checkbox("Auto-scroll", &scrollToBottom);
-    ImGui::SameLine();
-    ImGui::TextDisabled("| %zu messages", Logger::GetLogHistory().size());
-
-    ImGui::Separator();
-
-    ImGui::BeginChild("ScrollingRegion", {0, 0}, false,
-                      ImGuiWindowFlags_HorizontalScrollbar);
-
-    const auto &logs = Logger::GetLogHistory();
-    for (const auto &log : logs) {
-      ImVec4 color = {0.8f, 0.8f, 0.8f, 1.0f};
-      if (log.Level == spdlog::level::warn)
-        color = {1.0f, 1.0f, 0.0f, 1.0f};
-      else if (log.Level == spdlog::level::err)
-        color = {1.0f, 0.3f, 0.3f, 1.0f};
-      else if (log.Level == spdlog::level::critical)
-        color = {1.0f, 0.0f, 1.0f, 1.0f};
-      else if (log.Level == spdlog::level::info)
-        color = {0.5f, 1.0f, 0.5f, 1.0f};
-
-      ImGui::PushStyleColor(ImGuiCol_Text, color);
-      ImGui::Text("[%s] %s", log.Timestamp.c_str(), log.Message.c_str());
-      ImGui::PopStyleColor();
-    }
-
-    if (scrollToBottom && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
-      ImGui::SetScrollHereY(1.0f);
-
-    ImGui::EndChild();
-  }
-  ImGui::End();
 }
 
 void Application::OnSaveScene() {
@@ -2326,7 +2281,8 @@ void Application::RenderFrame(float alpha) {
     }
   }
 
-  UI_DeveloperConsole();
+  if (m_ConsolePanel)
+    m_ConsolePanel->OnImGuiRender(&m_ShowConsole);
 
   if (m_ProjectRoot.empty()) {
     UI_LauncherScreen();

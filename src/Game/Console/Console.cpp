@@ -1,0 +1,137 @@
+#include "Console.h"
+#include "ConVar.h"
+#include "Core/Logger.h"
+#include <algorithm>
+#include <iostream>
+#include <sstream>
+
+
+namespace S67 {
+
+Console &Console::Get() {
+  static Console instance;
+  return instance;
+}
+
+void Console::RegisterConVar(ConVar *cvar) {
+  if (!cvar)
+    return;
+  m_ConVars[cvar->GetName()] = cvar;
+}
+
+void Console::UnregisterConVar(ConVar *cvar) {
+  if (!cvar)
+    return;
+  if (m_ConVars.find(cvar->GetName()) != m_ConVars.end()) {
+    m_ConVars.erase(cvar->GetName());
+  }
+}
+
+ConVar *Console::FindConVar(const std::string &name) {
+  std::string lowerName = name;
+  // Case insensitive search? Source is usually case insensitive but let's stick
+  // to strict or simple lower for now. Actually sv_cheats vs Sv_Cheats ->
+  // usually standard is lowercase.
+  auto it = m_ConVars.find(name);
+  if (it != m_ConVars.end())
+    return it->second;
+  return nullptr;
+}
+
+void Console::RegisterCommand(ConCommand *cmd) {
+  if (!cmd)
+    return;
+  m_Commands[cmd->GetName()] = cmd;
+}
+
+void Console::UnregisterCommand(ConCommand *cmd) {
+  if (!cmd)
+    return;
+  if (m_Commands.find(cmd->GetName()) != m_Commands.end()) {
+    m_Commands.erase(cmd->GetName());
+  }
+}
+
+ConCommand *Console::FindCommand(const std::string &name) {
+  auto it = m_Commands.find(name);
+  if (it != m_Commands.end())
+    return it->second;
+  return nullptr;
+}
+
+void Console::ExecuteCommand(const std::string &commandLine) {
+  if (commandLine.empty())
+    return;
+
+  AddLog("] " + commandLine);
+
+  // Tokenize
+  std::vector<std::string> args;
+  std::string currentToken;
+  bool inQuotes = false;
+
+  for (char c : commandLine) {
+    if (c == '"') {
+      inQuotes = !inQuotes;
+    } else if (c == ' ' && !inQuotes) {
+      if (!currentToken.empty()) {
+        args.push_back(currentToken);
+        currentToken.clear();
+      }
+    } else {
+      currentToken += c;
+    }
+  }
+  if (!currentToken.empty())
+    args.push_back(currentToken);
+
+  if (args.empty())
+    return;
+
+  std::string commandName = args[0];
+
+  // 1. Check commands
+  ConCommand *cmd = FindCommand(commandName);
+  if (cmd) {
+    ConCommandArgs cArgs;
+    cArgs.Args = args;
+    cmd->Execute(cArgs);
+    return;
+  }
+
+  // 2. Check ConVars
+  ConVar *cvar = FindConVar(commandName);
+  if (cvar) {
+    if (args.size() > 1) {
+      // Set value
+      // Concatenate remaining args if needed, or just take the first one?
+      // Source convention: sv_gravity 800 -> sets to 800
+      // name "My Name" -> sets to "My Name"
+
+      // If the second arg was quoted, strings are handled by tokenization loop
+      // above already.
+      cvar->SetValue(args[1]);
+    } else {
+      // Print value
+      if (cvar->GetFlags() & FCVAR_PROTECTED) {
+        S67_CORE_INFO("\"{0}\" = \"***PROTECTED***\"", cvar->GetName());
+      } else {
+        S67_CORE_INFO("\"{0}\" = \"{1}\"", cvar->GetName(), cvar->GetString());
+        S67_CORE_INFO(" - {0}", cvar->GetHelpString());
+      }
+    }
+    return;
+  }
+
+  S67_CORE_WARN("Unknown command: {0}", commandName);
+}
+
+void Console::AddLog(const std::string &message) {
+  m_LogHistory.push_back(message);
+  // Cap history?
+  if (m_LogHistory.size() > 1000) {
+    m_LogHistory.erase(m_LogHistory.begin());
+  }
+}
+
+} // namespace S67
