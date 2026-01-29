@@ -85,20 +85,7 @@ set(PERFORMANCE_TEST OFF CACHE BOOL "" FORCE)
 # Disable warnings-as-errors for Jolt to avoid Windows SDK header warnings
 set(CROSS_PLATFORM_DETERMINISTIC OFF CACHE BOOL "" FORCE)
 
-# Assimp
-FetchContent_Declare(
-    assimp
-    GIT_REPOSITORY https://github.com/assimp/assimp.git
-    GIT_TAG        v5.3.1
-)
-set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT OFF CACHE BOOL "" FORCE)
-set(ASSIMP_NO_EXPORT ON CACHE BOOL "" FORCE)
-
-FetchContent_MakeAvailable(glfw glm spdlog jolt imgui json assimp)
+FetchContent_MakeAvailable(glfw glm spdlog jolt imgui json)
 
 # Override /WX flag for Jolt target on MSVC to prevent Windows SDK warnings from failing the build
 # Using /WX- explicitly disables warnings-as-errors and overrides any /WX set by Jolt's CMake
@@ -179,7 +166,6 @@ target_link_libraries(Source67 PUBLIC
     glad
     Jolt
     nlohmann_json::nlohmann_json
-    assimp::assimp
 )
 
 # Compiler warnings

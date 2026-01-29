@@ -173,8 +173,6 @@ bool SceneSerializer::Deserialize(const std::string &filepath) {
             currentEntity->Mesh = MeshLoader::LoadOBJ(resolvedPath);
           else if (std::filesystem::path(resolvedPath).extension() == ".stl")
             currentEntity->Mesh = MeshLoader::LoadSTL(resolvedPath);
-          else if (std::filesystem::path(resolvedPath).extension() == ".fbx")
-            currentEntity->Mesh = MeshLoader::LoadModel(resolvedPath);
         } else {
           currentEntity->MeshPath = path;
         }
