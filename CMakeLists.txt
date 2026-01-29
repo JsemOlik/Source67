@@ -187,6 +187,8 @@ if(MSVC)
     target_compile_definitions(Source67 PUBLIC 
         _CRT_SECURE_NO_WARNINGS
         _SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS
+        WIN32_LEAN_AND_MEAN
+        NOMINMAX
     )
 endif()
 
