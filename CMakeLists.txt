@@ -82,8 +82,19 @@ set(GENERATE_DEBUG_SYMBOLS OFF CACHE BOOL "" FORCE)
 set(UNITTESTS OFF CACHE BOOL "" FORCE)
 set(SAMPLES OFF CACHE BOOL "" FORCE)
 set(PERFORMANCE_TEST OFF CACHE BOOL "" FORCE)
+# Disable warnings-as-errors for Jolt to avoid Windows SDK header warnings
+set(CROSS_PLATFORM_DETERMINISTIC OFF CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(glfw glm spdlog jolt imgui json)
+
+# Remove /WX flag from Jolt target on MSVC to prevent Windows SDK warnings from failing the build
+if(MSVC AND TARGET Jolt)
+    get_target_property(JOLT_COMPILE_OPTIONS Jolt COMPILE_OPTIONS)
+    if(JOLT_COMPILE_OPTIONS)
+        list(REMOVE_ITEM JOLT_COMPILE_OPTIONS /WX)
+        set_target_properties(Jolt PROPERTIES COMPILE_OPTIONS "${JOLT_COMPILE_OPTIONS}")
+    endif()
+endif()
 
 # GLAD - Using latest commit from master branch
 # TODO: Pin to specific commit once a stable tag is available
