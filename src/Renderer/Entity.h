@@ -9,6 +9,11 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <string>
 
+// Forward declaration
+namespace S67 {
+class ScriptableEntity;
+}
+
 namespace S67 {
 
 struct Transform {
@@ -24,6 +29,26 @@ struct Transform {
 
     return glm::translate(glm::mat4(1.0f), Position) * rotation *
            glm::scale(glm::mat4(1.0f), Scale);
+  }
+};
+
+// Forward declaration
+class ScriptableEntity;
+
+struct NativeScriptComponent {
+  ScriptableEntity *Instance = nullptr;
+
+  ScriptableEntity *(*InstantiateScript)();
+  void (*DestroyScript)(NativeScriptComponent *);
+
+  template <typename T> void Bind() {
+    InstantiateScript = []() {
+      return static_cast<ScriptableEntity *>(new T());
+    };
+    DestroyScript = [](NativeScriptComponent *nsc) {
+      delete nsc->Instance;
+      nsc->Instance = nullptr;
+    };
   }
 };
 
@@ -67,6 +92,8 @@ public:
   float CameraFOV = 45.0f;
 
   MovementSettings Movement;
+
+  NativeScriptComponent NativeScript;
 };
 
 } // namespace S67
