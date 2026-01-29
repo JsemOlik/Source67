@@ -774,7 +774,10 @@ void Application::OpenScene(const std::string &filepath) {
     UISystem::NewLayout();
     std::string uiPath = m_Scene->GetUIPath();
     if (!uiPath.empty() && uiPath != "None") {
-      UISystem::LoadLayout(ResolveAssetPath(uiPath));
+      std::filesystem::path p(uiPath);
+      std::filesystem::path fullPath =
+          p.is_absolute() ? p : (m_ProjectRoot / p);
+      UISystem::LoadLayout(fullPath);
     }
 
     m_Window->SetCursorLocked(false);

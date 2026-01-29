@@ -34,7 +34,10 @@ void UIEditorPanel::OnImGuiRender() {
     if (ImGui::Button("Sync")) {
       std::string path = activeScene->GetUIPath();
       if (!path.empty() && path != "None") {
-        UISystem::LoadLayout(app.ResolveAssetPath(path));
+        std::filesystem::path p(path);
+        std::filesystem::path fullPath =
+            p.is_absolute() ? p : (app.GetProjectRoot() / p);
+        UISystem::LoadLayout(fullPath);
         m_SelectedElementIndex = -1;
       }
     }
@@ -48,19 +51,27 @@ void UIEditorPanel::OnImGuiRender() {
   }
   ImGui::SameLine();
   if (ImGui::Button("Save")) {
-    std::string path =
-        activeScene ? activeScene->GetUIPath() : "assets/ui/layout.sui";
-    if (path.empty() || path == "None")
-      path = "assets/ui/layout.sui";
-    UISystem::SaveLayout(app.ResolveAssetPath(path));
+    std::string pathStr =
+        activeScene ? activeScene->GetUIPath() : "UI/layout.sui";
+    if (pathStr.empty() || pathStr == "None")
+      pathStr = "UI/layout.sui";
+
+    std::filesystem::path p(pathStr);
+    std::filesystem::path fullPath =
+        p.is_absolute() ? p : (app.GetProjectRoot() / p);
+    UISystem::SaveLayout(fullPath);
   }
   ImGui::SameLine();
   if (ImGui::Button("Load")) {
-    std::string path =
-        activeScene ? activeScene->GetUIPath() : "assets/ui/layout.sui";
-    if (path.empty() || path == "None")
-      path = "assets/ui/layout.sui";
-    UISystem::LoadLayout(app.ResolveAssetPath(path));
+    std::string pathStr =
+        activeScene ? activeScene->GetUIPath() : "UI/layout.sui";
+    if (pathStr.empty() || pathStr == "None")
+      pathStr = "UI/layout.sui";
+
+    std::filesystem::path p(pathStr);
+    std::filesystem::path fullPath =
+        p.is_absolute() ? p : (app.GetProjectRoot() / p);
+    UISystem::LoadLayout(fullPath);
     m_SelectedElementIndex = -1;
   }
 
