@@ -222,12 +222,11 @@ void PlayerController::OnUpdate(Timestep ts) {
   m_Character->SetLinearVelocity(velocityMeters);
 
   // 6. Move Character (Collision Handling)
-  JPH::TempAllocatorImpl allocator(10 * 1024 * 1024);
   PlayerBodyFilter bodyFilter;
-  m_Character->Update(ts, JPH::Vec3(0, -9.81f, 0),
+  m_Character->Update(ts, JPH::Vec3::sZero(),  // Gravity handled manually
                       PhysicsSystem::GetBroadPhaseLayerFilter(),
                       PhysicsSystem::GetObjectLayerFilter(), bodyFilter,
-                      JPH::ShapeFilter(), allocator);
+                      JPH::ShapeFilter(), m_TempAllocator);
 
   // Update Sprint & Crouch timers
   UpdateSprint(ts);

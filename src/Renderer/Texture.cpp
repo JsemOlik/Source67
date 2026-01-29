@@ -36,7 +36,41 @@ namespace S67 {
         }
 
         virtual ~OpenGLTexture2D() {
-            glDeleteTextures(1, &m_RendererID);
+            if (m_RendererID != 0) {
+                glDeleteTextures(1, &m_RendererID);
+            }
+        }
+
+        // Delete copy operations
+        OpenGLTexture2D(const OpenGLTexture2D&) = delete;
+        OpenGLTexture2D& operator=(const OpenGLTexture2D&) = delete;
+
+        // Implement move operations
+        OpenGLTexture2D(OpenGLTexture2D&& other) noexcept
+            : m_Path(std::move(other.m_Path)),
+              m_Width(other.m_Width),
+              m_Height(other.m_Height),
+              m_RendererID(other.m_RendererID) {
+            other.m_RendererID = 0;
+        }
+
+        OpenGLTexture2D& operator=(OpenGLTexture2D&& other) noexcept {
+            if (this != &other) {
+                // Clean up existing resource
+                if (m_RendererID != 0) {
+                    glDeleteTextures(1, &m_RendererID);
+                }
+                
+                // Move data
+                m_Path = std::move(other.m_Path);
+                m_Width = other.m_Width;
+                m_Height = other.m_Height;
+                m_RendererID = other.m_RendererID;
+                
+                // Nullify moved-from object
+                other.m_RendererID = 0;
+            }
+            return *this;
         }
 
         virtual uint32_t GetWidth() const override { return m_Width; }
@@ -51,8 +85,9 @@ namespace S67 {
 
     private:
         std::string m_Path;
-        uint32_t m_Width, m_Height;
-        uint32_t m_RendererID;
+        uint32_t m_Width = 0;
+        uint32_t m_Height = 0;
+        uint32_t m_RendererID = 0;
     };
 
     Ref<Texture2D> Texture2D::Create(const std::string& path) {

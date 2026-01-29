@@ -4,6 +4,7 @@
 #include "Renderer/Entity.h"
 #include <deque>
 #include <memory>
+#include <mutex>
 
 namespace S67 {
 
@@ -55,6 +56,7 @@ namespace S67 {
     class UndoSystem {
     public:
         void Push(Scope<Command> command) {
+            std::lock_guard<std::mutex> lock(m_Mutex);
             command->Redo(); // Assumes command is already in "new" state, or just pushes it
             m_UndoStack.push_back(std::move(command));
             m_RedoStack.clear();
@@ -66,6 +68,7 @@ namespace S67 {
 
         // External push (already executed)
         void AddCommand(Scope<Command> command) {
+            std::lock_guard<std::mutex> lock(m_Mutex);
             m_UndoStack.push_back(std::move(command));
             m_RedoStack.clear();
 
@@ -75,6 +78,7 @@ namespace S67 {
         }
 
         void Undo() {
+            std::lock_guard<std::mutex> lock(m_Mutex);
             if (m_UndoStack.empty()) return;
 
             auto command = std::move(m_UndoStack.back());
@@ -84,6 +88,7 @@ namespace S67 {
         }
 
         void Redo() {
+            std::lock_guard<std::mutex> lock(m_Mutex);
             if (m_RedoStack.empty()) return;
 
             auto command = std::move(m_RedoStack.back());
@@ -93,6 +98,7 @@ namespace S67 {
         }
 
         void Clear() {
+            std::lock_guard<std::mutex> lock(m_Mutex);
             m_UndoStack.clear();
             m_RedoStack.clear();
         }
@@ -100,6 +106,7 @@ namespace S67 {
     private:
         std::deque<Scope<Command>> m_UndoStack;
         std::deque<Scope<Command>> m_RedoStack;
+        std::mutex m_Mutex;
     };
 
 }

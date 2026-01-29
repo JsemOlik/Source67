@@ -6,6 +6,7 @@
 #include <imgui.h>
 
 #include "Core/Application.h"
+#include "Core/Logger.h"
 
 #include <GLFW/glfw3.h>
 
@@ -129,7 +130,7 @@ void ImGuiLayer::OnDetach() {
 }
 
 void ImGuiLayer::OnEvent(Event &e) {
-  if (m_BlockEvents) {
+  if (m_BlockEvents && ImGui::GetCurrentContext()) {
     ImGuiIO &io = ImGui::GetIO();
     e.Handled |= e.IsInCategory(EventCategoryMouse) & io.WantCaptureMouse;
     e.Handled |= e.IsInCategory(EventCategoryKeyboard) & io.WantCaptureKeyboard;
@@ -137,6 +138,11 @@ void ImGuiLayer::OnEvent(Event &e) {
 }
 
 void ImGuiLayer::Begin() {
+  if (!ImGui::GetCurrentContext()) {
+    S67_CORE_ERROR("ImGui context not initialized!");
+    return;
+  }
+  
   ImGui_ImplOpenGL3_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
@@ -181,6 +187,8 @@ void ImGuiLayer::Begin() {
 }
 
 void ImGuiLayer::End() {
+  if (!ImGui::GetCurrentContext()) return;
+  
   ImGuiIO &io = ImGui::GetIO();
   Application &app = Application::Get();
   // io.DisplaySize = ImVec2((float)app.GetWindow().GetWidth(),

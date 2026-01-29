@@ -3,6 +3,7 @@
 #include "Core/PlatformUtils.h"
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <fstream>
 #include <imgui.h>
 #include <string>
@@ -370,8 +371,8 @@ void ContentBrowserPanel::RenderDirectoryTree(
   if (!hasSubdirs)
     flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
-  bool opened = ImGui::TreeNodeEx((void *)hash_value(directoryPath), flags,
-                                  filename.c_str());
+  bool opened = ImGui::TreeNodeEx((void *)std::filesystem::hash_value(directoryPath), flags,
+                                  "%s", filename.c_str());
 
   if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
     m_CurrentDirectory = directoryPath;
