@@ -3,6 +3,8 @@
 #include "Events/MouseEvent.h"
 #include "Game/Console/ConVar.h" // Include ConVar
 
+#include "Core/Application.h"
+#include "Core/Logger.h"
 #include "Physics/PhysicsSystem.h"
 #include "Renderer/Entity.h"
 #include <GLFW/glfw3.h>
@@ -56,13 +58,18 @@ public:
   }
 };
 
-#include "Core/Application.h" // Needed for Camera access
-
 PlayerController::PlayerController() {}
 
 void PlayerController::OnCreate() {
-  m_Camera = Application::Get().GetCamera(); // Access Global Camera
+  S67_CORE_INFO("PlayerController::OnCreate Start");
+  auto &app = Application::Get();
+  S67_CORE_INFO("Got Application instance");
+  m_Camera = app.GetCamera(); // Access Global Camera
+  if (!m_Camera)
+    S67_CORE_ERROR("Camera is null!");
+  S67_CORE_INFO("PlayerController::OnCreate Camera Retrieved");
   ReinitializeCharacter();
+  S67_CORE_INFO("PlayerController::OnCreate End");
 }
 
 PlayerController::~PlayerController() { OnDestroy(); }
