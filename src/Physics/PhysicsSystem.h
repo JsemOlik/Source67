@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Core/Base.h"
+
 #include <Jolt/Core/Factory.h>
 #include <Jolt/Core/JobSystemThreadPool.h>
 #include <Jolt/Core/TempAllocator.h>
@@ -13,7 +15,6 @@
 #include <Jolt/RegisterTypes.h>
 
 
-#include "Core/Base.h"
 #include "Core/Timestep.h"
 #include <glm/glm.hpp>
 
