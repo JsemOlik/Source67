@@ -91,7 +91,7 @@ Source67/
   - Viewport management (Scene & Game viewports)
   - Project discovery and manifest management
 - **Window.h/mm**: Platform window abstraction (Objective-C++ for macOS)
-- **Logger.h/cpp**: spdlog wrapper with S67*CORE*\_ and S67\_\_ macros
+- **Logger.h/cpp**: spdlog wrapper with S67*CORE*_ and S67\__ macros
 - **Input.h/cpp**: Input polling system
 - **UndoSystem.h**: Command pattern for editor undo/redo
 - **Timer.h**: High-resolution timing
@@ -231,6 +231,47 @@ Entities have:
 - Collision callbacks for entity interactions
 - Debug visualization available
 
+## 🐛 Known Issues & Code Review Findings
+
+**IMPORTANT**: The codebase has undergone comprehensive review with 119 issues identified:
+
+- **28 Critical issues** (23.5%) - See `CRITICAL_ISSUES_CHECKLIST.md`
+- **32 High priority** (26.9%)
+- **41 Medium priority** (34.5%)
+- **18 Low priority** (15.1%)
+
+### Top Critical Issues to Be Aware Of:
+
+1. **OpenGL classes missing Rule of Five** - Potential crashes from copy/move
+2. **Physics timestep issues** - Spiral of death possible
+3. **Memory leaks** in main.cpp and physics system
+4. **Thread safety** issues in Logger and UndoSystem
+5. **TempAllocator performance** - 600+ MB/sec allocation overhead
+6. **Missing error validation** in critical rendering paths
+
+**Reference Documents**:
+
+- `START_HERE.md` - Code review navigation guide
+- `CRITICAL_ISSUES_CHECKLIST.md` - Task list with fixes
+- `QUICK_FIX_GUIDE.md` - Copy-paste solutions
+- `CODE_REVIEW_REPORT.md` - Detailed analysis
+- `DETAILED_ISSUES.md` - Line-by-line issue locations
+
+## 🔨 Build & Development Workflow
+
+### Building
+
+```bash
+# Configure
+cmake -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
+
+# Build
+cmake --build cmake-build-debug
+
+# Run
+./cmake-build-debug/Source67
+```
+
 ### Adding New Files
 
 - Add source files to `src/` subdirectories
@@ -310,7 +351,7 @@ Entities have:
 - **Default Font**: `assets/fonts/Roboto-Medium.ttf`
 - **Default Font Size**: 18.0f
 - **Default Editor FOV**: 45.0f
-- **Default Theme**: Unity Dark
+- **Default Theme**: Dracula
 - **Scene File Extension**: `.s67scene`
 - **Project File Extension**: `.s67project`
 

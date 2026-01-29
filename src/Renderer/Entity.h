@@ -38,11 +38,11 @@ struct MovementSettings {
   float MaxCrouchSpeed = 63.3f;  // SPEED_CROUCH
   float Acceleration = 5.6f;     // SV_ACCELERATE
   float AirAcceleration =
-      100.0f; // SV_AIRACCELERATE (Increased from 12 for easier strafing)
-  float Friction = 4.8f;         // SV_FRICTION
-  float StopSpeed = 100.0f;      // SV_STOPSPEED
-  float JumpVelocity = 268.0f;   // JUMP_VELOCITY
-  float Gravity = 800.0f;        // GRAVITY
+      12.0f;                   // SV_AIRACCELERATE (Standard Quake/Source value)
+  float Friction = 4.8f;       // SV_FRICTION
+  float StopSpeed = 100.0f;    // SV_STOPSPEED (sv_stopspeed)
+  float JumpVelocity = 268.0f; // JUMP_VELOCITY
+  float Gravity = 800.0f;      // GRAVITY
   float MaxAirWishSpeed = 30.0f; // MAX_AIR_WISH_SPEED
 };
 

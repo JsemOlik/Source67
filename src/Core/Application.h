@@ -88,9 +88,6 @@ public:
   Ref<Texture2D> GetDefaultTexture() const { return m_DefaultTexture; }
   Ref<VertexArray> GetCubeMesh() const { return m_CubeMesh; }
 
-  Ref<PerspectiveCamera> GetEditorCamera() const { return m_EditorCamera; }
-  void SetSceneModified(bool modified) { m_SceneModified = modified; }
-
   std::filesystem::path ResolveAssetPath(const std::filesystem::path &path);
   const std::filesystem::path &GetEngineAssetsRoot() const {
     return m_EngineAssetsRoot;
@@ -163,6 +160,7 @@ private:
   glm::vec2 m_SceneViewportPos = {0, 0};
 
   bool m_SceneViewportFocused = false, m_SceneViewportHovered = false;
+  bool m_RequestSceneFocus = false;
   bool m_GameViewportFocused = false, m_GameViewportHovered = false;
 
   bool m_ShowSettingsWindow = false;
@@ -198,8 +196,6 @@ private:
   // Save notification
   bool m_ShowSaveNotification = false;
   float m_SaveNotificationTime = 0.0f;
-  bool m_ShowSceneMissingPopup = false;
-  float m_LastFileCheckTime = 0.0f;
 
   // Unsaved changes tracking
   bool m_SceneModified = false;

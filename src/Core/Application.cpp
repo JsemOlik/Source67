@@ -681,10 +681,6 @@ void Application::OnSaveScene() {
     return;
   }
 
-  if (!m_LevelLoaded) {
-    return;
-  }
-
   if (m_LevelLoaded && !m_LevelFilePath.empty() &&
       m_LevelFilePath != "Untitled.s67") {
     SceneSerializer serializer(m_Scene.get(), m_ProjectRoot.string());
@@ -769,13 +765,31 @@ void Application::OpenScene(const std::string &filepath) {
     auto &bodyInterface = PhysicsSystem::GetBodyInterface();
 
     for (auto &entity : m_Scene->GetEntities()) {
+
       // Assign cube mesh if MeshPath is "Cube"
       if (entity->MeshPath == "Cube") {
         entity->Mesh = m_CubeMesh;
       }
 
-      // Recreate Physics Body
-      OnEntityCollidableChanged(entity);
+      // Recreate Physics Body (Skip Player and Non-Collidable)
+      if (entity->Name == "Player" || !entity->Collidable)
+        continue;
+
+      glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
+      JPH::BodyCreationSettings settings(
+          PhysicsShapes::CreateBox({entity->Transform.Scale.x,
+                                    entity->Transform.Scale.y,
+                                    entity->Transform.Scale.z}),
+          JPH::RVec3(entity->Transform.Position.x, entity->Transform.Position.y,
+                     entity->Transform.Position.z),
+          JPH::Quat(q.x, q.y, q.z, q.w),
+          entity->Anchored ? JPH::EMotionType::Static
+                           : JPH::EMotionType::Dynamic,
+          entity->Anchored ? Layers::NON_MOVING : Layers::MOVING);
+
+      settings.mUserData = (uint64_t)entity.get();
+      entity->PhysicsBody =
+          bodyInterface.CreateAndAddBody(settings, JPH::EActivation::Activate);
     }
     m_Scene->EnsurePlayerExists();
   }
@@ -794,38 +808,10 @@ void Application::OnEntityCollidableChanged(Ref<Entity> entity) {
   if (entity->Collidable) {
     glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
 
-    JPH::Ref<JPH::Shape> shape;
-    std::string ext =
-        std::filesystem::path(entity->MeshPath).extension().string();
-    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-
-    if (ext == ".fbx" || ext == ".obj" || ext == ".stl") {
-      std::string resolvedPath = ResolveAssetPath(entity->MeshPath).string();
-      if (!resolvedPath.empty() && std::filesystem::exists(resolvedPath)) {
-        MeshGeometry geometry = MeshLoader::LoadGeometry(resolvedPath);
-        if (!geometry.Vertices.empty() && !geometry.Indices.empty()) {
-          if (entity->Anchored) {
-            shape = PhysicsShapes::CreateMeshShape(geometry,
-                                                   entity->Transform.Scale);
-          } else {
-            shape = PhysicsShapes::CreateConvexHullShape(
-                geometry, entity->Transform.Scale);
-          }
-        }
-      }
-    }
-
-    if (!shape) {
-      // Box half-extents must be at least some minimum to avoid Jolt assertions
-      // and we must divide by 2 because Jolt uses half-extents
-      float hx = std::max(0.01f, entity->Transform.Scale.x * 0.5f);
-      float hy = std::max(0.01f, entity->Transform.Scale.y * 0.5f);
-      float hz = std::max(0.01f, entity->Transform.Scale.z * 0.5f);
-      shape = PhysicsShapes::CreateBox({hx, hy, hz});
-    }
-
     JPH::BodyCreationSettings settings(
-        shape,
+        PhysicsShapes::CreateBox({entity->Transform.Scale.x,
+                                  entity->Transform.Scale.y,
+                                  entity->Transform.Scale.z}),
         JPH::RVec3(entity->Transform.Position.x, entity->Transform.Position.y,
                    entity->Transform.Position.z),
         JPH::Quat(q.x, q.y, q.z, q.w),
@@ -854,6 +840,7 @@ void Application::OnEvent(Event &e) {
       auto &mb = (MouseButtonPressedEvent &)e;
       if (mb.GetMouseButton() == 1) { // Right Click
         if (m_SceneViewportHovered) {
+          m_RequestSceneFocus = true;
           m_Window->SetCursorLocked(true);
           m_CursorLocked = true;
           m_EditorCameraController->SetRotationEnabled(true);
@@ -1133,62 +1120,31 @@ bool Application::OnWindowDrop(WindowDropEvent &e) {
     return false;
   }
 
-  // Get mouse position for spawning
-  double xpos, ypos;
-  glfwGetCursorPos((GLFWwindow *)m_Window->GetNativeWindow(), &xpos, &ypos);
+  std::filesystem::path targetDir =
+      m_ContentBrowserPanel->GetCurrentDirectory();
 
   for (const auto &pathStr : e.GetPaths()) {
     std::filesystem::path sourcePath(pathStr);
-    std::string ext = sourcePath.extension().string();
-    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    std::filesystem::path targetPath = targetDir / sourcePath.filename();
 
-    // If it's a model file, spawn it in the scene
-    if (ext == ".fbx" || ext == ".obj" || ext == ".stl") {
-      auto entity = std::make_shared<Entity>();
-      entity->Name = sourcePath.stem().string();
-
-      // Load mesh based on extension
-      if (ext == ".fbx") {
-        entity->Mesh = MeshLoader::LoadModel(sourcePath.string());
-      } else if (ext == ".obj") {
-        entity->Mesh = MeshLoader::LoadOBJ(sourcePath.string());
-      } else if (ext == ".stl") {
-        entity->Mesh = MeshLoader::LoadSTL(sourcePath.string());
-      }
-
-      // Position: just spawn somewhere in front of camera or at origin for now
-      entity->MeshPath = sourcePath.string();
-
-      m_Scene->AddEntity(entity);
-      OnEntityCollidableChanged(entity);
-      m_SceneModified = true;
-
-      S67_CORE_INFO("Dropped and spawned entity: {0}", entity->Name);
-    } else {
-      // Traditional import to content browser
-      std::filesystem::path targetDir =
-          m_ContentBrowserPanel->GetCurrentDirectory();
-      std::filesystem::path targetPath = targetDir / sourcePath.filename();
-
-      try {
-        if (std::filesystem::exists(targetPath)) {
-          S67_CORE_WARN("File already exists: {0}. Skipping.",
-                        targetPath.string());
-          continue;
-        }
-
-        if (std::filesystem::is_directory(sourcePath)) {
-          std::filesystem::copy(sourcePath, targetPath,
-                                std::filesystem::copy_options::recursive);
-        } else {
-          std::filesystem::copy_file(sourcePath, targetPath);
-        }
-        S67_CORE_INFO("Imported: {0} -> {1}", sourcePath.string(),
+    try {
+      if (std::filesystem::exists(targetPath)) {
+        S67_CORE_WARN("File already exists: {0}. Skipping.",
                       targetPath.string());
-      } catch (const std::filesystem::filesystem_error &err) {
-        S67_CORE_ERROR("Failed to import {0}: {1}", sourcePath.string(),
-                       err.what());
+        continue;
       }
+
+      if (std::filesystem::is_directory(sourcePath)) {
+        std::filesystem::copy(sourcePath, targetPath,
+                              std::filesystem::copy_options::recursive);
+      } else {
+        std::filesystem::copy_file(sourcePath, targetPath);
+      }
+      S67_CORE_INFO("Imported: {0} -> {1}", sourcePath.string(),
+                    targetPath.string());
+    } catch (const std::filesystem::filesystem_error &err) {
+      S67_CORE_ERROR("Failed to import {0}: {1}", sourcePath.string(),
+                     err.what());
     }
   }
 
@@ -1723,18 +1679,6 @@ void Application::ResetLayout() {
 }
 
 void Application::RenderFrame(float alpha) {
-  // Scene File existence check (every 1 second)
-  if (m_LevelLoaded && !m_LevelFilePath.empty() &&
-      m_LevelFilePath != "Untitled.s67") {
-    float currentTime = (float)glfwGetTime();
-    if (currentTime - m_LastFileCheckTime >= 1.0f) {
-      m_LastFileCheckTime = currentTime;
-      if (!std::filesystem::exists(m_LevelFilePath)) {
-        m_ShowSceneMissingPopup = true;
-      }
-    }
-  }
-
   // alpha is the interpolation factor between previous and current physics
   // states 0.0 = at previous tick state 0.5 = halfway between previous and
   // current tick ~0.999 = almost at current tick
@@ -1763,7 +1707,7 @@ void Application::RenderFrame(float alpha) {
   // Editor camera updates (still uses per-frame delta time, not affected by
   // tick system)
   if (m_SceneState == SceneState::Edit) {
-    if (m_SceneViewportFocused) {
+    if (m_SceneViewportFocused || m_CursorLocked) {
       // Calculate frame delta for editor camera (not physics)
       float current_time = static_cast<float>(glfwGetTime());
       static float last_editor_time = current_time;
@@ -1924,9 +1868,7 @@ void Application::RenderFrame(float alpha) {
   HUDRenderer::RenderCrosshair();
 
   if (m_PlayerController) {
-    // 1 meter = 39.97 Hammer Units
-    float speedHU = m_PlayerController->GetSpeed() * 39.97f;
-    HUDRenderer::RenderSpeed(speedHU);
+    HUDRenderer::RenderSpeed(m_PlayerController->GetSpeed());
   }
 
   HUDRenderer::EndHUD();
@@ -2126,6 +2068,10 @@ void Application::RenderFrame(float alpha) {
       ImGui::SetNextWindowSizeConstraints(ImVec2(300, 200),
                                           ImVec2(FLT_MAX, FLT_MAX));
       ImGui::Begin("Scene");
+      if (m_RequestSceneFocus) {
+        ImGui::SetWindowFocus();
+        m_RequestSceneFocus = false;
+      }
       m_SceneViewportFocused = ImGui::IsWindowFocused();
       m_SceneViewportHovered = ImGui::IsWindowHovered();
 
@@ -2151,11 +2097,13 @@ void Application::RenderFrame(float alpha) {
             const char *path = (const char *)payload->Data;
             std::filesystem::path assetPath = path;
 
-            std::string ext = assetPath.extension().string();
-            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-
-            if (ext == ".fbx" || ext == ".obj" || ext == ".stl") {
-              Ref<VertexArray> mesh = MeshLoader::LoadModel(assetPath.string());
+            if (assetPath.extension() == ".obj" ||
+                assetPath.extension() == ".stl") {
+              Ref<VertexArray> mesh = nullptr;
+              if (assetPath.extension() == ".obj")
+                mesh = MeshLoader::LoadOBJ(assetPath.string());
+              else if (assetPath.extension() == ".stl")
+                mesh = MeshLoader::LoadSTL(assetPath.string());
 
               if (mesh) {
                 auto entity =
@@ -2364,11 +2312,12 @@ void Application::RenderFrame(float alpha) {
       ImGui::Text("%.3f ms/frame (%.1f Game FPS | %.1f Engine FPS)",
                   1000.0f / m_GameFPS, m_GameFPS, ImGui::GetIO().Framerate);
       ImGui::Separator();
-      // Convert meters to Hammer Units (1 meter = 39.97 HU)
-      constexpr float METERS_TO_HU = 39.97f;
+      // Convert meters to Hammer Units (1 unit = 0.01905 meters -> 1 meter
+      // = 52.4934 HU)
+      constexpr float METERS_TO_HU = 52.4934f;
       ImGui::Text("Velocity:  X: %.2f  Y: %.2f  Z: %.2f", vel.x * METERS_TO_HU,
                   vel.y * METERS_TO_HU, vel.z * METERS_TO_HU);
-      ImGui::Text("Speed (H): %.2f units/s", speed * METERS_TO_HU);
+      ImGui::Text("Speed (H): %.2f units/s", speed);
       ImGui::End();
     } else {
       ImGui::SetNextWindowSizeConstraints(ImVec2(200, 100),
@@ -2473,35 +2422,6 @@ void Application::RenderFrame(float alpha) {
     if (ImGui::Button("Cancel", ImVec2(150, 0))) {
       m_PendingScenePath.clear();
       ImGui::CloseCurrentPopup();
-    }
-
-    ImGui::EndPopup();
-  }
-
-  if (m_ShowSceneMissingPopup) {
-    ImGui::OpenPopup("Scene File Missing");
-  }
-
-  if (ImGui::BeginPopupModal("Scene File Missing", nullptr,
-                             ImGuiWindowFlags_AlwaysAutoResize)) {
-    ImGui::Text("The currently loaded scene file has been deleted from disk!");
-    ImGui::Text("File: %s", m_LevelFilePath.c_str());
-    ImGui::Separator();
-
-    ImGui::Text(
-        "To prevent issues, it is recommended to close the current scene.");
-
-    if (ImGui::Button("Close Scene", ImVec2(120, 0))) {
-      CloseScene();
-      m_ShowSceneMissingPopup = false;
-      ImGui::CloseCurrentPopup();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Ignore (I will save it manually)", ImVec2(220, 0))) {
-      m_ShowSceneMissingPopup = false;
-      ImGui::CloseCurrentPopup();
-      // Reset the timer to not nag immediately
-      m_LastFileCheckTime = (float)glfwGetTime();
     }
 
     ImGui::EndPopup();
