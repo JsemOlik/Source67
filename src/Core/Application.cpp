@@ -223,11 +223,12 @@ void Application::CreateTestScene() {
   S67_CORE_INFO("Setting up test scene...");
   auto &bodyInterface = PhysicsSystem::GetBodyInterface();
 
-  // 1. Static Floor
-  auto floor = CreateRef<Entity>("Static Floor", m_CubeMesh, m_DefaultShader,
+  // 1. Floor (Anchored)
+  auto floor = CreateRef<Entity>("Floor", m_CubeMesh, m_DefaultShader,
                                  m_DefaultTexture);
   floor->Transform.Position = {0.0f, -2.0f, 0.0f};
   floor->Transform.Scale = {20.0f, 1.0f, 20.0f};
+  floor->Anchored = true;
 
   JPH::BodyCreationSettings floorSettings(
       PhysicsShapes::CreateBox({20.0f, 1.0f, 20.0f}), JPH::RVec3(0, -2, 0),
@@ -739,7 +740,6 @@ void Application::OpenScene(const std::string &filepath) {
         continue;
 
       glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
-      bool isStat = (entity->Name == "Static Floor");
       JPH::BodyCreationSettings settings(
           PhysicsShapes::CreateBox({entity->Transform.Scale.x,
                                     entity->Transform.Scale.y,
@@ -747,8 +747,8 @@ void Application::OpenScene(const std::string &filepath) {
           JPH::RVec3(entity->Transform.Position.x, entity->Transform.Position.y,
                      entity->Transform.Position.z),
           JPH::Quat(q.x, q.y, q.z, q.w),
-          isStat ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic,
-          isStat ? Layers::NON_MOVING : Layers::MOVING);
+          entity->Anchored ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic,
+          entity->Anchored ? Layers::NON_MOVING : Layers::MOVING);
 
       entity->PhysicsBody =
           bodyInterface.CreateAndAddBody(settings, JPH::EActivation::Activate);
@@ -769,7 +769,6 @@ void Application::OnEntityCollidableChanged(Ref<Entity> entity) {
 
   if (entity->Collidable) {
     glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
-    bool isStatic = (entity->Name == "Static Floor");
 
     JPH::BodyCreationSettings settings(
         PhysicsShapes::CreateBox({entity->Transform.Scale.x,
@@ -778,8 +777,8 @@ void Application::OnEntityCollidableChanged(Ref<Entity> entity) {
         JPH::RVec3(entity->Transform.Position.x, entity->Transform.Position.y,
                    entity->Transform.Position.z),
         JPH::Quat(q.x, q.y, q.z, q.w),
-        isStatic ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic,
-        isStatic ? Layers::NON_MOVING : Layers::MOVING);
+        entity->Anchored ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic,
+        entity->Anchored ? Layers::NON_MOVING : Layers::MOVING);
 
     settings.mUserData = (uint64_t)entity.get();
 

@@ -428,6 +428,11 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
       // Simple mesh selection placeholder text for now, could expand later
       ImGui::Text("Mesh Asset: %s", entity->MeshPath.c_str());
       ImGui::Checkbox("Collidable", &entity->Collidable);
+      
+      if (ImGui::Checkbox("Anchored", &entity->Anchored)) {
+        // Recreate physics body when Anchored changes
+        Application::Get().OnEntityCollidableChanged(entity);
+      }
     });
 
     if (entity->Material.AlbedoMap) {

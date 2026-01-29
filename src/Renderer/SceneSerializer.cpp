@@ -95,6 +95,7 @@ void SceneSerializer::Serialize(const std::string &filepath) {
          << entity->Material.Tiling.y << "]\n";
 
     ss << "    Collidable: " << (entity->Collidable ? "true" : "false") << "\n";
+    ss << "    Anchored: " << (entity->Anchored ? "true" : "false") << "\n";
 
     if (entity->Name == "Player") {
       ss << "    CameraFOV: " << entity->CameraFOV << "\n";
@@ -212,6 +213,9 @@ bool SceneSerializer::Deserialize(const std::string &filepath) {
       } else if (line.find("Collidable:") != std::string::npos) {
         std::string val = Trim(line.substr(line.find(":") + 2));
         currentEntity->Collidable = (val.find("true") != std::string::npos);
+      } else if (line.find("Anchored:") != std::string::npos) {
+        std::string val = Trim(line.substr(line.find(":") + 2));
+        currentEntity->Anchored = (val.find("true") != std::string::npos);
       } else if (line.find("CameraFOV:") != std::string::npos) {
         float fov;
         if (sscanf(line.c_str(), "      CameraFOV: %f", &fov) == 1)

@@ -399,8 +399,8 @@ void ContentBrowserPanel::CreateDefaultLevel(
   f << "Scene: " << path.stem().string() << "\n";
   f << "Entities:\n";
 
-  // 1. Static Floor
-  f << "  - Entity: Static Floor\n";
+  // 1. Floor (Anchored)
+  f << "  - Entity: Floor\n";
   f << "    Transform:\n";
   f << "      Position: [0, -2, 0]\n";
   f << "      Rotation: [0, 0, 0]\n";
@@ -410,6 +410,7 @@ void ContentBrowserPanel::CreateDefaultLevel(
   f << "    TexturePath: assets/textures/Checkerboard.png\n";
   f << "    TextureTiling: [1, 1]\n";
   f << "    Collidable: true\n";
+  f << "    Anchored: true\n";
 
   // 2. Dynamic Cubes
   for (int i = 0; i < 5; i++) {
@@ -424,6 +425,7 @@ void ContentBrowserPanel::CreateDefaultLevel(
     f << "    TexturePath: assets/textures/Checkerboard.png\n";
     f << "    TextureTiling: [1, 1]\n";
     f << "    Collidable: true\n";
+    f << "    Anchored: false\n";
   }
 
   // 3. Player

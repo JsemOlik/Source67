@@ -64,6 +64,7 @@ public:
   std::string Name = "Entity";
   std::string MeshPath = "Cube";
   bool Collidable = true;
+  bool Anchored = false; // If true, object is static (no gravity)
   float CameraFOV = 45.0f;
 
   MovementSettings Movement;
