@@ -121,12 +121,11 @@ void SceneHierarchyPanel::OnImGuiRender() {
               JPH::Quat::sIdentity(), JPH::EMotionType::Dynamic,
               Layers::MOVING);
           settings.mUserData = (uint64_t)entity.get();
-          entity->PhysicsBody =
-              PhysicsSystem::GetBodyInterface().CreateAndAddBody(
-                  settings, JPH::EActivation::Activate);
+          entity->MeshPath = assetPath.string();
 
           (*m_Context)->AddEntity(entity);
           m_SelectionContext = entity;
+          Application::Get().OnEntityCollidableChanged(entity);
           Application::Get().SetSceneModified(true);
         }
       }
@@ -486,7 +485,10 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
     DrawComponent("Mesh", [&]() {
       // Simple mesh selection placeholder text for now, could expand later
       ImGui::Text("Mesh Asset: %s", entity->MeshPath.c_str());
-      ImGui::Checkbox("Collidable", &entity->Collidable);
+      if (ImGui::Checkbox("Collidable", &entity->Collidable)) {
+        // Recreate physics body when Collidable changes
+        Application::Get().OnEntityCollidableChanged(entity);
+      }
 
       if (ImGui::Checkbox("Anchored", &entity->Anchored)) {
         // Recreate physics body when Anchored changes

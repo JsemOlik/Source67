@@ -808,10 +808,30 @@ void Application::OnEntityCollidableChanged(Ref<Entity> entity) {
   if (entity->Collidable) {
     glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
 
+    JPH::Ref<JPH::Shape> shape;
+    std::string ext =
+        std::filesystem::path(entity->MeshPath).extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+    if (ext == ".fbx" || ext == ".obj" || ext == ".stl") {
+      MeshGeometry geometry = MeshLoader::LoadGeometry(entity->MeshPath);
+      if (!geometry.Vertices.empty()) {
+        if (entity->Anchored) {
+          shape = PhysicsShapes::CreateMeshShape(geometry);
+        } else {
+          shape = PhysicsShapes::CreateConvexHullShape(geometry);
+        }
+      }
+    }
+
+    if (!shape) {
+      shape = PhysicsShapes::CreateBox({entity->Transform.Scale.x,
+                                        entity->Transform.Scale.y,
+                                        entity->Transform.Scale.z});
+    }
+
     JPH::BodyCreationSettings settings(
-        PhysicsShapes::CreateBox({entity->Transform.Scale.x,
-                                  entity->Transform.Scale.y,
-                                  entity->Transform.Scale.z}),
+        shape,
         JPH::RVec3(entity->Transform.Position.x, entity->Transform.Position.y,
                    entity->Transform.Position.z),
         JPH::Quat(q.x, q.y, q.z, q.w),
@@ -1143,10 +1163,10 @@ bool Application::OnWindowDrop(WindowDropEvent &e) {
       }
 
       // Position: just spawn somewhere in front of camera or at origin for now
-      entity->Transform.Position =
-          m_Camera->GetPosition() + m_Camera->GetForward() * 5.0f;
+      entity->MeshPath = sourcePath.string();
 
       m_Scene->AddEntity(entity);
+      OnEntityCollidableChanged(entity);
       m_SceneModified = true;
 
       S67_CORE_INFO("Dropped and spawned entity: {0}", entity->Name);

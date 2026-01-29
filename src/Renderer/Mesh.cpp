@@ -354,6 +354,61 @@ Ref<VertexArray> MeshLoader::CreateCapsule(float radius, float height) {
   return va;
 }
 
+MeshGeometry MeshLoader::LoadGeometry(const std::string &path) {
+  std::string ext = std::filesystem::path(path).extension().string();
+  std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+  MeshGeometry geometry;
+
+  if (ext == ".obj") {
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+    std::string warn, err;
+
+    if (tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
+                         path.c_str())) {
+      for (const auto &shape : shapes) {
+        for (const auto &index : shape.mesh.indices) {
+          geometry.Vertices.push_back(
+              {attrib.vertices[3 * index.vertex_index + 0],
+               attrib.vertices[3 * index.vertex_index + 1],
+               attrib.vertices[3 * index.vertex_index + 2]});
+          geometry.Indices.push_back((uint32_t)geometry.Indices.size());
+        }
+      }
+    }
+  } else {
+    // Default to Assimp for FBX/STL/etc
+    Assimp::Importer importer;
+    const aiScene *scene = importer.ReadFile(
+        path, aiProcess_Triangulate | aiProcess_JoinIdenticalVertices);
+
+    if (scene && !(scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) &&
+        scene->mRootNode) {
+      for (unsigned int m = 0; m < scene->mNumMeshes; m++) {
+        aiMesh *mesh = scene->mMeshes[m];
+        uint32_t vertexOffset = (uint32_t)geometry.Vertices.size();
+
+        for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
+          geometry.Vertices.push_back({mesh->mVertices[i].x,
+                                       mesh->mVertices[i].y,
+                                       mesh->mVertices[i].z});
+        }
+
+        for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
+          aiFace face = mesh->mFaces[i];
+          for (unsigned int j = 0; j < face.mNumIndices; j++) {
+            geometry.Indices.push_back(vertexOffset + face.mIndices[j]);
+          }
+        }
+      }
+    }
+  }
+
+  return geometry;
+}
+
 Ref<VertexArray> MeshLoader::LoadModel(const std::string &path) {
   Assimp::Importer importer;
   const aiScene *scene = importer.ReadFile(
