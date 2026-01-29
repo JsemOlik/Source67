@@ -73,7 +73,7 @@ void Window::Init(const WindowProps &props) {
     s_GLFWInitialized = false;
     return;
   }
-  
+
   s_WindowCount++;
   glfwSetWindowUserPointer(m_Window, &m_Data);
 
@@ -84,7 +84,8 @@ void Window::Init(const WindowProps &props) {
   glfwSetWindowSizeCallback(
       m_Window, [](GLFWwindow *window, int width, int height) {
         WindowData *data = (WindowData *)glfwGetWindowUserPointer(window);
-        if (!data) return;
+        if (!data)
+          return;
         data->Width = width;
         data->Height = height;
 
@@ -96,7 +97,8 @@ void Window::Init(const WindowProps &props) {
 
   glfwSetWindowCloseCallback(m_Window, [](GLFWwindow *window) {
     WindowData *data = (WindowData *)glfwGetWindowUserPointer(window);
-    if (!data) return;
+    if (!data)
+      return;
     if (data->EventCallback) {
       WindowCloseEvent event;
       data->EventCallback(event);
@@ -106,7 +108,8 @@ void Window::Init(const WindowProps &props) {
   glfwSetKeyCallback(m_Window, [](GLFWwindow *window, int key, int scancode,
                                   int action, int mods) {
     WindowData *data = (WindowData *)glfwGetWindowUserPointer(window);
-    if (!data) return;
+    if (!data)
+      return;
 
     if (data->EventCallback) {
       switch (action) {
@@ -132,7 +135,8 @@ void Window::Init(const WindowProps &props) {
   glfwSetMouseButtonCallback(
       m_Window, [](GLFWwindow *window, int button, int action, int mods) {
         WindowData *data = (WindowData *)glfwGetWindowUserPointer(window);
-        if (!data) return;
+        if (!data)
+          return;
 
         if (data->EventCallback) {
           switch (action) {
@@ -153,7 +157,8 @@ void Window::Init(const WindowProps &props) {
   glfwSetScrollCallback(
       m_Window, [](GLFWwindow *window, double xOffset, double yOffset) {
         WindowData *data = (WindowData *)glfwGetWindowUserPointer(window);
-        if (!data) return;
+        if (!data)
+          return;
 
         if (data->EventCallback) {
           MouseScrolledEvent event((float)xOffset, (float)yOffset);
@@ -164,7 +169,8 @@ void Window::Init(const WindowProps &props) {
   glfwSetCursorPosCallback(
       m_Window, [](GLFWwindow *window, double xPos, double yPos) {
         WindowData *data = (WindowData *)glfwGetWindowUserPointer(window);
-        if (!data) return;
+        if (!data)
+          return;
         if (data->EventCallback) {
           MouseMovedEvent event((float)xPos, (float)yPos);
           data->EventCallback(event);
@@ -174,7 +180,8 @@ void Window::Init(const WindowProps &props) {
   glfwSetDropCallback(
       m_Window, [](GLFWwindow *window, int count, const char **paths) {
         WindowData *data = (WindowData *)glfwGetWindowUserPointer(window);
-        if (!data) return;
+        if (!data)
+          return;
 
         std::vector<std::string> pathList;
         for (int i = 0; i < count; i++) {
@@ -189,6 +196,18 @@ void Window::Init(const WindowProps &props) {
 
   S67_CORE_INFO("Window initialized successfully");
 }
+
+void Window::SetVSync(bool enabled) {
+  if (enabled)
+    glfwSwapInterval(1);
+  else
+    glfwSwapInterval(0);
+
+  m_Data.VSync = enabled;
+}
+
+bool Window::IsVSync() const { return m_Data.VSync; }
+
 void Window::SetCursorLocked(bool locked) {
   S67_CORE_INFO("[CURSOR] SetCursorLocked called with: {0}",
                 locked ? "TRUE" : "FALSE");
@@ -239,12 +258,12 @@ void Window::SetIcon(const std::string &path) {
   }
 }
 
-void Window::Shutdown() { 
+void Window::Shutdown() {
   if (m_Window) {
     glfwDestroyWindow(m_Window);
     m_Window = nullptr;
   }
-  
+
   s_WindowCount--;
   if (s_WindowCount == 0 && s_GLFWInitialized) {
     glfwTerminate();

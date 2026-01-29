@@ -131,7 +131,7 @@ Application::Application(const std::string &executablePath,
   m_SceneHierarchyPanel = CreateScope<SceneHierarchyPanel>(m_Scene);
   m_ContentBrowserPanel = CreateScope<ContentBrowserPanel>();
   m_Skybox = CreateScope<Skybox>(
-      ResolveAssetPath("assets/textures/skybox.png").string());
+      ResolveAssetPath("assets/textures/sky-3.png").string());
   LoadSettings();
 
   if (!std::filesystem::exists("imgui.ini")) {
@@ -1023,15 +1023,30 @@ void Application::Run() {
     // PHASE 6: Window update (swap buffers, poll events)
     m_Window->OnUpdate();
 
-    // PHASE 7: Apply FPS cap if enabled
+    // PHASE 7: Apply FPS cap if enabled (High-precision hybrid wait)
     if (m_FPSCap > 0) {
       double target_frame_time = 1.0 / m_FPSCap;
       double frame_end_time = glfwGetTime();
       double elapsed = frame_end_time - current_frame_time;
 
       if (elapsed < target_frame_time) {
-        double sleep_time = target_frame_time - elapsed;
-        std::this_thread::sleep_for(std::chrono::duration<double>(sleep_time));
+        double wait_time = target_frame_time - elapsed;
+
+        // 1. Precise sleep: Only sleep if we have more than a safe margin
+        // (20ms) to wait. This is necessary because the default Windows
+        // scheduler resolution is ~15.6ms. For anything shorter (like 144Hz or
+        // 240Hz targets), we MUST busy-wait to stay precise and avoid the "64
+        // FPS cap" issue.
+        if (wait_time > 0.020) {
+          std::this_thread::sleep_for(
+              std::chrono::duration<double>(wait_time - 0.018));
+        }
+
+        // 2. High-precision busy wait: Spin until we hit the exact microsecond
+        // target. This is extremely precise and works for all frame rates.
+        while (glfwGetTime() - current_frame_time < target_frame_time) {
+          // busy wait
+        }
       }
     }
   }
@@ -1240,6 +1255,15 @@ void Application::UI_SettingsWindow() {
       ImGui::DragInt("##FPSCap", &m_FPSCap, 1.0f, 0, 1000,
                      m_FPSCap == 0 ? "Unlimited" : "%d");
       ImGui::PopItemWidth();
+
+      // VSync
+      ImGui::TableNextRow();
+      ImGui::TableSetColumnIndex(0);
+      ImGui::Text("VSync");
+      ImGui::TableSetColumnIndex(1);
+      if (ImGui::Checkbox("##VSync", &m_VSync)) {
+        m_Window->SetVSync(m_VSync);
+      }
 
       ImGui::EndTable();
     }
@@ -1464,6 +1488,7 @@ void Application::SaveSettings() {
   j["FontSize"] = m_FontSize;
   j["EditorFOV"] = m_EditorFOV;
   j["FPSCap"] = m_FPSCap;
+  j["VSync"] = m_VSync;
   j["Theme"] = (int)m_EditorTheme;
   j["CustomColor"] = {m_CustomColor.r, m_CustomColor.g, m_CustomColor.b,
                       m_CustomColor.a};
@@ -1495,6 +1520,8 @@ void Application::LoadSettings() {
         m_EditorFOV = j["EditorFOV"];
       if (j.contains("FPSCap"))
         m_FPSCap = j["FPSCap"];
+      if (j.contains("VSync"))
+        m_VSync = j["VSync"];
       m_EditorTheme = (EditorTheme)j.at("Theme").get<int>();
 
       if (j.contains("CustomColor")) {
@@ -1549,6 +1576,9 @@ void Application::LoadSettings() {
       colors[ImGuiCol_WindowBg] = ImVec4{m_CustomColor.r, m_CustomColor.g,
                                          m_CustomColor.b, m_CustomColor.a};
 
+      if (m_Window)
+        m_Window->SetVSync(m_VSync);
+
       S67_CORE_INFO("Loaded settings from settings.json");
     } catch (...) {
       S67_CORE_ERROR("Error parsing settings.json! Using defaults.");
@@ -1560,6 +1590,10 @@ void Application::LoadSettings() {
     m_ImGuiLayer->SetDarkThemeColors();
     S67_CORE_INFO("No settings.json found, using defaults (Unity Dark, 18px)");
   }
+
+  // Apply VSync
+  if (m_Window)
+    m_Window->SetVSync(m_VSync);
 
   // Apply editor FOV to the camera if it exists
   if (m_EditorCamera) {

@@ -170,6 +170,7 @@ private:
   glm::vec4 m_CustomColor = {0.1f, 0.105f, 0.11f, 1.0f};
   EditorTheme m_EditorTheme = EditorTheme::Dracula;
   int m_FPSCap = 0; // 0 = Unlimited
+  bool m_VSync = true;
   std::filesystem::path m_EngineAssetsRoot;
 
   bool m_ShowInspector = true;
