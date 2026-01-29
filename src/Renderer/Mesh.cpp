@@ -7,6 +7,10 @@
 #include <glm/gtc/constants.hpp>
 #include <unordered_map>
 
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+
 namespace S67 {
 
 struct OBJVertex {
@@ -347,6 +351,130 @@ Ref<VertexArray> MeshLoader::CreateCapsule(float radius, float height) {
   Ref<IndexBuffer> ib =
       IndexBuffer::Create(indices.data(), (uint32_t)indices.size());
   va->SetIndexBuffer(ib);
+  return va;
+}
+
+MeshGeometry MeshLoader::LoadGeometry(const std::string &path) {
+  std::string ext = std::filesystem::path(path).extension().string();
+  std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+  MeshGeometry geometry;
+
+  if (ext == ".obj") {
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+    std::string warn, err;
+
+    if (tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
+                         path.c_str())) {
+      for (const auto &shape : shapes) {
+        for (const auto &index : shape.mesh.indices) {
+          geometry.Vertices.push_back(
+              {attrib.vertices[3 * index.vertex_index + 0],
+               attrib.vertices[3 * index.vertex_index + 1],
+               attrib.vertices[3 * index.vertex_index + 2]});
+          geometry.Indices.push_back((uint32_t)geometry.Indices.size());
+        }
+      }
+    }
+  } else {
+    // Default to Assimp for FBX/STL/etc
+    Assimp::Importer importer;
+    const aiScene *scene = importer.ReadFile(
+        path, aiProcess_Triangulate | aiProcess_JoinIdenticalVertices);
+
+    if (scene && !(scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) &&
+        scene->mRootNode) {
+      for (unsigned int m = 0; m < scene->mNumMeshes; m++) {
+        aiMesh *mesh = scene->mMeshes[m];
+        uint32_t vertexOffset = (uint32_t)geometry.Vertices.size();
+
+        for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
+          geometry.Vertices.push_back({mesh->mVertices[i].x,
+                                       mesh->mVertices[i].y,
+                                       mesh->mVertices[i].z});
+        }
+
+        for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
+          aiFace face = mesh->mFaces[i];
+          for (unsigned int j = 0; j < face.mNumIndices; j++) {
+            geometry.Indices.push_back(vertexOffset + face.mIndices[j]);
+          }
+        }
+      }
+    }
+  }
+
+  return geometry;
+}
+
+Ref<VertexArray> MeshLoader::LoadModel(const std::string &path) {
+  Assimp::Importer importer;
+  const aiScene *scene = importer.ReadFile(
+      path, aiProcess_Triangulate | aiProcess_FlipUVs |
+                aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices);
+
+  if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE ||
+      !scene->mRootNode) {
+    S67_CORE_ERROR("Assimp Error: {0}", importer.GetErrorString());
+    return nullptr;
+  }
+
+  std::vector<OBJVertex> vertices;
+  std::vector<uint32_t> indices;
+
+  // Process all meshes in the scene
+  for (unsigned int m = 0; m < scene->mNumMeshes; m++) {
+    aiMesh *mesh = scene->mMeshes[m];
+    uint32_t vertexOffset = (uint32_t)vertices.size();
+
+    for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
+      OBJVertex vertex;
+      vertex.Position = {mesh->mVertices[i].x, mesh->mVertices[i].y,
+                         mesh->mVertices[i].z};
+
+      if (mesh->HasNormals()) {
+        vertex.Normal = {mesh->mNormals[i].x, mesh->mNormals[i].y,
+                         mesh->mNormals[i].z};
+      } else {
+        vertex.Normal = {0.0f, 1.0f, 0.0f};
+      }
+
+      if (mesh->mTextureCoords[0]) {
+        vertex.TexCoord = {mesh->mTextureCoords[0][i].x,
+                           mesh->mTextureCoords[0][i].y};
+      } else {
+        vertex.TexCoord = {0.0f, 0.0f};
+      }
+
+      vertices.push_back(vertex);
+    }
+
+    for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
+      aiFace face = mesh->mFaces[i];
+      for (unsigned int j = 0; j < face.mNumIndices; j++) {
+        indices.push_back(vertexOffset + face.mIndices[j]);
+      }
+    }
+  }
+
+  S67_CORE_INFO("Loaded Model: {0} ({1} vertices, {2} indices)", path,
+                vertices.size(), indices.size());
+
+  Ref<VertexArray> va = VertexArray::Create();
+  Ref<VertexBuffer> vb =
+      VertexBuffer::Create((float *)vertices.data(),
+                           (uint32_t)(vertices.size() * sizeof(OBJVertex)));
+  vb->SetLayout({{ShaderDataType::Float3, "a_Position"},
+                 {ShaderDataType::Float3, "a_Normal"},
+                 {ShaderDataType::Float2, "a_TexCoord"}});
+  va->AddVertexBuffer(vb);
+
+  Ref<IndexBuffer> ib =
+      IndexBuffer::Create(indices.data(), (uint32_t)indices.size());
+  va->SetIndexBuffer(ib);
+
   return va;
 }
 

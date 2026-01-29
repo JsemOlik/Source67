@@ -88,6 +88,9 @@ public:
   Ref<Texture2D> GetDefaultTexture() const { return m_DefaultTexture; }
   Ref<VertexArray> GetCubeMesh() const { return m_CubeMesh; }
 
+  Ref<PerspectiveCamera> GetEditorCamera() const { return m_EditorCamera; }
+  void SetSceneModified(bool modified) { m_SceneModified = modified; }
+
   std::filesystem::path ResolveAssetPath(const std::filesystem::path &path);
   const std::filesystem::path &GetEngineAssetsRoot() const {
     return m_EngineAssetsRoot;

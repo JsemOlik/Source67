@@ -765,31 +765,13 @@ void Application::OpenScene(const std::string &filepath) {
     auto &bodyInterface = PhysicsSystem::GetBodyInterface();
 
     for (auto &entity : m_Scene->GetEntities()) {
-
       // Assign cube mesh if MeshPath is "Cube"
       if (entity->MeshPath == "Cube") {
         entity->Mesh = m_CubeMesh;
       }
 
-      // Recreate Physics Body (Skip Player and Non-Collidable)
-      if (entity->Name == "Player" || !entity->Collidable)
-        continue;
-
-      glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
-      JPH::BodyCreationSettings settings(
-          PhysicsShapes::CreateBox({entity->Transform.Scale.x,
-                                    entity->Transform.Scale.y,
-                                    entity->Transform.Scale.z}),
-          JPH::RVec3(entity->Transform.Position.x, entity->Transform.Position.y,
-                     entity->Transform.Position.z),
-          JPH::Quat(q.x, q.y, q.z, q.w),
-          entity->Anchored ? JPH::EMotionType::Static
-                           : JPH::EMotionType::Dynamic,
-          entity->Anchored ? Layers::NON_MOVING : Layers::MOVING);
-
-      settings.mUserData = (uint64_t)entity.get();
-      entity->PhysicsBody =
-          bodyInterface.CreateAndAddBody(settings, JPH::EActivation::Activate);
+      // Recreate Physics Body
+      OnEntityCollidableChanged(entity);
     }
     m_Scene->EnsurePlayerExists();
   }
@@ -808,10 +790,38 @@ void Application::OnEntityCollidableChanged(Ref<Entity> entity) {
   if (entity->Collidable) {
     glm::quat q = glm::quat(glm::radians(entity->Transform.Rotation));
 
+    JPH::Ref<JPH::Shape> shape;
+    std::string ext =
+        std::filesystem::path(entity->MeshPath).extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+    if (ext == ".fbx" || ext == ".obj" || ext == ".stl") {
+      std::string resolvedPath = ResolveAssetPath(entity->MeshPath).string();
+      if (!resolvedPath.empty() && std::filesystem::exists(resolvedPath)) {
+        MeshGeometry geometry = MeshLoader::LoadGeometry(resolvedPath);
+        if (!geometry.Vertices.empty() && !geometry.Indices.empty()) {
+          if (entity->Anchored) {
+            shape = PhysicsShapes::CreateMeshShape(geometry,
+                                                   entity->Transform.Scale);
+          } else {
+            shape = PhysicsShapes::CreateConvexHullShape(
+                geometry, entity->Transform.Scale);
+          }
+        }
+      }
+    }
+
+    if (!shape) {
+      // Box half-extents must be at least some minimum to avoid Jolt assertions
+      // and we must divide by 2 because Jolt uses half-extents
+      float hx = std::max(0.01f, entity->Transform.Scale.x * 0.5f);
+      float hy = std::max(0.01f, entity->Transform.Scale.y * 0.5f);
+      float hz = std::max(0.01f, entity->Transform.Scale.z * 0.5f);
+      shape = PhysicsShapes::CreateBox({hx, hy, hz});
+    }
+
     JPH::BodyCreationSettings settings(
-        PhysicsShapes::CreateBox({entity->Transform.Scale.x,
-                                  entity->Transform.Scale.y,
-                                  entity->Transform.Scale.z}),
+        shape,
         JPH::RVec3(entity->Transform.Position.x, entity->Transform.Position.y,
                    entity->Transform.Position.z),
         JPH::Quat(q.x, q.y, q.z, q.w),
@@ -1119,31 +1129,62 @@ bool Application::OnWindowDrop(WindowDropEvent &e) {
     return false;
   }
 
-  std::filesystem::path targetDir =
-      m_ContentBrowserPanel->GetCurrentDirectory();
+  // Get mouse position for spawning
+  double xpos, ypos;
+  glfwGetCursorPos((GLFWwindow *)m_Window->GetNativeWindow(), &xpos, &ypos);
 
   for (const auto &pathStr : e.GetPaths()) {
     std::filesystem::path sourcePath(pathStr);
-    std::filesystem::path targetPath = targetDir / sourcePath.filename();
+    std::string ext = sourcePath.extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
-    try {
-      if (std::filesystem::exists(targetPath)) {
-        S67_CORE_WARN("File already exists: {0}. Skipping.",
+    // If it's a model file, spawn it in the scene
+    if (ext == ".fbx" || ext == ".obj" || ext == ".stl") {
+      auto entity = std::make_shared<Entity>();
+      entity->Name = sourcePath.stem().string();
+
+      // Load mesh based on extension
+      if (ext == ".fbx") {
+        entity->Mesh = MeshLoader::LoadModel(sourcePath.string());
+      } else if (ext == ".obj") {
+        entity->Mesh = MeshLoader::LoadOBJ(sourcePath.string());
+      } else if (ext == ".stl") {
+        entity->Mesh = MeshLoader::LoadSTL(sourcePath.string());
+      }
+
+      // Position: just spawn somewhere in front of camera or at origin for now
+      entity->MeshPath = sourcePath.string();
+
+      m_Scene->AddEntity(entity);
+      OnEntityCollidableChanged(entity);
+      m_SceneModified = true;
+
+      S67_CORE_INFO("Dropped and spawned entity: {0}", entity->Name);
+    } else {
+      // Traditional import to content browser
+      std::filesystem::path targetDir =
+          m_ContentBrowserPanel->GetCurrentDirectory();
+      std::filesystem::path targetPath = targetDir / sourcePath.filename();
+
+      try {
+        if (std::filesystem::exists(targetPath)) {
+          S67_CORE_WARN("File already exists: {0}. Skipping.",
+                        targetPath.string());
+          continue;
+        }
+
+        if (std::filesystem::is_directory(sourcePath)) {
+          std::filesystem::copy(sourcePath, targetPath,
+                                std::filesystem::copy_options::recursive);
+        } else {
+          std::filesystem::copy_file(sourcePath, targetPath);
+        }
+        S67_CORE_INFO("Imported: {0} -> {1}", sourcePath.string(),
                       targetPath.string());
-        continue;
+      } catch (const std::filesystem::filesystem_error &err) {
+        S67_CORE_ERROR("Failed to import {0}: {1}", sourcePath.string(),
+                       err.what());
       }
-
-      if (std::filesystem::is_directory(sourcePath)) {
-        std::filesystem::copy(sourcePath, targetPath,
-                              std::filesystem::copy_options::recursive);
-      } else {
-        std::filesystem::copy_file(sourcePath, targetPath);
-      }
-      S67_CORE_INFO("Imported: {0} -> {1}", sourcePath.string(),
-                    targetPath.string());
-    } catch (const std::filesystem::filesystem_error &err) {
-      S67_CORE_ERROR("Failed to import {0}: {1}", sourcePath.string(),
-                     err.what());
     }
   }
 
@@ -2094,13 +2135,11 @@ void Application::RenderFrame(float alpha) {
             const char *path = (const char *)payload->Data;
             std::filesystem::path assetPath = path;
 
-            if (assetPath.extension() == ".obj" ||
-                assetPath.extension() == ".stl") {
-              Ref<VertexArray> mesh = nullptr;
-              if (assetPath.extension() == ".obj")
-                mesh = MeshLoader::LoadOBJ(assetPath.string());
-              else if (assetPath.extension() == ".stl")
-                mesh = MeshLoader::LoadSTL(assetPath.string());
+            std::string ext = assetPath.extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+            if (ext == ".fbx" || ext == ".obj" || ext == ".stl") {
+              Ref<VertexArray> mesh = MeshLoader::LoadModel(assetPath.string());
 
               if (mesh) {
                 auto entity =
