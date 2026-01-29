@@ -374,6 +374,21 @@ void Application::OnSceneStop() {
       }
     }
   }
+
+  // Final sync: Update PlayerController and Camera to the restored state
+  for (auto &entity : m_Scene->GetEntities()) {
+    if (entity->Name == "Player") {
+      m_PlayerController->Reset(entity->Transform.Position);
+      m_PlayerController->SetRotation(entity->Transform.Rotation.y,
+                                      entity->Transform.Rotation.x);
+
+      m_Camera->SetPosition(entity->Transform.Position +
+                            glm::vec3(0.0f, 1.7f, 0.0f));
+      m_Camera->SetYaw(entity->Transform.Rotation.y - 90.0f);
+      m_Camera->SetPitch(entity->Transform.Rotation.x);
+      break;
+    }
+  }
 }
 
 void Application::SetProjectRoot(const std::filesystem::path &root) {
@@ -1726,8 +1741,8 @@ void Application::RenderFrame(float alpha) {
   } else if (m_SceneState == SceneState::Play ||
              m_SceneState == SceneState::Pause) {
     // Interpolate camera position for smooth rendering
-    // Note: Physics ticks run in UpdateGameTick(), here we only interpolate for
-    // display
+    // Note: Physics ticks run in UpdateGameTick(), here we only interpolate
+    // for display
     glm::vec3 interpolated_position = glm::mix(
         m_PreviousState.player_position, m_CurrentState.player_position, alpha);
 
@@ -2409,8 +2424,8 @@ void Application::RenderFrame(float alpha) {
   }
 
   // Auto-save system (every 60 seconds)
-  if (m_LevelLoaded && !m_LevelFilePath.empty() &&
-      m_LevelFilePath != "Untitled.s67") {
+  if (m_SceneState == SceneState::Edit && m_LevelLoaded &&
+      !m_LevelFilePath.empty() && m_LevelFilePath != "Untitled.s67") {
     float current_time = static_cast<float>(glfwGetTime());
     if (current_time - m_LastAutoSaveTime >= 60.0f) {
       SceneSerializer serializer(m_Scene.get(), m_ProjectRoot.string());
