@@ -10,7 +10,6 @@
 #include <Jolt/Physics/Character/CharacterVirtual.h>
 #include <glm/glm.hpp>
 
-
 namespace S67 {
 
 class PlayerController {
@@ -69,7 +68,7 @@ private:
                   float wishspeed, float accel, float dt);
   void AirAccelerate(glm::vec3 &velocity, const glm::vec3 &wishdir,
                      float wishspeed, float accel, float dt);
-  void CheckJump(glm::vec3 &velocity, float dt);
+  bool CheckJump(glm::vec3 &velocity, float dt);
 
   // Movement State
   bool m_IsSprinting = false;

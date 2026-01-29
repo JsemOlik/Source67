@@ -121,12 +121,13 @@ void PlayerController::OnUpdate(Timestep ts) {
 
   CheckGround(dt);
 
+  bool didJump = false;
   if (m_JumpPressed) {
-    CheckJump(velocity, dt);
+    didJump = CheckJump(velocity, dt);
   }
 
-  if (m_Character->GetGroundState() ==
-      JPH::CharacterVirtual::EGroundState::OnGround) {
+  if (!didJump && m_Character->GetGroundState() ==
+                      JPH::CharacterVirtual::EGroundState::OnGround) {
     GroundMove(velocity, dt);
   } else {
     AirMove(velocity, dt);
@@ -162,7 +163,7 @@ void PlayerController::CheckGround(float dt) {
   // might trace explicitly m_Character->Update() handles ground detection.
 }
 
-void PlayerController::CheckJump(glm::vec3 &velocity, float dt) {
+bool PlayerController::CheckJump(glm::vec3 &velocity, float dt) {
   if (m_Character->GetGroundState() ==
       JPH::CharacterVirtual::EGroundState::OnGround) {
 
@@ -175,11 +176,9 @@ void PlayerController::CheckJump(glm::vec3 &velocity, float dt) {
     // For simplicity, we consume it.
     m_JumpPressed = false;
 
-    // Air Move immediately? No, wait for next frame or logic update.
-    // But we must tell Jolt we are no longer on ground to avoid friction next
-    // step if we run it sequentially? Actually Jolt updates ground state in
-    // Update(), so we just set velocity.
+    return true;
   }
+  return false;
 }
 
 void PlayerController::GroundMove(glm::vec3 &velocity, float dt) {
