@@ -8,10 +8,10 @@
 
 namespace S67 {
 
-    // Fixed timestep accumulator
+    // Fixed timestep for physics (66Hz to match Source Engine tick rate)
     namespace {
         static float s_PhysicsAccumulator = 0.0f;
-        static constexpr float FIXED_PHYSICS_DT = 1.0f / 60.0f;
+        static constexpr float FIXED_PHYSICS_DT = 1.0f / 66.0f;  // ~0.015151515f (15.15ms)
         static constexpr int MAX_PHYSICS_STEPS = 5;
     }
 
