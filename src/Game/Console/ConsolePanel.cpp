@@ -14,11 +14,23 @@ void ConsolePanel::OnImGuiRender(bool *pOpen) {
   if (!*pOpen)
     return;
 
-  ImGui::SetNextWindowSize(ImVec2(520, 600), ImGuiCond_FirstUseEver);
-  if (!ImGui::Begin("Developer Console (`)", pOpen)) {
+  ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
+  ImGui::SetNextWindowPos(ImVec2(0, 0));
+  ImGui::SetNextWindowSize(ImVec2(viewportSize.x, viewportSize.y * 0.5f));
+
+  ImGuiWindowFlags window_flags =
+      ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoDocking |
+      ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+      ImGuiWindowFlags_NoNav;
+
+  ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.1f, 0.1f, 0.1f, 0.95f));
+
+  if (!ImGui::Begin("Developer Console Overlay", pOpen, window_flags)) {
+    ImGui::PopStyleColor();
     ImGui::End();
     return;
   }
+  ImGui::PopStyleColor();
 
   // 1. Output Region
   const float footer_height_to_reserve =
