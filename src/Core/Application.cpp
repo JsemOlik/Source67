@@ -681,6 +681,10 @@ void Application::OnSaveScene() {
     return;
   }
 
+  if (!m_LevelLoaded) {
+    return;
+  }
+
   if (m_LevelLoaded && !m_LevelFilePath.empty() &&
       m_LevelFilePath != "Untitled.s67") {
     SceneSerializer serializer(m_Scene.get(), m_ProjectRoot.string());
@@ -1719,6 +1723,18 @@ void Application::ResetLayout() {
 }
 
 void Application::RenderFrame(float alpha) {
+  // Scene File existence check (every 1 second)
+  if (m_LevelLoaded && !m_LevelFilePath.empty() &&
+      m_LevelFilePath != "Untitled.s67") {
+    float currentTime = (float)glfwGetTime();
+    if (currentTime - m_LastFileCheckTime >= 1.0f) {
+      m_LastFileCheckTime = currentTime;
+      if (!std::filesystem::exists(m_LevelFilePath)) {
+        m_ShowSceneMissingPopup = true;
+      }
+    }
+  }
+
   // alpha is the interpolation factor between previous and current physics
   // states 0.0 = at previous tick state 0.5 = halfway between previous and
   // current tick ~0.999 = almost at current tick
@@ -2457,6 +2473,35 @@ void Application::RenderFrame(float alpha) {
     if (ImGui::Button("Cancel", ImVec2(150, 0))) {
       m_PendingScenePath.clear();
       ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::EndPopup();
+  }
+
+  if (m_ShowSceneMissingPopup) {
+    ImGui::OpenPopup("Scene File Missing");
+  }
+
+  if (ImGui::BeginPopupModal("Scene File Missing", nullptr,
+                             ImGuiWindowFlags_AlwaysAutoResize)) {
+    ImGui::Text("The currently loaded scene file has been deleted from disk!");
+    ImGui::Text("File: %s", m_LevelFilePath.c_str());
+    ImGui::Separator();
+
+    ImGui::Text(
+        "To prevent issues, it is recommended to close the current scene.");
+
+    if (ImGui::Button("Close Scene", ImVec2(120, 0))) {
+      CloseScene();
+      m_ShowSceneMissingPopup = false;
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Ignore (I will save it manually)", ImVec2(220, 0))) {
+      m_ShowSceneMissingPopup = false;
+      ImGui::CloseCurrentPopup();
+      // Reset the timer to not nag immediately
+      m_LastFileCheckTime = (float)glfwGetTime();
     }
 
     ImGui::EndPopup();

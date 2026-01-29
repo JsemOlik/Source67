@@ -198,6 +198,8 @@ private:
   // Save notification
   bool m_ShowSaveNotification = false;
   float m_SaveNotificationTime = 0.0f;
+  bool m_ShowSceneMissingPopup = false;
+  float m_LastFileCheckTime = 0.0f;
 
   // Unsaved changes tracking
   bool m_SceneModified = false;
