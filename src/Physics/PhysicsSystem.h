@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Core/Base.h"
-
 #include <Jolt/Core/Factory.h>
 #include <Jolt/Core/JobSystemThreadPool.h>
 #include <Jolt/Core/TempAllocator.h>
@@ -15,8 +13,10 @@
 #include <Jolt/RegisterTypes.h>
 
 
+#include "Core/Base.h"
 #include "Core/Timestep.h"
 #include <glm/glm.hpp>
+
 
 namespace S67 {
 
@@ -42,10 +42,7 @@ public:
                              const glm::vec3 &direction, float distance);
 
   static const JPH::BroadPhaseLayerFilter &GetBroadPhaseLayerFilter();
-
   static const JPH::ObjectLayerFilter &GetObjectLayerFilter();
-
-  static void SetGravity(float gravity);
 
 private:
   static JPH::PhysicsSystem *s_PhysicsSystem;

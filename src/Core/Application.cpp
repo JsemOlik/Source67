@@ -51,44 +51,12 @@ struct SceneBackup {
 };
 static SceneBackup s_SceneBackup;
 
-namespace {
-static void OnFpsMaxChanged(ConVar *var, const std::string &oldValue,
-                            float flOldValue) {
-  if (Application::Get().GetWindowPointer()) {
-    Application::Get().SetFPSCap(var->GetInt());
-  }
-}
-
-static void OnVSyncChanged(ConVar *var, const std::string &oldValue,
-                           float flOldValue) {
-  if (Application::Get().GetWindowPointer()) {
-    Application::Get().GetWindowPointer()->SetVSync(var->GetBool());
-  }
-}
-
-static void OnFovChanged(ConVar *var, const std::string &oldValue,
-                         float flOldValue) {
-  // We'd need to access the editor camera inside Application
-  // Application::Get().SetEditorFOV(var->GetFloat());
-}
-
-// Register variables
-static ConVar fps_max("fps_max", "0", FCVAR_ARCHIVE,
-                      "Frame rate limiter (0 = unlimited)", OnFpsMaxChanged);
-static ConVar vsync("vsync", "1", FCVAR_ARCHIVE, "Enable vertical sync",
-                    OnVSyncChanged);
-// fov variable requires public setter on Application or friend access
-} // namespace
-
 Application *Application::s_Instance = nullptr;
 
 Application::Application(const std::string &executablePath,
                          const std::string &arg) {
   S67_CORE_ASSERT(!s_Instance, "Application already exists!");
   s_Instance = this;
-
-  // Initialize Console first
-  Console::Init();
 
   // Find assets root
   std::filesystem::path currentPath =
@@ -315,8 +283,6 @@ Application::~Application() {
   HUDRenderer::Shutdown();
   m_ImGuiLayer->OnDetach();
   PhysicsSystem::Shutdown();
-
-  Console::Shutdown();
 }
 
 void Application::OnScenePlay() {
@@ -670,15 +636,20 @@ void Application::UI_DeveloperConsole() {
                                       ImVec2(FLT_MAX, FLT_MAX));
   ImGui::SetNextWindowSize({800, 450}, ImGuiCond_FirstUseEver);
   if (ImGui::Begin("Developer Console (`)", &m_ShowConsole)) {
+    if (ImGui::Button("Clear")) {
+      Logger::ClearLogHistory();
+    }
+    ImGui::SameLine();
+    static bool scrollToBottom = true;
+    ImGui::Checkbox("Auto-scroll", &scrollToBottom);
+    ImGui::SameLine();
+    ImGui::TextDisabled("| %zu messages", Logger::GetLogHistory().size());
 
-    // Output area
-    ImGui::BeginChild("ScrollingRegion", {0, -35}, false,
+    ImGui::Separator();
+
+    ImGui::BeginChild("ScrollingRegion", {0, 0}, false,
                       ImGuiWindowFlags_HorizontalScrollbar);
 
-    // Display logs from Logger (integrated)
-    // In a real implementation we might want a separate Console buffer,
-    // but for now relying on Logger history is fine as long as we can see
-    // command output. The Logger stores everything.
     const auto &logs = Logger::GetLogHistory();
     for (const auto &log : logs) {
       ImVec4 color = {0.8f, 0.8f, 0.8f, 1.0f};
@@ -692,31 +663,14 @@ void Application::UI_DeveloperConsole() {
         color = {0.5f, 1.0f, 0.5f, 1.0f};
 
       ImGui::PushStyleColor(ImGuiCol_Text, color);
-      ImGui::TextUnformatted(log.Message.c_str());
+      ImGui::Text("[%s] %s", log.Timestamp.c_str(), log.Message.c_str());
       ImGui::PopStyleColor();
     }
 
-    if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+    if (scrollToBottom && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
       ImGui::SetScrollHereY(1.0f);
 
     ImGui::EndChild();
-
-    ImGui::Separator();
-
-    // Input area
-    static char inputBuf[256] = "";
-    ImGui::PushItemWidth(-1);
-    if (ImGui::InputText("##ConsoleInput", inputBuf, IM_ARRAYSIZE(inputBuf),
-                         ImGuiInputTextFlags_EnterReturnsTrue)) {
-      Console::ExecuteCommand(inputBuf);
-      inputBuf[0] = '\0';
-      ImGui::SetKeyboardFocusHere(-1);
-    }
-    ImGui::PopItemWidth();
-
-    // Auto-focus on window open
-    if (ImGui::IsWindowAppearing())
-      ImGui::SetKeyboardFocusHere(-1);
   }
   ImGui::End();
 }

@@ -1,6 +1,5 @@
 #include "PhysicsSystem.h"
 #include "Core/Assert.h"
-#include "Core/Console/ConVar.h"
 #include "Core/Logger.h"
 #include <Jolt/Physics/Collision/BroadPhase/BroadPhaseLayer.h>
 #include <Jolt/Physics/Collision/CastResult.h>
@@ -16,19 +15,7 @@ static float s_PhysicsAccumulator = 0.0f;
 static constexpr float FIXED_PHYSICS_DT =
     1.0f / 66.0f; // ~0.015151515f (15.15ms)
 static constexpr int MAX_PHYSICS_STEPS = 5;
-
-static void OnGravityChanged(ConVar *var, const std::string &oldValue,
-                             float flOldValue);
-static ConVar sv_gravity("sv_gravity", "800.0",
-                         FCVAR_ARCHIVE | FCVAR_REPLICATED | FCVAR_NOTIFY,
-                         "World gravity", OnGravityChanged);
 } // namespace
-
-// Callback implementation
-static void OnGravityChanged(ConVar *var, const std::string &oldValue,
-                             float flOldValue) {
-  PhysicsSystem::SetGravity(var->GetFloat());
-}
 
 // --- Jolt Boilerplate ---
 
@@ -129,27 +116,7 @@ void PhysicsSystem::Init() {
   s_PhysicsSystem->Init(1024, 0, 1024, 1024, s_BPLayerInterface,
                         s_ObjectVsBPFilter, s_ObjectLayerPairFilter);
 
-  s_PhysicsSystem->Init(1024, 0, 1024, 1024, s_BPLayerInterface,
-                        s_ObjectVsBPFilter, s_ObjectLayerPairFilter);
-
-  // Apply initial gravity from ConVar
-  SetGravity(sv_gravity.GetFloat());
-
   S67_CORE_INFO("Physics System Initialized (Jolt)");
-}
-
-void PhysicsSystem::SetGravity(float gravity) {
-  if (s_PhysicsSystem) {
-    // Jolt uses Y-up by default?
-    // Our scene is Y-up. Gravity is usually negative Y.
-    // Source uses positive number for magnitude usually, but vector is
-    // (0,0,-800) in source? Wait, Source is Z-up. S67 appears to be Y-up based
-    // on floor at -2.0f and Player at 1.7f. So gravity should be (0, -gravity,
-    // 0)
-
-    // Standard Source sv_gravity is 800.
-    s_PhysicsSystem->SetGravity(JPH::Vec3(0, -gravity, 0));
-  }
 }
 
 void PhysicsSystem::Shutdown() {
