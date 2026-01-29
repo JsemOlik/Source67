@@ -738,7 +738,7 @@ void Application::OpenScene(const std::string &filepath) {
 
   PhysicsSystem::Shutdown(); // Reset physics system to clear all bodies
   PhysicsSystem::Init();
-  m_PlayerController = CreateScope<PlayerController>(m_Camera);
+  // m_PlayerController is managed by Scene's script system now
 
   DiscoverProject(std::filesystem::path(filepath));
   SceneSerializer serializer(m_Scene.get(), m_ProjectRoot.string());

@@ -5,6 +5,7 @@
 #include "Events/Event.h"
 #include "Renderer/Camera.h"
 #include "Renderer/Entity.h"
+#include "Renderer/ScriptableEntity.h"
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Character/CharacterVirtual.h>
@@ -12,13 +13,19 @@
 
 namespace S67 {
 
-class PlayerController {
-public:
-  PlayerController(Ref<PerspectiveCamera> camera);
-  ~PlayerController();
+// Forward Declaration
+class PerspectiveCamera;
 
-  void OnUpdate(Timestep ts);
-  void OnEvent(Event &e);
+class PlayerController : public ScriptableEntity {
+public:
+  PlayerController();
+  virtual ~PlayerController();
+
+  void OnCreate() override;
+  void OnUpdate(float ts) override;
+  void OnEvent(Event &e) override;
+  void OnDestroy() override;
+
   void Reset(const glm::vec3 &startPos);
   void ReinitializeCharacter();
 
@@ -29,6 +36,9 @@ public:
   float GetSpeed() const;
   float GetYaw() const { return m_Yaw; }
   float GetPitch() const { return m_Pitch; }
+
+  // Getters for Application State
+  // Note: We might want these to be part of the Player Component or similar
 
   void SetSettings(const MovementSettings &settings) { m_Settings = settings; }
 
