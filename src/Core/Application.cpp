@@ -162,7 +162,7 @@ Application::Application(const std::string &executablePath,
     std::filesystem::path p(cleanArg);
     std::string ext = p.extension().string();
     for (auto &c : ext)
-      c = std::tolower(c);
+      c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
 
     if (ext == ".s67") {
       S67_CORE_INFO("Auto-loading level: {0}", cleanArg);
@@ -1037,7 +1037,7 @@ void Application::UpdateGameTick(float tick_dt) {
   // synchronized here if exposed by PlayerController in the future
 }
 
-bool Application::OnWindowClose(WindowCloseEvent &e) {
+bool Application::OnWindowClose(WindowCloseEvent & /*e*/) {
   m_Running = false;
   return true;
 }
@@ -1931,7 +1931,6 @@ void Application::RenderFrame(float alpha) {
                                  m_EditorCamera->GetForward() * 5.0f;
             entity->Transform.Position = spawnPos;
 
-            auto &bodyInterface = PhysicsSystem::GetBodyInterface();
             JPH::BodyCreationSettings settings(
                 PhysicsShapes::CreateBox({entity->Transform.Scale.x,
                                           entity->Transform.Scale.y,
@@ -2028,7 +2027,6 @@ void Application::RenderFrame(float alpha) {
                                     m_EditorCamera->GetForward() * 5.0f;
                 entity->Transform.Position = dropPos;
 
-                auto &bodyInterface = PhysicsSystem::GetBodyInterface();
                 JPH::BodyCreationSettings settings(
                     PhysicsShapes::CreateBox({1.0f, 1.0f, 1.0f}),
                     JPH::RVec3(dropPos.x, dropPos.y, dropPos.z),
@@ -2049,7 +2047,6 @@ void Application::RenderFrame(float alpha) {
         }
 
         // Gizmos
-        Ref<Entity> selectedEntity = m_SceneHierarchyPanel->GetSelectedEntity();
         if (selectedEntity && m_GizmoType != -1) {
           ImGuizmo::SetOrthographic(false);
           ImGuizmo::SetDrawlist();
@@ -2131,8 +2128,8 @@ void Application::RenderFrame(float alpha) {
           ImGui::SetNextWindowSize(notificationSize);
 
           // Fade out in the last 0.5 seconds
-          float alpha = (elapsed > 2.5f) ? (3.0f - elapsed) / 0.5f : 1.0f;
-          ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
+          float fadeAlpha = (elapsed > 2.5f) ? (3.0f - elapsed) / 0.5f : 1.0f;
+          ImGui::PushStyleVar(ImGuiStyleVar_Alpha, fadeAlpha);
 
           // Use standard theme background color (no PushStyleColor)
 
