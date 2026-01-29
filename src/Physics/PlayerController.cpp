@@ -223,7 +223,7 @@ void PlayerController::OnUpdate(Timestep ts) {
 
   // 6. Move Character (Collision Handling)
   PlayerBodyFilter bodyFilter;
-  m_Character->Update(ts, JPH::Vec3::sZero(),  // Gravity handled manually
+  m_Character->Update(ts, JPH::Vec3::sZero(), // Gravity handled manually
                       PhysicsSystem::GetBroadPhaseLayerFilter(),
                       PhysicsSystem::GetObjectLayerFilter(), bodyFilter,
                       JPH::ShapeFilter(), m_TempAllocator);
@@ -294,9 +294,16 @@ void PlayerController::UpdateSprint(float dt) {
 
   if (m_IsSprinting) {
     m_SprintRemaining -= dt;
-    if (m_SprintRemaining <= 0.0f) {
+
+    // Stop sprinting if shift key is released
+    if (!m_SprintPressed) {
       m_IsSprinting = false;
-      m_SprintRecoveryTime = SPRINT_RECOVERY;
+      // No recovery penalty if manually stopped
+    }
+    // Or if sprint duration runs out (exhausted)
+    else if (m_SprintRemaining <= 0.0f) {
+      m_IsSprinting = false;
+      m_SprintRecoveryTime = SPRINT_RECOVERY; // Only penalize if exhausted
     }
   } else if (m_SprintRecoveryTime > 0.0f) {
     m_SprintRecoveryTime -= dt;
