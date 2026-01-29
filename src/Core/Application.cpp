@@ -1816,6 +1816,13 @@ void Application::RenderFrame(float alpha) {
   // 3. HUD Rendering (only in game viewport)
   HUDRenderer::BeginHUD(m_GameViewportSize.x, m_GameViewportSize.y);
   HUDRenderer::RenderCrosshair();
+
+  if (m_PlayerController) {
+    // 1 meter = 39.97 Hammer Units
+    float speedHU = m_PlayerController->GetSpeed() * 39.97f;
+    HUDRenderer::RenderSpeed(speedHU);
+  }
+
   HUDRenderer::EndHUD();
 
   m_GameFramebuffer->Unbind();
