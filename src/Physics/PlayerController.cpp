@@ -133,6 +133,13 @@ void PlayerController::OnEvent(Event &e) {
 void PlayerController::OnUpdate(float ts) {
   float dt = ts;
 
+  static float logTimer = 0.0f;
+  logTimer += ts;
+  if (logTimer >= 1.0f) {
+    S67_CORE_INFO("PlayerController Script Updating... (dt={0})", ts);
+    logTimer = 0.0f;
+  }
+
   // Sync Settings from Console Variables
   // Safety Check: Only apply if ConVars are initialized (non-zero)
   if (sv_maxspeed.GetFloat() != 0.0f) {
