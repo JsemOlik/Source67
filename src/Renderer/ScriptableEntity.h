@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Renderer/Entity.h"
+#include "Entity.h"
 
 namespace S67 {
 
@@ -8,11 +8,10 @@ class ScriptableEntity {
 public:
   virtual ~ScriptableEntity() {}
 
-  template <typename T> T &GetComponent() { return m_Entity.GetComponent<T>(); }
+  Entity &GetEntity() { return *m_Entity; }
 
-  // Shortcut to Entity Transform
-  // Transform& GetTransform() { return
-  // GetComponent<TransformComponent>().Transform; }
+  // Shortcuts
+  Transform &GetTransform() { return m_Entity->Transform; }
 
 protected:
   virtual void OnCreate() {}
@@ -20,7 +19,7 @@ protected:
   virtual void OnDestroy() {}
 
 private:
-  Entity m_Entity;
+  Entity *m_Entity = nullptr;
   friend class Scene; // Allowed to set m_Entity
 };
 

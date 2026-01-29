@@ -19,6 +19,7 @@ public:
       m_Entities.erase(it);
   }
   void EnsurePlayerExists();
+  void OnUpdate(float ts);
   void Clear() { m_Entities.clear(); }
   const std::vector<Ref<Entity>> &GetEntities() const { return m_Entities; }
 

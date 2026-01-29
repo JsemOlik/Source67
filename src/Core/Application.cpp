@@ -30,7 +30,6 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
-
 #define GLM_ENABLE_EXPERIMENTAL
 #include "Renderer/Mesh.h"
 #include <glm/gtc/type_ptr.hpp>
@@ -439,8 +438,34 @@ void Application::OnNewProject() {
     m_ProjectVersion = "1.0.0";
 
     std::filesystem::path projectAssets = projectRoot / "assets";
+    std::filesystem::path projectScripts =
+        projectRoot / "Scripts"; // Capitalized as requested
     std::filesystem::create_directories(projectAssets / "shaders");
     std::filesystem::create_directories(projectAssets / "textures");
+    std::filesystem::create_directories(projectScripts);
+
+    // Create Player.cpp Template
+    {
+      std::string playerScript = R"(#include <S67.h>
+
+class Player : public S67::ScriptableEntity {
+public:
+    void OnCreate() override {
+        S67::Console::Get().AddLog("Player Script Created!");
+    }
+
+    void OnUpdate(float ts) override {
+        // Movement Logic will go here...
+        // For now, this is just a template.
+    }
+};
+)";
+      std::ofstream out(projectScripts / "Player.cpp");
+      out << playerScript;
+      out.close();
+    }
+
+    // Copy Default Assets (Shaders)
 
     // Copy Default Assets (Shaders)
     try {
