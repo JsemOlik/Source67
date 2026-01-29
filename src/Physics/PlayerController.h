@@ -5,10 +5,11 @@
 #include "Events/Event.h"
 #include "Renderer/Camera.h"
 #include "Renderer/Entity.h"
+#include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Character/CharacterVirtual.h>
-#include <Jolt/Core/TempAllocator.h>
 #include <glm/glm.hpp>
+
 
 namespace S67 {
 
@@ -52,10 +53,23 @@ private:
   MovementSettings m_Settings;
 
   // Source Movement Constants (HU)
-  static constexpr float HU_TO_METERS = 1.0f / 39.97f;
+  // 1 unit = 0.75 inches = 0.01905 meters
+  static constexpr float HU_TO_METERS = 0.01905f;
+  static constexpr float METERS_TO_HU = 1.0f / 0.01905f;
 
   static constexpr float SPRINT_DURATION = 8.0f;
   static constexpr float SPRINT_RECOVERY = 8.0f;
+
+  // Movement Helpers
+  void CheckGround(float dt);
+  void GroundMove(glm::vec3 &velocity, float dt);
+  void AirMove(glm::vec3 &velocity, float dt);
+  void Friction(glm::vec3 &velocity, float dt);
+  void Accelerate(glm::vec3 &velocity, const glm::vec3 &wishdir,
+                  float wishspeed, float accel, float dt);
+  void AirAccelerate(glm::vec3 &velocity, const glm::vec3 &wishdir,
+                     float wishspeed, float accel, float dt);
+  void CheckJump(glm::vec3 &velocity, float dt);
 
   // Movement State
   bool m_IsSprinting = false;
