@@ -87,13 +87,10 @@ set(CROSS_PLATFORM_DETERMINISTIC OFF CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(glfw glm spdlog jolt imgui json)
 
-# Remove /WX flag from Jolt target on MSVC to prevent Windows SDK warnings from failing the build
+# Override /WX flag for Jolt target on MSVC to prevent Windows SDK warnings from failing the build
+# Using /WX- explicitly disables warnings-as-errors and overrides any /WX set by Jolt's CMake
 if(MSVC AND TARGET Jolt)
-    get_target_property(JOLT_COMPILE_OPTIONS Jolt COMPILE_OPTIONS)
-    if(JOLT_COMPILE_OPTIONS)
-        list(REMOVE_ITEM JOLT_COMPILE_OPTIONS /WX)
-        set_target_properties(Jolt PROPERTIES COMPILE_OPTIONS "${JOLT_COMPILE_OPTIONS}")
-    endif()
+    target_compile_options(Jolt PRIVATE /WX-)
 endif()
 
 # GLAD - Using latest commit from master branch
