@@ -131,7 +131,7 @@ Application::Application(const std::string &executablePath,
   m_SceneHierarchyPanel = CreateScope<SceneHierarchyPanel>(m_Scene);
   m_ContentBrowserPanel = CreateScope<ContentBrowserPanel>();
   m_Skybox = CreateScope<Skybox>(
-      ResolveAssetPath("assets/textures/skybox.png").string());
+      ResolveAssetPath("assets/textures/sky-3.png").string());
   LoadSettings();
 
   if (!std::filesystem::exists("imgui.ini")) {
@@ -153,6 +153,13 @@ Application::Application(const std::string &executablePath,
   }
 
   InitDefaultAssets();
+
+  // Initialize HUD Renderer
+  S67_CORE_INFO("Initializing HUD Renderer...");
+  HUDRenderer::Init();
+  m_HUDShader =
+      Shader::Create(ResolveAssetPath("assets/shaders/HUD.glsl").string());
+  HUDRenderer::SetShader(m_HUDShader);
 
   if (!arg.empty()) {
     std::string cleanArg = arg;
@@ -273,6 +280,7 @@ void Application::CreateTestScene() {
 }
 
 Application::~Application() {
+  HUDRenderer::Shutdown();
   m_ImGuiLayer->OnDetach();
   PhysicsSystem::Shutdown();
 }
@@ -364,6 +372,21 @@ void Application::OnSceneStop() {
         bodyInterface.SetLinearAndAngularVelocity(
             entity->PhysicsBody, JPH::Vec3::sZero(), JPH::Vec3::sZero());
       }
+    }
+  }
+
+  // Final sync: Update PlayerController and Camera to the restored state
+  for (auto &entity : m_Scene->GetEntities()) {
+    if (entity->Name == "Player") {
+      m_PlayerController->Reset(entity->Transform.Position);
+      m_PlayerController->SetRotation(entity->Transform.Rotation.y,
+                                      entity->Transform.Rotation.x);
+
+      m_Camera->SetPosition(entity->Transform.Position +
+                            glm::vec3(0.0f, 1.7f, 0.0f));
+      m_Camera->SetYaw(entity->Transform.Rotation.y - 90.0f);
+      m_Camera->SetPitch(entity->Transform.Rotation.x);
+      break;
     }
   }
 }
@@ -1015,15 +1038,30 @@ void Application::Run() {
     // PHASE 6: Window update (swap buffers, poll events)
     m_Window->OnUpdate();
 
-    // PHASE 7: Apply FPS cap if enabled
+    // PHASE 7: Apply FPS cap if enabled (High-precision hybrid wait)
     if (m_FPSCap > 0) {
       double target_frame_time = 1.0 / m_FPSCap;
       double frame_end_time = glfwGetTime();
       double elapsed = frame_end_time - current_frame_time;
 
       if (elapsed < target_frame_time) {
-        double sleep_time = target_frame_time - elapsed;
-        std::this_thread::sleep_for(std::chrono::duration<double>(sleep_time));
+        double wait_time = target_frame_time - elapsed;
+
+        // 1. Precise sleep: Only sleep if we have more than a safe margin
+        // (20ms) to wait. This is necessary because the default Windows
+        // scheduler resolution is ~15.6ms. For anything shorter (like 144Hz or
+        // 240Hz targets), we MUST busy-wait to stay precise and avoid the "64
+        // FPS cap" issue.
+        if (wait_time > 0.020) {
+          std::this_thread::sleep_for(
+              std::chrono::duration<double>(wait_time - 0.018));
+        }
+
+        // 2. High-precision busy wait: Spin until we hit the exact microsecond
+        // target. This is extremely precise and works for all frame rates.
+        while (glfwGetTime() - current_frame_time < target_frame_time) {
+          // busy wait
+        }
       }
     }
   }
@@ -1232,6 +1270,15 @@ void Application::UI_SettingsWindow() {
       ImGui::DragInt("##FPSCap", &m_FPSCap, 1.0f, 0, 1000,
                      m_FPSCap == 0 ? "Unlimited" : "%d");
       ImGui::PopItemWidth();
+
+      // VSync
+      ImGui::TableNextRow();
+      ImGui::TableSetColumnIndex(0);
+      ImGui::Text("VSync");
+      ImGui::TableSetColumnIndex(1);
+      if (ImGui::Checkbox("##VSync", &m_VSync)) {
+        m_Window->SetVSync(m_VSync);
+      }
 
       ImGui::EndTable();
     }
@@ -1456,6 +1503,7 @@ void Application::SaveSettings() {
   j["FontSize"] = m_FontSize;
   j["EditorFOV"] = m_EditorFOV;
   j["FPSCap"] = m_FPSCap;
+  j["VSync"] = m_VSync;
   j["Theme"] = (int)m_EditorTheme;
   j["CustomColor"] = {m_CustomColor.r, m_CustomColor.g, m_CustomColor.b,
                       m_CustomColor.a};
@@ -1487,6 +1535,8 @@ void Application::LoadSettings() {
         m_EditorFOV = j["EditorFOV"];
       if (j.contains("FPSCap"))
         m_FPSCap = j["FPSCap"];
+      if (j.contains("VSync"))
+        m_VSync = j["VSync"];
       m_EditorTheme = (EditorTheme)j.at("Theme").get<int>();
 
       if (j.contains("CustomColor")) {
@@ -1541,6 +1591,9 @@ void Application::LoadSettings() {
       colors[ImGuiCol_WindowBg] = ImVec4{m_CustomColor.r, m_CustomColor.g,
                                          m_CustomColor.b, m_CustomColor.a};
 
+      if (m_Window)
+        m_Window->SetVSync(m_VSync);
+
       S67_CORE_INFO("Loaded settings from settings.json");
     } catch (...) {
       S67_CORE_ERROR("Error parsing settings.json! Using defaults.");
@@ -1552,6 +1605,10 @@ void Application::LoadSettings() {
     m_ImGuiLayer->SetDarkThemeColors();
     S67_CORE_INFO("No settings.json found, using defaults (Unity Dark, 18px)");
   }
+
+  // Apply VSync
+  if (m_Window)
+    m_Window->SetVSync(m_VSync);
 
   // Apply editor FOV to the camera if it exists
   if (m_EditorCamera) {
@@ -1684,8 +1741,8 @@ void Application::RenderFrame(float alpha) {
   } else if (m_SceneState == SceneState::Play ||
              m_SceneState == SceneState::Pause) {
     // Interpolate camera position for smooth rendering
-    // Note: Physics ticks run in UpdateGameTick(), here we only interpolate for
-    // display
+    // Note: Physics ticks run in UpdateGameTick(), here we only interpolate
+    // for display
     glm::vec3 interpolated_position = glm::mix(
         m_PreviousState.player_position, m_CurrentState.player_position, alpha);
 
@@ -1804,6 +1861,19 @@ void Application::RenderFrame(float alpha) {
     }
   }
   Renderer::EndScene();
+
+  // 3. HUD Rendering (only in game viewport)
+  HUDRenderer::BeginHUD(m_GameViewportSize.x, m_GameViewportSize.y);
+  HUDRenderer::RenderCrosshair();
+
+  if (m_PlayerController) {
+    // 1 meter = 39.97 Hammer Units
+    float speedHU = m_PlayerController->GetSpeed() * 39.97f;
+    HUDRenderer::RenderSpeed(speedHU);
+  }
+
+  HUDRenderer::EndHUD();
+
   m_GameFramebuffer->Unbind();
 
   m_ImGuiLayer->Begin();
@@ -2354,8 +2424,8 @@ void Application::RenderFrame(float alpha) {
   }
 
   // Auto-save system (every 60 seconds)
-  if (m_LevelLoaded && !m_LevelFilePath.empty() &&
-      m_LevelFilePath != "Untitled.s67") {
+  if (m_SceneState == SceneState::Edit && m_LevelLoaded &&
+      !m_LevelFilePath.empty() && m_LevelFilePath != "Untitled.s67") {
     float current_time = static_cast<float>(glfwGetTime());
     if (current_time - m_LastAutoSaveTime >= 60.0f) {
       SceneSerializer serializer(m_Scene.get(), m_ProjectRoot.string());

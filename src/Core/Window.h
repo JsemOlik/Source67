@@ -3,7 +3,6 @@
 #include <functional>
 #include <string>
 
-
 struct GLFWwindow;
 
 namespace S67 {
@@ -36,6 +35,9 @@ public:
 
   void SetCursorLocked(bool locked);
   void SetIcon(const std::string &path);
+
+  void SetVSync(bool enabled);
+  bool IsVSync() const;
 
   inline void *GetNativeWindow() const { return m_Window; }
 
