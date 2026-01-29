@@ -279,20 +279,8 @@ void PlayerController::Accelerate(glm::vec3 &velocity, const glm::vec3 &wishdir,
   if (addspeed <= 0)
     return;
 
-  float accelspeed = accel * dt * wishspeed * m_Settings.Friction;
-  // Note: Source typically uses accel * dt * wishspeed for ground, often
-  // multiplied by surface friction? pmove.c: accelspeed = accel * frametime *
-  // wishspeed; wait, pmove.c doesn't imply friction in the accel calculation
-  // unless it's implicit in accel value. But standard Source `gamemovement`
-  // uses `accel * wishspeed * dt * surfaceFriction`. We'll trust the
-  // plan/pmove.c: `accelspeed = accel * frametime * wishspeed;` Actually
-  // checking user provided pmove.c: `accelspeed = accel * frametime *
-  // wishspeed;` It does NOT multiply by friction.
-
-  // Re-reading pmove.c Accelerate:
-  // accelspeed = accel * frametime * wishspeed;
-
-  accelspeed = accel * dt * wishspeed;
+  // Source engine pmove.c uses: accelspeed = accel * frametime * wishspeed
+  float accelspeed = accel * dt * wishspeed;
 
   if (accelspeed > addspeed)
     accelspeed = addspeed;
