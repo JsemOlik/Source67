@@ -154,6 +154,13 @@ Application::Application(const std::string &executablePath,
 
   InitDefaultAssets();
 
+  // Initialize HUD Renderer
+  S67_CORE_INFO("Initializing HUD Renderer...");
+  HUDRenderer::Init();
+  m_HUDShader =
+      Shader::Create(ResolveAssetPath("assets/shaders/HUD.glsl").string());
+  HUDRenderer::SetShader(m_HUDShader);
+
   if (!arg.empty()) {
     std::string cleanArg = arg;
     if (cleanArg.front() == '\"' && cleanArg.back() == '\"') {
@@ -273,6 +280,7 @@ void Application::CreateTestScene() {
 }
 
 Application::~Application() {
+  HUDRenderer::Shutdown();
   m_ImGuiLayer->OnDetach();
   PhysicsSystem::Shutdown();
 }
@@ -1804,6 +1812,12 @@ void Application::RenderFrame(float alpha) {
     }
   }
   Renderer::EndScene();
+
+  // 3. HUD Rendering (only in game viewport)
+  HUDRenderer::BeginHUD(m_GameViewportSize.x, m_GameViewportSize.y);
+  HUDRenderer::RenderCrosshair();
+  HUDRenderer::EndHUD();
+
   m_GameFramebuffer->Unbind();
 
   m_ImGuiLayer->Begin();

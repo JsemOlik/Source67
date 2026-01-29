@@ -9,6 +9,7 @@
 #include "Renderer/Camera.h"
 #include "Renderer/CameraController.h"
 #include "Renderer/Framebuffer.h"
+#include "Renderer/HUDRenderer.h"
 #include "Renderer/Light.h"
 #include "Renderer/Scene.h"
 #include "Renderer/Shader.h"
@@ -108,9 +109,11 @@ private:
   bool m_Running = true;
 
   // Tick System Constants
-  static constexpr float TICK_RATE = 66.0f;              // Hz (ticks per second)
-  static constexpr float TICK_DURATION = 1.0f / 66.0f;   // ~0.015151515f seconds (15.15ms)
-  static constexpr float MAX_FRAME_TIME = 0.25f;         // Max 250ms per frame (prevents spiral of death)
+  static constexpr float TICK_RATE = 66.0f; // Hz (ticks per second)
+  static constexpr float TICK_DURATION =
+      1.0f / 66.0f; // ~0.015151515f seconds (15.15ms)
+  static constexpr float MAX_FRAME_TIME =
+      0.25f; // Max 250ms per frame (prevents spiral of death)
 
   // Tick System State
   GameState m_CurrentState;
@@ -183,6 +186,7 @@ private:
   Ref<Shader> m_DefaultShader;
   Ref<Texture2D> m_DefaultTexture;
   Ref<VertexArray> m_CubeMesh;
+  Ref<Shader> m_HUDShader;
 
   SceneState m_SceneState = SceneState::Edit;
   bool m_CursorLocked = false;
