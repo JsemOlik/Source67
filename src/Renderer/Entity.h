@@ -1,10 +1,12 @@
 #pragma once
 
+// Jolt.h must be included first before any other headers
+#include <Jolt/Jolt.h>
+#include <Jolt/Physics/Body/BodyID.h>
+
 #include "Renderer/Shader.h"
 #include "Renderer/Texture.h"
 #include "Renderer/VertexArray.h"
-#include <Jolt/Jolt.h>
-#include <Jolt/Physics/Body/BodyID.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <string>

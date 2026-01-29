@@ -1,13 +1,15 @@
 #pragma once
 
+// Jolt.h must be included first before any other headers
+#include <Jolt/Jolt.h>
+#include <Jolt/Core/TempAllocator.h>
+#include <Jolt/Physics/Character/CharacterVirtual.h>
+
 #include "Core/Base.h"
 #include "Core/Timestep.h"
 #include "Events/Event.h"
 #include "Renderer/Camera.h"
 #include "Renderer/Entity.h"
-#include <Jolt/Core/TempAllocator.h>
-#include <Jolt/Jolt.h>
-#include <Jolt/Physics/Character/CharacterVirtual.h>
 #include <glm/glm.hpp>
 
 namespace S67 {
