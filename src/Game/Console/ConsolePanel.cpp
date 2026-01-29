@@ -14,23 +14,23 @@ void ConsolePanel::OnImGuiRender(bool *pOpen) {
   if (!*pOpen)
     return;
 
-  ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
-  ImGui::SetNextWindowPos(ImVec2(0, 0));
-  ImGui::SetNextWindowSize(ImVec2(viewportSize.x, viewportSize.y * 0.5f));
+  ImGui::SetNextWindowSize(ImVec2(520, 600), ImGuiCond_FirstUseEver);
 
-  ImGuiWindowFlags window_flags =
-      ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoDocking |
-      ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
-      ImGuiWindowFlags_NoNav;
+  // Source-like styling (no docking to keep it separate)
+  ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking;
 
+  // Keep the semi-transparent dark background for that "Game Console" feel
   ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.1f, 0.1f, 0.1f, 0.95f));
+  ImGui::PushStyleColor(ImGuiCol_TitleBg, ImVec4(0.1f, 0.1f, 0.1f, 1.0f));
+  ImGui::PushStyleColor(ImGuiCol_TitleBgActive, ImVec4(0.1f, 0.1f, 0.1f, 1.0f));
+  ImGui::PushStyleColor(ImGuiCol_TitleBgCollapsed,
+                        ImVec4(0.1f, 0.1f, 0.1f, 1.0f));
 
-  if (!ImGui::Begin("Developer Console Overlay", pOpen, window_flags)) {
-    ImGui::PopStyleColor();
+  if (!ImGui::Begin("Developer Console", pOpen, window_flags)) {
+    ImGui::PopStyleColor(4);
     ImGui::End();
     return;
   }
-  ImGui::PopStyleColor();
 
   // 1. Output Region
   const float footer_height_to_reserve =
@@ -39,12 +39,7 @@ void ConsolePanel::OnImGuiRender(bool *pOpen) {
                     false, ImGuiWindowFlags_HorizontalScrollbar);
 
   // Display logs from Core::Logger
-  auto logs = Logger::GetLogHistory(); // Copy? Logger returns const vector
-                                       // value, so yes copy.
-  // Optimization: Logger::GetLogHistory returns by value which triggers a lock.
-  // Ideally we iterate with a lock held or Reference, but Logger::GetLogHistory
-  // returns value. Given it's a dev console, the copy overhead is acceptable
-  // for now.
+  auto logs = Logger::GetLogHistory();
 
   ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1)); // Tight spacing
 
@@ -90,13 +85,10 @@ void ConsolePanel::OnImGuiRender(bool *pOpen) {
           (void *)this)) {
     std::string command = m_InputBuffer;
     if (!command.empty()) {
-      // Log the command effectively by echoing it (or ExecuteCommand handles
-      // logging) Execute
       Console::Get().ExecuteCommand(command);
 
       // Add to history
       m_HistoryPos = -1;
-      // Remove existing if same to avoid duplicates at end?
       if (m_History.empty() || m_History.back() != command) {
         m_History.push_back(command);
       }
@@ -113,6 +105,7 @@ void ConsolePanel::OnImGuiRender(bool *pOpen) {
   if (reclaim_focus)
     ImGui::SetKeyboardFocusHere(-1); // Focus previous widget
 
+  ImGui::PopStyleColor(4);
   ImGui::End();
 }
 
