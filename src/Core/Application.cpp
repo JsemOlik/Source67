@@ -840,6 +840,7 @@ void Application::OnEvent(Event &e) {
       auto &mb = (MouseButtonPressedEvent &)e;
       if (mb.GetMouseButton() == 1) { // Right Click
         if (m_SceneViewportHovered) {
+          m_RequestSceneFocus = true;
           m_Window->SetCursorLocked(true);
           m_CursorLocked = true;
           m_EditorCameraController->SetRotationEnabled(true);
@@ -1706,7 +1707,7 @@ void Application::RenderFrame(float alpha) {
   // Editor camera updates (still uses per-frame delta time, not affected by
   // tick system)
   if (m_SceneState == SceneState::Edit) {
-    if (m_SceneViewportFocused) {
+    if (m_SceneViewportFocused || m_CursorLocked) {
       // Calculate frame delta for editor camera (not physics)
       float current_time = static_cast<float>(glfwGetTime());
       static float last_editor_time = current_time;
@@ -2069,6 +2070,10 @@ void Application::RenderFrame(float alpha) {
       ImGui::SetNextWindowSizeConstraints(ImVec2(300, 200),
                                           ImVec2(FLT_MAX, FLT_MAX));
       ImGui::Begin("Scene");
+      if (m_RequestSceneFocus) {
+        ImGui::SetWindowFocus();
+        m_RequestSceneFocus = false;
+      }
       m_SceneViewportFocused = ImGui::IsWindowFocused();
       m_SceneViewportHovered = ImGui::IsWindowHovered();
 
