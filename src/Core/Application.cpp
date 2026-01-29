@@ -104,7 +104,8 @@ Application::Application(const std::string &executablePath,
 
   // Initialize tick system game state
   m_PreviousFrameTime = glfwGetTime();
-  m_CurrentState.player_position = m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
+  m_CurrentState.player_position =
+      m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
   m_CurrentState.yaw = -90.0f;
   m_CurrentState.pitch = 0.0f;
   m_PreviousState = m_CurrentState;
@@ -231,8 +232,8 @@ void Application::CreateTestScene() {
   auto &bodyInterface = PhysicsSystem::GetBodyInterface();
 
   // 1. Floor (Anchored)
-  auto floor = CreateRef<Entity>("Floor", m_CubeMesh, m_DefaultShader,
-                                 m_DefaultTexture);
+  auto floor =
+      CreateRef<Entity>("Floor", m_CubeMesh, m_DefaultShader, m_DefaultTexture);
   floor->Transform.Position = {0.0f, -2.0f, 0.0f};
   floor->Transform.Scale = {20.0f, 1.0f, 20.0f};
   floor->Anchored = true;
@@ -759,7 +760,8 @@ void Application::OpenScene(const std::string &filepath) {
           JPH::RVec3(entity->Transform.Position.x, entity->Transform.Position.y,
                      entity->Transform.Position.z),
           JPH::Quat(q.x, q.y, q.z, q.w),
-          entity->Anchored ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic,
+          entity->Anchored ? JPH::EMotionType::Static
+                           : JPH::EMotionType::Dynamic,
           entity->Anchored ? Layers::NON_MOVING : Layers::MOVING);
 
       settings.mUserData = (uint64_t)entity.get();
@@ -972,16 +974,20 @@ void Application::OnEvent(Event &e) {
 
 void Application::Run() {
   m_PreviousFrameTime = glfwGetTime();
-  
+
   while (m_Running) {
     // PHASE 1: Measure frame time
     double current_frame_time = glfwGetTime();
     double frame_time = current_frame_time - m_PreviousFrameTime;
     m_PreviousFrameTime = current_frame_time;
 
+    // Calculate Game FPS from actual frame time
+    m_GameFPS =
+        (frame_time > 0.0) ? static_cast<float>(1.0 / frame_time) : 0.0f;
+
     // PHASE 2: Prevent spiral of death (lag spike safety)
     if (frame_time > MAX_FRAME_TIME) {
-      frame_time = MAX_FRAME_TIME;  // Clamp to max 250ms
+      frame_time = MAX_FRAME_TIME; // Clamp to max 250ms
     }
 
     // PHASE 3: Accumulate real time
@@ -1008,6 +1014,18 @@ void Application::Run() {
 
     // PHASE 6: Window update (swap buffers, poll events)
     m_Window->OnUpdate();
+
+    // PHASE 7: Apply FPS cap if enabled
+    if (m_FPSCap > 0) {
+      double target_frame_time = 1.0 / m_FPSCap;
+      double frame_end_time = glfwGetTime();
+      double elapsed = frame_end_time - current_frame_time;
+
+      if (elapsed < target_frame_time) {
+        double sleep_time = target_frame_time - elapsed;
+        std::this_thread::sleep_for(std::chrono::duration<double>(sleep_time));
+      }
+    }
   }
 }
 
@@ -1028,11 +1046,12 @@ void Application::UpdateGameTick(float tick_dt) {
   PhysicsSystem::OnUpdate(Timestep(tick_dt));
 
   // 3. Update game state from player controller for interpolation
-  m_CurrentState.player_position = m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
+  m_CurrentState.player_position =
+      m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
   m_CurrentState.player_velocity = m_PlayerController->GetVelocity();
   m_CurrentState.yaw = m_PlayerController->GetYaw();
   m_CurrentState.pitch = m_PlayerController->GetPitch();
-  
+
   // Note: Additional movement state (sprinting, crouching, etc.) could be
   // synchronized here if exposed by PlayerController in the future
 }
@@ -1602,11 +1621,10 @@ void Application::ResetLayout() {
 }
 
 void Application::RenderFrame(float alpha) {
-  // alpha is the interpolation factor between previous and current physics states
-  // 0.0 = at previous tick state
-  // 0.5 = halfway between previous and current tick
-  // ~0.999 = almost at current tick
-  
+  // alpha is the interpolation factor between previous and current physics
+  // states 0.0 = at previous tick state 0.5 = halfway between previous and
+  // current tick ~0.999 = almost at current tick
+
   // Viewport Resize
   if (FramebufferSpecification spec = m_SceneFramebuffer->GetSpecification();
       m_SceneViewportSize.x > 0.0f && m_SceneViewportSize.y > 0.0f &&
@@ -1614,8 +1632,9 @@ void Application::RenderFrame(float alpha) {
        spec.Height != (uint32_t)m_SceneViewportSize.y)) {
     m_SceneFramebuffer->Resize((uint32_t)m_SceneViewportSize.x,
                                (uint32_t)m_SceneViewportSize.y);
-    m_EditorCamera->SetProjection(
-        m_EditorFOV, m_SceneViewportSize.x / m_SceneViewportSize.y, 0.1f, 100.0f);
+    m_EditorCamera->SetProjection(m_EditorFOV,
+                                  m_SceneViewportSize.x / m_SceneViewportSize.y,
+                                  0.1f, 100.0f);
   }
   if (FramebufferSpecification spec = m_GameFramebuffer->GetSpecification();
       m_GameViewportSize.x > 0.0f && m_GameViewportSize.y > 0.0f &&
@@ -1627,7 +1646,8 @@ void Application::RenderFrame(float alpha) {
                             0.1f, 100.0f);
   }
 
-  // Editor camera updates (still uses per-frame delta time, not affected by tick system)
+  // Editor camera updates (still uses per-frame delta time, not affected by
+  // tick system)
   if (m_SceneState == SceneState::Edit) {
     if (m_SceneViewportFocused) {
       // Calculate frame delta for editor camera (not physics)
@@ -1635,7 +1655,7 @@ void Application::RenderFrame(float alpha) {
       static float last_editor_time = current_time;
       float editor_dt = current_time - last_editor_time;
       last_editor_time = current_time;
-      
+
       m_EditorCameraController->OnUpdate(Timestep(editor_dt));
     }
 
@@ -1661,27 +1681,20 @@ void Application::RenderFrame(float alpha) {
       m_CursorLocked = false;
       m_EditorCameraController->SetRotationEnabled(false);
     }
-  } else if (m_SceneState == SceneState::Play || m_SceneState == SceneState::Pause) {
+  } else if (m_SceneState == SceneState::Play ||
+             m_SceneState == SceneState::Pause) {
     // Interpolate camera position for smooth rendering
-    // Note: Physics ticks run in UpdateGameTick(), here we only interpolate for display
+    // Note: Physics ticks run in UpdateGameTick(), here we only interpolate for
+    // display
     glm::vec3 interpolated_position = glm::mix(
-        m_PreviousState.player_position,
-        m_CurrentState.player_position,
-        alpha
-    );
-    
-    float interpolated_yaw = glm::mix(
-        m_PreviousState.yaw,
-        m_CurrentState.yaw,
-        alpha
-    );
-    
-    float interpolated_pitch = glm::mix(
-        m_PreviousState.pitch,
-        m_CurrentState.pitch,
-        alpha
-    );
-    
+        m_PreviousState.player_position, m_CurrentState.player_position, alpha);
+
+    float interpolated_yaw =
+        glm::mix(m_PreviousState.yaw, m_CurrentState.yaw, alpha);
+
+    float interpolated_pitch =
+        glm::mix(m_PreviousState.pitch, m_CurrentState.pitch, alpha);
+
     // Apply interpolated values to camera for smooth rendering
     m_Camera->SetPosition(interpolated_position + glm::vec3(0.0f, 1.7f, 0.0f));
     m_Camera->SetYaw(interpolated_yaw);
@@ -1937,7 +1950,8 @@ void Application::RenderFrame(float alpha) {
                                           entity->Transform.Scale.z}),
                 JPH::RVec3(spawnPos.x, spawnPos.y, spawnPos.z),
                 JPH::Quat::sIdentity(),
-                entity->Anchored ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic,
+                entity->Anchored ? JPH::EMotionType::Static
+                                 : JPH::EMotionType::Dynamic,
                 entity->Anchored ? Layers::NON_MOVING : Layers::MOVING);
             settings.mUserData = (uint64_t)entity.get();
             entity->PhysicsBody = bodyInterface.CreateAndAddBody(
@@ -2031,7 +2045,8 @@ void Application::RenderFrame(float alpha) {
                     PhysicsShapes::CreateBox({1.0f, 1.0f, 1.0f}),
                     JPH::RVec3(dropPos.x, dropPos.y, dropPos.z),
                     JPH::Quat::sIdentity(),
-                    entity->Anchored ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic,
+                    entity->Anchored ? JPH::EMotionType::Static
+                                     : JPH::EMotionType::Dynamic,
                     entity->Anchored ? Layers::NON_MOVING : Layers::MOVING);
                 settings.mUserData = (uint64_t)entity.get();
                 entity->PhysicsBody = bodyInterface.CreateAndAddBody(
@@ -2226,7 +2241,8 @@ void Application::RenderFrame(float alpha) {
       ImGui::Separator();
       // Convert meters to Hammer Units (1 meter = 39.97 HU)
       constexpr float METERS_TO_HU = 39.97f;
-      ImGui::Text("Velocity:  X: %.2f  Y: %.2f  Z: %.2f", vel.x * METERS_TO_HU, vel.y * METERS_TO_HU, vel.z * METERS_TO_HU);
+      ImGui::Text("Velocity:  X: %.2f  Y: %.2f  Z: %.2f", vel.x * METERS_TO_HU,
+                  vel.y * METERS_TO_HU, vel.z * METERS_TO_HU);
       ImGui::Text("Speed (H): %.2f units/s", speed * METERS_TO_HU);
       ImGui::End();
     } else {
