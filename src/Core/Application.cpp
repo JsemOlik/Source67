@@ -447,6 +447,7 @@ void Application::OnNewProject() {
     // Create Project Directories
     std::filesystem::path projectRoot = manifestPath.parent_path();
     m_ProjectName = projectRoot.stem().string();
+    m_ProjectCompany = "Untitled Company";
     m_ProjectVersion = "1.0.0";
 
     std::filesystem::path projectAssets = projectRoot / "assets";
@@ -537,6 +538,7 @@ void Application::SaveManifest() {
   std::filesystem::path manifestPath = m_ProjectRoot / "manifest.source";
   nlohmann::json root;
   root["ProjectName"] = m_ProjectName;
+  root["Company"] = m_ProjectCompany;
   root["Version"] = m_ProjectVersion;
 
   std::ofstream fout(manifestPath);
@@ -608,6 +610,7 @@ void Application::DiscoverProject(const std::filesystem::path &levelPath) {
         std::ifstream fin(manifestPath);
         nlohmann::json data = nlohmann::json::parse(fin);
         m_ProjectName = data.value("ProjectName", "Unnamed Project");
+        m_ProjectCompany = data.value("Company", "Untitled Company");
         m_ProjectVersion = data.value("Version", "1.0.0");
 
         S67_CORE_INFO("Discovered project: {0} (v{1}) at {2}", m_ProjectName,
@@ -1515,6 +1518,22 @@ void Application::UI_ProjectSettingsWindow() {
       ImGui::PushItemWidth(-1.0f);
       if (ImGui::InputText("##Version", versionBuffer, sizeof(versionBuffer))) {
         m_ProjectVersion = versionBuffer;
+      }
+      ImGui::PopItemWidth();
+
+      // Company Name
+      ImGui::TableNextRow();
+      ImGui::TableSetColumnIndex(0);
+      ImGui::Text("Company Name");
+      ImGui::TableSetColumnIndex(1);
+      char companyBuffer[256];
+      memset(companyBuffer, 0, sizeof(companyBuffer));
+      strncpy(companyBuffer, m_ProjectCompany.c_str(),
+              sizeof(companyBuffer) - 1);
+      ImGui::PushItemWidth(-1.0f);
+      if (ImGui::InputText("##CompanyName", companyBuffer,
+                           sizeof(companyBuffer))) {
+        m_ProjectCompany = companyBuffer;
       }
       ImGui::PopItemWidth();
 

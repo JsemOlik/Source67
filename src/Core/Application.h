@@ -143,6 +143,7 @@ private:
   std::filesystem::path m_ProjectRoot;
   std::filesystem::path m_ProjectFilePath;
   std::string m_ProjectName = "Standalone";
+  std::string m_ProjectCompany = "Default Company";
   std::string m_ProjectVersion = "N/A";
   bool m_LevelLoaded = false;
   std::string m_LevelFilePath = "";
