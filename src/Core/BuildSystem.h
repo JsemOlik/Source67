@@ -47,6 +47,7 @@ public:
 
 private:
     // Internal build steps
+    bool EnsureGameCMakeLists();            // Create CMakeLists.txt if missing
     bool ConfigureGameCMake();
     bool CompileGameDLL();
     bool PackAssets();
