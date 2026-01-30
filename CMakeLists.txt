@@ -159,7 +159,13 @@ if(NOT APPLE)
     endforeach()
 endif()
 
+option(BUILD_RUNTIME "Build the runtime version of the engine (No Editor)" OFF)
+
 add_executable(Source67 WIN32 ${SOURCES})
+
+if(BUILD_RUNTIME)
+    target_compile_definitions(Source67 PUBLIC S67_RUNTIME)
+endif()
 
 target_include_directories(Source67 PUBLIC 
     ${INCLUDE_DIR}

@@ -132,9 +132,11 @@ Application::Application(const std::string &executablePath,
   m_CurrentState.pitch = 0.0f;
   m_PreviousState = m_CurrentState;
 
+#ifndef S67_RUNTIME
   m_EditorCamera =
       CreateRef<PerspectiveCamera>(45.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
   m_EditorCamera->SetPosition({5.0f, 5.0f, 15.0f});
+#endif
 
   m_Scene = CreateScope<Scene>();
   m_Sun.Direction = {-0.5f, -1.0f, -0.2f};
@@ -142,6 +144,7 @@ Application::Application(const std::string &executablePath,
   m_Sun.Intensity = 1.0f;
 
   m_CameraController = CreateRef<CameraController>(m_Camera);
+#ifndef S67_RUNTIME
   m_EditorCameraController = CreateRef<CameraController>(m_EditorCamera);
   m_EditorCameraController->SetRotationEnabled(false); // Only via Right-Click
   m_Window->SetCursorLocked(false);
@@ -156,7 +159,12 @@ Application::Application(const std::string &executablePath,
   m_Skybox = CreateScope<Skybox>(
       ResolveAssetPath("assets/textures/sky-3.png").string());
   LoadSettings();
+#else
+  m_Skybox = CreateScope<Skybox>(
+      ResolveAssetPath("assets/textures/sky-3.png").string());
+#endif
 
+#ifndef S67_RUNTIME
   if (!std::filesystem::exists("imgui.ini")) {
     m_ResetLayoutOnNextFrame = true;
   }
@@ -168,6 +176,7 @@ Application::Application(const std::string &executablePath,
   m_GameFramebuffer = Framebuffer::Create(fbSpec);
   m_OutlineShader = Shader::Create(
       ResolveAssetPath("assets/shaders/FlatColor.glsl").string());
+#endif
 
   std::filesystem::path logoPath =
       ResolveAssetPath("assets/engine/engine_logo.png");
@@ -195,6 +204,32 @@ Application::Application(const std::string &executablePath,
       Shader::Create(ResolveAssetPath("assets/shaders/HUD.glsl").string());
   HUDRenderer::SetShader(m_HUDShader);
 
+#ifdef S67_RUNTIME
+  // RUNTIME INITIALIZATION
+  std::filesystem::path exePath =
+      std::filesystem::absolute(executablePath).parent_path();
+  S67_CORE_INFO("Runtime Startup at: {0}", exePath.string());
+
+  // Try to find manifest
+  std::filesystem::path runtimeManifest = exePath / "manifest.source";
+  if (std::filesystem::exists(runtimeManifest)) {
+    DiscoverProject(runtimeManifest);
+
+    // Auto-load Default Level
+    if (!m_ProjectDefaultLevel.empty()) {
+      std::filesystem::path defaultLevelPath =
+          ResolveAssetPath(m_ProjectDefaultLevel);
+      if (std::filesystem::exists(defaultLevelPath)) {
+        S67_CORE_INFO("Runtime loading default level: {0}",
+                      defaultLevelPath.string());
+        OpenScene(defaultLevelPath.string());
+        OnScenePlay(); // Start playing immediately
+      }
+    }
+  } else {
+    S67_CORE_ERROR("No manifest.source found for Runtime!");
+  }
+#else
   if (!arg.empty()) {
     std::string cleanArg = arg;
     if (cleanArg.front() == '\"' && cleanArg.back() == '\"') {
@@ -225,6 +260,7 @@ Application::Application(const std::string &executablePath,
       }
     }
   }
+#endif
 
   S67_CORE_INFO("Application initialized successfully");
 }
@@ -326,7 +362,9 @@ void Application::CreateTestScene() {
 
 Application::~Application() {
   HUDRenderer::Shutdown();
+#ifndef S67_RUNTIME
   m_ImGuiLayer->OnDetach();
+#endif
   PhysicsSystem::Shutdown();
 }
 
@@ -885,6 +923,22 @@ void Application::OnEntityCollidableChanged(Ref<Entity> entity) {
 }
 
 void Application::OnEvent(Event &e) {
+#ifdef S67_RUNTIME
+  EventDispatcher dispatcher(e);
+  dispatcher.Dispatch<WindowCloseEvent>(
+      BIND_EVENT_FN(Application::OnWindowClose));
+  dispatcher.Dispatch<WindowResizeEvent>(
+      BIND_EVENT_FN(Application::OnWindowResize));
+
+  // Player / Scripts
+  if (m_Scene && m_SceneState == SceneState::Play) {
+    if (auto entity = m_Scene->FindEntityByName("Player")) {
+      if (auto *pc = entity->GetScript<PlayerController>()) {
+        pc->OnEvent(e);
+      }
+    }
+  }
+#else
   // 1. Console Toggle (Global Priority)
   if (e.GetEventType() == EventType::KeyPressed) {
     auto &ek = (KeyPressedEvent &)e;
@@ -1084,6 +1138,7 @@ void Application::OnEvent(Event &e) {
       }
     }
   }
+#endif
 }
 
 void Application::Run() {
@@ -1218,6 +1273,7 @@ bool Application::OnWindowResize(WindowResizeEvent &e) {
 }
 
 bool Application::OnWindowDrop(WindowDropEvent &e) {
+#ifndef S67_RUNTIME
   if (!m_LevelLoaded) {
     S67_CORE_WARN("Cannot import files without an open project/level!");
     return false;
@@ -1250,10 +1306,12 @@ bool Application::OnWindowDrop(WindowDropEvent &e) {
                      err.what());
     }
   }
+#endif
 
-  return true;
+  return false;
 }
 
+#ifndef S67_RUNTIME
 void Application::UI_SettingsWindow() {
   ImGui::SetNextWindowSizeConstraints(ImVec2(600, 450),
                                       ImVec2(FLT_MAX, FLT_MAX));
@@ -1263,27 +1321,25 @@ void Application::UI_SettingsWindow() {
   }
 
   static int s_SelectedIdx = 0;
-  const char *categories[] = {"Appearance", "Performance", "Features"};
 
-  ImGui::BeginChild("Sidebar", ImVec2(150, 0), true);
-  for (int i = 0; i < 3; i++) {
-    if (ImGui::Selectable(categories[i], s_SelectedIdx == i)) {
-      s_SelectedIdx = i;
-    }
-  }
+  // Left Side: Navigation
+  ImGui::BeginChild("SettingsNav", ImVec2(150, 0), true);
+  if (ImGui::Selectable("General", s_SelectedIdx == 0))
+    s_SelectedIdx = 0;
+  if (ImGui::Selectable("Performance", s_SelectedIdx == 1))
+    s_SelectedIdx = 1;
   ImGui::EndChild();
 
   ImGui::SameLine();
 
-  ImGui::BeginChild("Content", ImVec2(0, 0), false);
-  ImGui::TextDisabled("%s", categories[s_SelectedIdx]);
-  ImGui::Separator();
-  ImGui::Dummy(ImVec2(0, 10));
+  // Right Side: Content
+  ImGui::BeginGroup();
+  ImGui::BeginChild("SettingsContent",
+                    ImVec2(0, -ImGui::GetFrameHeightWithSpacing()));
 
-  if (s_SelectedIdx == 0) // Appearance
+  if (s_SelectedIdx == 0) // General
   {
-    if (ImGui::BeginTable("AppearanceTable", 2,
-                          ImGuiTableFlags_SizingFixedFit)) {
+    if (ImGui::BeginTable("SettingsTable", 2, ImGuiTableFlags_SizingFixedFit)) {
       ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed,
                               150.0f);
       ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
@@ -1386,26 +1442,16 @@ void Application::UI_SettingsWindow() {
 
       ImGui::EndTable();
     }
-  } else if (s_SelectedIdx == 2) // Features
-  {
-    ImGui::Checkbox("Enable Developer Console (`)", &m_EnableConsole);
-  }
-
-  ImGui::Spacing();
-  ImGui::Separator();
-  ImVec2 buttonSize = {120, 30};
-  // Align button to bottom-right of the content child
-  ImGui::SetCursorPosY(ImGui::GetWindowHeight() - buttonSize.y -
-                       ImGui::GetStyle().WindowPadding.y * 2.0f);
-  ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - buttonSize.x);
-  if (ImGui::Button("Apply & Save", buttonSize)) {
-    SaveSettings();
   }
 
   ImGui::EndChild();
+  ImGui::EndGroup();
+
   ImGui::End();
 }
+#endif
 
+#ifndef S67_RUNTIME
 void Application::UI_LauncherScreen() {
   ImGuiViewport *viewport = ImGui::GetMainViewport();
   ImGui::SetNextWindowPos(viewport->Pos);
@@ -1524,7 +1570,9 @@ void Application::UI_LauncherScreen() {
   ImGui::EndChild();
   ImGui::End();
 }
+#endif
 
+#ifndef S67_RUNTIME
 void Application::UI_ProjectSettingsWindow() {
   ImGui::SetNextWindowSizeConstraints(ImVec2(600, 400),
                                       ImVec2(FLT_MAX, FLT_MAX));
@@ -1665,6 +1713,7 @@ void Application::UI_ProjectSettingsWindow() {
   ImGui::EndChild();
   ImGui::End();
 }
+#endif
 
 void Application::SaveSettings() {
   nlohmann::json j;
@@ -1738,6 +1787,7 @@ void Application::LoadSettings() {
             m_RecentProjects.end());
       }
 
+#ifndef S67_RUNTIME
       // Apply
       ImGui::GetIO().FontGlobalScale = m_FontSize / 18.0f;
       switch (m_EditorTheme) {
@@ -1758,6 +1808,7 @@ void Application::LoadSettings() {
       auto &colors = ImGui::GetStyle().Colors;
       colors[ImGuiCol_WindowBg] = ImVec4{m_CustomColor.r, m_CustomColor.g,
                                          m_CustomColor.b, m_CustomColor.a};
+#endif
 
       if (m_Window)
         m_Window->SetVSync(m_VSync);
@@ -1770,7 +1821,9 @@ void Application::LoadSettings() {
     // Defaults
     m_FontSize = 18.0f;
     m_EditorTheme = EditorTheme::Unity;
+#ifndef S67_RUNTIME
     m_ImGuiLayer->SetDarkThemeColors();
+#endif
     S67_CORE_INFO("No settings.json found, using defaults (Unity Dark, 18px)");
   }
 
@@ -1778,11 +1831,13 @@ void Application::LoadSettings() {
   if (m_Window)
     m_Window->SetVSync(m_VSync);
 
+#ifndef S67_RUNTIME
   // Apply editor FOV to the camera if it exists
   if (m_EditorCamera) {
     float aspect = 1280.0f / 720.0f; // Default aspect ratio
     m_EditorCamera->SetProjection(m_EditorFOV, aspect, 0.1f, 1000.0f);
   }
+#endif
 }
 
 void Application::SaveLayout() {
@@ -1846,6 +1901,73 @@ void Application::ResetLayout() {
 }
 
 void Application::RenderFrame(float alpha) {
+#ifdef S67_RUNTIME
+  Window &window = GetWindow();
+  uint32_t width = window.GetWidth();
+  uint32_t height = window.GetHeight();
+  if (width == 0 || height == 0)
+    return;
+  glViewport(0, 0, width, height);
+
+  // Camera Update
+  glm::vec3 interpolated_position = glm::mix(
+      m_PreviousState.player_position, m_CurrentState.player_position, alpha);
+  float interpolated_yaw =
+      glm::mix(m_PreviousState.yaw, m_CurrentState.yaw, alpha);
+  float interpolated_pitch =
+      glm::mix(m_PreviousState.pitch, m_CurrentState.pitch, alpha);
+  m_Camera->SetPosition(interpolated_position + glm::vec3(0.0f, 1.7f, 0.0f));
+  m_Camera->SetYaw(interpolated_yaw);
+  m_Camera->SetPitch(interpolated_pitch);
+  float aspect = (float)width / (float)height;
+  m_Camera->SetProjection(45.0f, aspect, 0.1f, 100.0f);
+
+  // Render Scene
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+  Renderer::BeginScene(*m_Camera, m_Sun);
+  m_Skybox->Draw(*m_Camera);
+
+  auto &bodyInterface = PhysicsSystem::GetBodyInterface();
+  for (auto &entity : m_Scene->GetEntities()) {
+    if (entity->Name == "Player")
+      continue;
+    if (!entity->PhysicsBody.IsInvalid()) {
+      JPH::RVec3 position;
+      JPH::Quat rotation;
+      bodyInterface.GetPositionAndRotation(entity->PhysicsBody, position,
+                                           rotation);
+      entity->Transform.Position = {position.GetX(), position.GetY(),
+                                    position.GetZ()};
+      glm::quat q = {rotation.GetW(), rotation.GetX(), rotation.GetY(),
+                     rotation.GetZ()};
+      entity->Transform.Rotation = glm::degrees(glm::eulerAngles(q));
+    }
+    if (entity->Material.AlbedoMap)
+      entity->Material.AlbedoMap->Bind();
+    if (entity->Mesh && entity->MaterialShader &&
+        entity->MaterialShader->IsValid()) {
+      Renderer::Submit(entity->MaterialShader, entity->Mesh,
+                       entity->Transform.GetTransform(),
+                       entity->Material.Tiling);
+    }
+  }
+  Renderer::EndScene();
+
+  // HUD
+  HUDRenderer::BeginHUD((float)width, (float)height);
+  HUDRenderer::RenderCrosshair();
+  if (m_Scene) {
+    if (auto entity = m_Scene->FindEntityByName("Player")) {
+      if (auto *pc = entity->GetScript<PlayerController>()) {
+        HUDRenderer::RenderSpeed(pc->GetSpeed() * 52.4934f);
+      }
+    }
+  }
+  HUDRenderer::EndHUD();
+#else
   // alpha is the interpolation factor between previous and current physics
   // states 0.0 = at previous tick state 0.5 = halfway between previous and
   // current tick ~0.999 = almost at current tick
@@ -2625,6 +2747,7 @@ void Application::RenderFrame(float alpha) {
   }
 
   m_ImGuiLayer->End();
+#endif
 }
 
 } // namespace S67

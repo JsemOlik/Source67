@@ -102,9 +102,11 @@ private:
   bool OnWindowResize(WindowResizeEvent &e);
   bool OnWindowDrop(WindowDropEvent &e);
 
+#ifndef S67_RUNTIME
   void UI_SettingsWindow();
   void UI_ProjectSettingsWindow();
   void UI_LauncherScreen();
+#endif
 
   void AddToRecentProjects(const std::string &path);
   void InitDefaultAssets();
@@ -126,9 +128,13 @@ private:
   uint64_t m_TickNumber = 0;
 
   Ref<PerspectiveCamera> m_Camera; // Game Camera
+#ifndef S67_RUNTIME
   Ref<PerspectiveCamera> m_EditorCamera;
+#endif
   Ref<CameraController> m_CameraController; // Game Camera Controller
+#ifndef S67_RUNTIME
   Ref<CameraController> m_EditorCameraController;
+#endif
   Scope<Scene> m_Scene;
   DirectionalLight m_Sun;
 
@@ -136,10 +142,12 @@ private:
 
   // PlayerController *m_PlayerController = nullptr; // Removed
 
+#ifndef S67_RUNTIME
   Scope<ImGuiLayer> m_ImGuiLayer;
   Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
   Scope<ContentBrowserPanel> m_ContentBrowserPanel;
   Scope<ConsolePanel> m_ConsolePanel;
+#endif
   Scope<Skybox> m_Skybox;
 
   std::filesystem::path m_ProjectRoot;
@@ -151,6 +159,7 @@ private:
   bool m_LevelLoaded = false;
   std::string m_LevelFilePath = "";
 
+#ifndef S67_RUNTIME
   int m_GizmoType = 7; // ImGuizmo::TRANSLATE
   UndoSystem m_UndoSystem;
   Transform m_InitialGizmoTransform;
@@ -176,9 +185,14 @@ private:
   glm::vec4 m_CustomColor = {0.1f, 0.105f, 0.11f, 1.0f};
   EditorTheme m_EditorTheme = EditorTheme::Dracula;
   int m_FPSCap = 0; // 0 = Unlimited
+#else
+  // Runtime specifics
+  int m_FPSCap = 0;
+#endif
   bool m_VSync = true;
   std::filesystem::path m_EngineAssetsRoot;
 
+#ifndef S67_RUNTIME
   bool m_ShowInspector = true;
   bool m_ShowHierarchy = true;
   bool m_ShowContentBrowser = true;
@@ -189,6 +203,7 @@ private:
   bool m_ShowConsole = false;
   bool m_EnableConsole = true;
   bool m_ResetLayoutOnNextFrame = false;
+#endif
 
   Ref<Shader> m_DefaultShader;
   Ref<Texture2D> m_DefaultTexture;
