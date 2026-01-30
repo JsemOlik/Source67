@@ -2,8 +2,10 @@
 #include "Core/GameState.h"
 #include "Core/UndoSystem.h"
 #include "Events/WindowEvent.h"
+#ifndef S67_RUNTIME
 #include "ImGui/ImGuiLayer.h"
 #include "ImGui/Panels/SceneHierarchyPanel.h"
+#endif
 #include "Physics/PhysicsSystem.h"
 // #include "Physics/PlayerController.h" // Removed to break potential cycle
 #include "Renderer/Camera.h"

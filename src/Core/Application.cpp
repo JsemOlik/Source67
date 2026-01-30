@@ -18,9 +18,11 @@
 #include "Core/PlatformUtils.h"
 #include "Game/Console/ConVar.h"
 #include "Game/Console/Console.h"
+#ifndef S67_RUNTIME
 #include "Game/Console/ConsolePanel.h"
 #include "ImGui/Panels/ContentBrowserPanel.h"
 #include "ImGuizmo/ImGuizmo.h"
+#endif
 #include "Physics/PhysicsShapes.h"
 #include "Physics/PlayerController.h"
 #include "Renderer/Framebuffer.h"
@@ -28,11 +30,18 @@
 #include "Renderer/ScriptableEntity.h"
 #include "Renderer/ScriptRegistry.h"
 #include "Scripting/LuaScriptEngine.h"
+
 #include <GLFW/glfw3.h>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/quaternion.hpp>
+#define GLFW_EXPOSE_NATIVE_COCOA
+#include <GLFW/glfw3native.h>
+
+#ifndef S67_RUNTIME
+#include <ImGuizmo.h>
 #include <imgui.h>
 #include <imgui_internal.h>
+#endif
+
+#include <glm/gtc/matrix_transform.hpp>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include "Renderer/Mesh.h"
@@ -849,7 +858,9 @@ void Application::OnOpenScene() {
     // Check for unsaved changes AFTER user selects a file
     if (m_SceneModified) {
       m_PendingScenePath = filepath;
+#ifndef S67_RUNTIME
       ImGui::OpenPopup("Unsaved Changes##OpenScene");
+#endif
       return;
     }
     OpenScene(filepath);
@@ -860,7 +871,9 @@ void Application::OpenScene(const std::string &filepath) {
   // Check for unsaved changes
   if (m_SceneModified) {
     m_PendingScenePath = filepath;
+#ifndef S67_RUNTIME
     ImGui::OpenPopup("Unsaved Changes##OpenSceneDirect");
+#endif
     return;
   }
 
@@ -876,7 +889,9 @@ void Application::OpenScene(const std::string &filepath) {
     m_SceneModified = false;
     m_Window->SetCursorLocked(false);
     m_CursorLocked = false;
+#ifndef S67_RUNTIME
     ImGui::SetWindowFocus("Scene");
+#endif
     auto &bodyInterface = PhysicsSystem::GetBodyInterface();
 
     for (auto &entity : m_Scene->GetEntities()) {
@@ -1849,12 +1864,14 @@ void Application::LoadSettings() {
     }
   } else {
     // Defaults
+#ifndef S67_RUNTIME
     m_FontSize = 18.0f;
     m_EditorTheme = EditorTheme::Unity;
-#ifndef S67_RUNTIME
     m_ImGuiLayer->SetDarkThemeColors();
-#endif
     S67_CORE_INFO("No settings.json found, using defaults (Unity Dark, 18px)");
+#else
+    S67_CORE_INFO("No settings.json found, using defaults");
+#endif
   }
 
   // Apply VSync
@@ -1871,28 +1888,35 @@ void Application::LoadSettings() {
 }
 
 void Application::SaveLayout() {
-  ImGui::SaveIniSettingsToDisk("imgui.ini");
-  S67_CORE_INFO("Saved window layout to imgui.ini");
-  SaveSettings(); // Save visibility flags too
+#ifndef S67_RUNTIME
+  if (m_ImGuiLayer)
+    m_ImGuiLayer->SaveLayout();
+#endif
 }
 
 void Application::LoadLayout() {
-  ImGui::LoadIniSettingsFromDisk("imgui.ini");
-  S67_CORE_INFO("Loaded window layout from imgui.ini");
-  LoadSettings(); // Load visibility flags too
+#ifndef S67_RUNTIME
+  if (m_ImGuiLayer)
+    m_ImGuiLayer->LoadLayout();
+#endif
 }
 
 void Application::SaveLayout(const std::string &path) {
-  ImGui::SaveIniSettingsToDisk(path.c_str());
-  S67_CORE_INFO("Saved window layout to {0}", path);
+#ifndef S67_RUNTIME
+  if (m_ImGuiLayer)
+    m_ImGuiLayer->SaveLayout(path);
+#endif
 }
 
 void Application::LoadLayout(const std::string &path) {
-  ImGui::LoadIniSettingsFromDisk(path.c_str());
-  S67_CORE_INFO("Loaded window layout from {0}", path);
+#ifndef S67_RUNTIME
+  if (m_ImGuiLayer)
+    m_ImGuiLayer->LoadLayout(path);
+#endif
 }
 
 void Application::ResetLayout() {
+#ifndef S67_RUNTIME
   m_ShowInspector = true;
   m_ShowHierarchy = true;
   m_ShowContentBrowser = true;
@@ -1900,6 +1924,7 @@ void Application::ResetLayout() {
   m_ShowGame = true;
   m_ShowToolbar = true;
   m_ShowStats = true;
+  m_ResetLayoutOnNextFrame = true;
 
   ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
   ImGui::DockBuilderRemoveNode(dockspace_id);
@@ -1928,6 +1953,7 @@ void Application::ResetLayout() {
 
   ImGui::DockBuilderFinish(dockspace_id);
   S67_CORE_INFO("Reset window layout to default");
+#endif
 }
 
 void Application::RenderFrame(float alpha) {

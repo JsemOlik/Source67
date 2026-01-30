@@ -2,6 +2,15 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/build_runtime/_deps/glad-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/build_runtime/_deps/glfw-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/build_runtime/_deps/glm-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/build_runtime/_deps/imgui-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/build_runtime/_deps/jolt-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/build_runtime/_deps/json-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/build_runtime/_deps/lua-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/build_runtime/_deps/sol2-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/build_runtime/_deps/spdlog-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/cmake-build-debug/_deps/glfw-src" vcs="Git" />
   </component>
 </project>

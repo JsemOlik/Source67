@@ -136,19 +136,28 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "vendor/**/*.h"
 )
 list(APPEND SOURCES "main.cpp")
-list(APPEND SOURCES "src/Renderer/Scene.cpp")
+    list(APPEND SOURCES "src/Renderer/Scene.cpp")
 
-# ImGui Files
-set(IMGUI_DIR ${imgui_SOURCE_DIR})
-list(APPEND SOURCES 
-    ${IMGUI_DIR}/imgui.cpp
-    ${IMGUI_DIR}/imgui_demo.cpp
-    ${IMGUI_DIR}/imgui_draw.cpp
-    ${IMGUI_DIR}/imgui_tables.cpp
-    ${IMGUI_DIR}/imgui_widgets.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
-)
+if(BUILD_RUNTIME)
+    message(STATUS "Building Runtime: Excluding Editor Sources")
+    list(FILTER SOURCES EXCLUDE REGEX "src/ImGui/Panels/.*")
+    list(FILTER SOURCES EXCLUDE REGEX "src/ImGui/ImGuiLayer\\.cpp")
+    list(FILTER SOURCES EXCLUDE REGEX "src/Game/Console/ConsolePanel\\.cpp")
+    list(FILTER SOURCES EXCLUDE REGEX "vendor/ImGuizmo/.*")
+    add_definitions(-DS67_RUNTIME)
+else()
+    # ImGui Files (Editor Only)
+    set(IMGUI_DIR ${imgui_SOURCE_DIR})
+    list(APPEND SOURCES 
+        ${IMGUI_DIR}/imgui.cpp
+        ${IMGUI_DIR}/imgui_demo.cpp
+        ${IMGUI_DIR}/imgui_draw.cpp
+        ${IMGUI_DIR}/imgui_tables.cpp
+        ${IMGUI_DIR}/imgui_widgets.cpp
+        ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+        ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+    )
+endif()
 
 # On non-Apple platforms, compile .mm files as regular C++
 if(NOT APPLE)
@@ -221,8 +230,9 @@ elseif(UNIX)
 endif()
 
 # Copy assets to build directory
-add_custom_command(TARGET Source67 POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${CMAKE_CURRENT_SOURCE_DIR}/assets
-    $<TARGET_FILE_DIR:Source67>/assets
-)
+# Copy assets to build directory
+# add_custom_command(TARGET Source67 POST_BUILD
+#     COMMAND ${CMAKE_COMMAND} -E copy_directory
+#     ${CMAKE_CURRENT_SOURCE_DIR}/assets
+#     $<TARGET_FILE_DIR:Source67>/assets
+# )

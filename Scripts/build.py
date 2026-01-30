@@ -53,10 +53,21 @@ def main():
             print("Please add cmake to your PATH or verify installation.")
             return 1
          
+    def remove_readonly(func, path, _):
+        import stat
+        try:
+            os.chmod(path, stat.S_IWRITE)
+        except OSError:
+            pass
+        try:
+            func(path)
+        except OSError:
+            pass
+
     # 1. Configure CMake
     build_dir = root_dir / "build_runtime"
     if args.clean and build_dir.exists():
-        shutil.rmtree(build_dir)
+        shutil.rmtree(build_dir, onerror=remove_readonly)
         
     print(f"Configuring CMake in {build_dir}...")
     cmd = [cmake_cmd, "-B", str(build_dir), "-DBUILD_RUNTIME=ON", "-DCMAKE_BUILD_TYPE=Release"]
@@ -79,8 +90,13 @@ def main():
     output_dir = Path(args.output).resolve()
     if output_dir.exists():
         print(f"Cleaning output directory {output_dir}...")
-        shutil.rmtree(output_dir)
-    output_dir.mkdir(parents=True)
+        try:
+            shutil.rmtree(output_dir, onerror=remove_readonly)
+        except OSError as e:
+            print(f"Warning: Cleaning failed ({e}). Proceeding to overwrite.")
+
+    if not output_dir.exists():
+        output_dir.mkdir(parents=True)
     
     # Identify Executable Name
     exe_name = "Source67"
@@ -123,13 +139,17 @@ def main():
     # Copy Engine Assets
     print("Copying Engine Assets...")
     source_assets = root_dir / "assets"
+    
+    def ignore_patterns(path, names):
+        return [n for n in names if n == '.DS_Store']
+
     if source_assets.exists():
         # Copy engine assets to output/assets
         # shutil.copytree requires destination to NOT exist (prior to Python 3.8). 
         # Source67 runs on modern systems, assuming 3.8+.
         # But to be safe and merge:
         dest_assets = output_dir / "assets"
-        shutil.copytree(source_assets, dest_assets, dirs_exist_ok=True)
+        shutil.copytree(source_assets, dest_assets, dirs_exist_ok=True, ignore=ignore_patterns)
         
     # Copy Project Assets & Scripts
     print(f"Copying Project resources from {project_path}...")
@@ -144,7 +164,7 @@ def main():
             # Merge folders (assets, scripts) into output/
             # Example: Project/assets/MyLevel.s67 -> Output/assets/MyLevel.s67
             dest_subdir = output_dir / item.name
-            shutil.copytree(item, dest_subdir, dirs_exist_ok=True)
+            shutil.copytree(item, dest_subdir, dirs_exist_ok=True, ignore=ignore_patterns)
             
     # Copy Dynamic Libraries (Windows)
     if sys.platform == "win32":
