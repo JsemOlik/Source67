@@ -133,11 +133,15 @@ endif()
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "src/**/*.cpp"
-    "src/**/*.mm"
     "src/**/*.h"
     "vendor/**/*.cpp"
     "vendor/**/*.h"
 )
+
+if(APPLE)
+    file(GLOB_RECURSE MAC_SOURCES "src/**/*.mm")
+    list(APPEND SOURCES ${MAC_SOURCES})
+endif()
 list(APPEND SOURCES "main.cpp")
     list(APPEND SOURCES "src/Renderer/Scene.cpp")
 

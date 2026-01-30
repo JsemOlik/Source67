@@ -32,8 +32,14 @@
 #include "Scripting/LuaScriptEngine.h"
 
 #include <GLFW/glfw3.h>
+#ifdef __APPLE__
 #define GLFW_EXPOSE_NATIVE_COCOA
 #include <GLFW/glfw3native.h>
+#endif
+#ifdef _WIN32
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
+#endif
 
 #ifndef S67_RUNTIME
 #include <ImGuizmo.h>
