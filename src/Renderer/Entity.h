@@ -106,6 +106,14 @@ public:
     }
     return nullptr;
   }
+
+  bool HasTag(const std::string &tag) const {
+    for (const auto &t : Tags) {
+      if (t == tag)
+        return true;
+    }
+    return false;
+  }
 };
 
 } // namespace S67
