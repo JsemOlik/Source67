@@ -169,6 +169,7 @@ target_include_directories(Source67 PUBLIC
     ${jolt_SOURCE_DIR}
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
+    ${sol2_SOURCE_DIR}/include
 )
 
 # Let's set up the executable
@@ -180,7 +181,6 @@ target_link_libraries(Source67 PUBLIC
     glad
     Jolt
     nlohmann_json::nlohmann_json
-    lua_static
     lua_static
     sol2
 )
