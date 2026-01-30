@@ -4,6 +4,7 @@
 #include "Core/Input.h"
 #include "Core/Application.h"
 #include "Renderer/ScriptRegistry.h"
+#include "Core/KeyCodes.h"
 #include <glm/gtc/quaternion.hpp>
 
 namespace S67 {
@@ -15,11 +16,17 @@ public:
 
     if (currentHit != m_LastHit) {
       if (currentHit && currentHit->HasTag("Interactable")) {
-        SetText("Interaction", "Interactable!", {0.5f, 0.1f});
+        SetText("Interaction", "[E] Interactable!", {0.5f, 0.1f});
       } else {
         ClearText("Interaction");
       }
       m_LastHit = currentHit;
+    }
+
+    if (currentHit && currentHit->HasTag("Interactable")) {
+      if (IsKeyPressed(S67_KEY_E)) {
+        Move(currentHit, {0.0f, 10.0f, 0.0f});
+      }
     }
   }
 

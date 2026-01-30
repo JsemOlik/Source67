@@ -1,10 +1,6 @@
 #include "Renderer/ScriptableEntity.h"
-#include "Renderer/HUDRenderer.h"
-#include "Physics/PhysicsSystem.h"
-#include "Core/Input.h"
-#include "Core/Application.h"
 #include "Renderer/ScriptRegistry.h"
-#include <glm/gtc/quaternion.hpp>
+#include "Core/KeyCodes.h"
 
 namespace S67 {
 
@@ -20,6 +16,12 @@ public:
         ClearText("Interaction");
       }
       m_LastHit = currentHit;
+    }
+
+    if (currentHit && currentHit->HasTag("Interactable")) {
+      if (IsKeyPressed(S67_KEY_E)) {
+        Move(currentHit, {0.0f, 10.0f, 0.0f});
+      }
     }
   }
 
