@@ -137,6 +137,9 @@ Source67/
 - **ImGuiLayer.h/cpp**: ImGui initialization, docking setup, theme management
 - **Panels/SceneHierarchyPanel.h/cpp**: Entity hierarchy and inspector
 - **Panels/ContentBrowserPanel.h/cpp**: Asset browser panel
+- **Renderer/HUDRenderer.h/cpp**: 2D HUD rendering with text queueing
+- **Renderer/ScriptRegistry.h**: Registry for Unity-like component scripts
+- **Game/InteractableRaycast.cpp**: Example script for tag-based interaction
 
 ### Dev Console & Scripting (`src/Game/`, `scripts/`)
 
@@ -187,7 +190,9 @@ Entities have:
 - `MeshComponent` (mesh reference)
 - `MaterialComponent` (shader, textures, properties)
 - `PhysicsComponent` (Jolt body ID, collidable flag)
-- `TagComponent` (name/identifier)
+- `Scripts` (std::vector of NativeScriptComponent)
+- `Tags` (std::vector of std::string, max 10)
+- `TagComponent` (legacy name/identifier, use Tags vector instead)
 
 ### Scene Management
 
@@ -258,18 +263,25 @@ The engine supports writing game logic in C++ by inheriting from `S67::Scriptabl
 1. Create a class inheriting from `S67::ScriptableEntity`.
 2. Override `OnCreate`, `OnUpdate(ts)`, `OnEvent(e)`, `OnDestroy`.
 3. Use `GetEntity()` to look up other components or `GetComponent<T>()` shortcuts.
-4. Bind to an entity using `NativeScriptComponent`.
+4. Bind to an entity using `NativeScriptComponent` or via the **Inspector** "Add Script" button.
+5. Call `HUDRenderer::QueueString(text, color)` to draw on the HUD.
 
 **Example**:
 
 ```cpp
+#include "Renderer/ScriptRegistry.h"
+#include "Renderer/HUDRenderer.h"
+
 class MyScript : public S67::ScriptableEntity {
     void OnCreate() { S67_INFO("Script Created!"); }
     void OnUpdate(float ts) {
-        if(Input::IsKeyPressed(Key::Space))
-            GetEntity().GetComponent<Transform>(); // access
+        if(Input::IsKeyPressed(Key::Space)) {
+            GetTransform().Position.y += 1.0f;
+            HUDRenderer::QueueString("Ascending!");
+        }
     }
 };
+REGISTER_SCRIPT(MyScript);
 ```
 
 _Note_: Currently requires static linking/binding in `Scene::OnUpdate` or `Application` until DLL reloading is fully integrated.
