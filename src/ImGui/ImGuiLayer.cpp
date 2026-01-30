@@ -93,8 +93,20 @@ void ImGuiLayer::OnAttach() {
   io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
 
   // Load Font
-  if (std::filesystem::exists("assets/fonts/Roboto-Medium.ttf")) {
-    io.Fonts->AddFontFromFileTTF("assets/fonts/Roboto-Medium.ttf", 18.0f);
+  std::string fontPath = "assets/fonts/Roboto-Medium.ttf";
+  if (std::filesystem::exists(fontPath)) {
+    io.Fonts->AddFontFromFileTTF(fontPath.c_str(), 18.0f);
+  } else {
+    // Try loading from PAK
+    std::vector<uint8_t> fontData;
+    if (Application::Get().GetPakAsset(fontPath, fontData)) {
+      // ImGui takes ownership of the data if we don't handle it carefully,
+      // but here we allocate a persistent buffer for it.
+      void *data = malloc(fontData.size());
+      memcpy(data, fontData.data(), fontData.size());
+      io.Fonts->AddFontFromMemoryTTF(data, (int)fontData.size(), 18.0f);
+      S67_CORE_INFO("Loaded font {0} from PAK", fontPath);
+    }
   }
 
   // Setup Dear ImGui style
@@ -142,7 +154,7 @@ void ImGuiLayer::Begin() {
     S67_CORE_ERROR("ImGui context not initialized!");
     return;
   }
-  
+
   ImGui_ImplOpenGL3_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
@@ -187,8 +199,9 @@ void ImGuiLayer::Begin() {
 }
 
 void ImGuiLayer::End() {
-  if (!ImGui::GetCurrentContext()) return;
-  
+  if (!ImGui::GetCurrentContext())
+    return;
+
   ImGuiIO &io = ImGui::GetIO();
   Application &app = Application::Get();
   // io.DisplaySize = ImVec2((float)app.GetWindow().GetWidth(),

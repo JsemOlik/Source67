@@ -903,15 +903,23 @@ void Application::OnBuildGame() {
       } else if (ext == ".s67") {
         processed = levelProc.Process(path, asset);
       } else {
-        std::string relPath =
-            std::filesystem::relative(path, m_ProjectRoot).generic_string();
+        std::filesystem::path rel =
+            std::filesystem::relative(path, m_ProjectRoot);
+        std::string relPath = rel.generic_string();
+        if (relPath.find("assets/") != 0) {
+          relPath = (std::filesystem::path("assets") / rel).generic_string();
+        }
         writer.AddFile(relPath, path.string());
         continue;
       }
 
       if (processed) {
-        std::string relPath =
-            std::filesystem::relative(path, m_ProjectRoot).generic_string();
+        std::filesystem::path rel =
+            std::filesystem::relative(path, m_ProjectRoot);
+        std::string relPath = rel.generic_string();
+        if (relPath.find("assets/") != 0) {
+          relPath = (std::filesystem::path("assets") / rel).generic_string();
+        }
         writer.AddFile(relPath, asset.Data.data(), (uint32_t)asset.Data.size());
       }
     }
@@ -939,8 +947,16 @@ void Application::OnBuildGame() {
     cfg << "project_name=" << m_ProjectName << "\n";
     std::string relLevel = "assets/levels/Untitled.s67";
     if (!m_LevelFilePath.empty()) {
-      relLevel = std::filesystem::relative(m_LevelFilePath, m_ProjectRoot)
-                     .generic_string();
+      // Ensure we get a path relative to the project root, starting with
+      // "assets/"
+      std::filesystem::path rel =
+          std::filesystem::relative(m_LevelFilePath, m_ProjectRoot);
+      std::string relStr = rel.generic_string();
+      if (relStr.find("assets/") != 0) {
+        relLevel = (std::filesystem::path("assets") / rel).generic_string();
+      } else {
+        relLevel = relStr;
+      }
     }
     cfg << "entry_level=" << relLevel << "\n";
     cfg.close();
