@@ -6,15 +6,29 @@
 
 ## 🎯 I Want To...
 
+### → **Build my game (easy in-editor building!)**
+See: **[BUILDING.md](BUILDING.md)** 🔨 **NEW!**
+
+Essential guide for building your game:
+- Click "Building > Build Game" in the editor (F7)
+- Visual diagrams of what gets built
+- Step-by-step tutorials
+- Daily workflow examples
+- Troubleshooting build issues
+
+**Time:** 10 minutes to read, instant to use!
+
+---
+
 ### → **Understand what this engine is and how game projects work**
-Start here: **[GAME_PROJECT_GUIDE.md](GAME_PROJECT_GUIDE.md)** 🎮 **NEW!**
+See: **[GAME_PROJECT_GUIDE.md](GAME_PROJECT_GUIDE.md)** 🎮
 
 Essential reading that explains:
 - The difference between the engine and your game project
+- **Lua vs C++ scripting** - when to use each
 - What goes in Game.dll vs GameAssets.apak
 - How to structure your own game folder
 - The complete build and run process
-- Answers "Where do I put my Portal game folder?"
 
 **Time:** 20 minutes to read (worth it!)
 

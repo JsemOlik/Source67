@@ -5,14 +5,16 @@ A simple, modern 3D game engine written in C++ for learning purposes. Source67 f
 ## 🚀 Quick Start
 
 **New to Source67?** Start here:
+- **Building your game:** [BUILDING.md](BUILDING.md) 🔨 - Use the in-editor build menu!
 - **Understanding the architecture:** [GAME_PROJECT_GUIDE.md](GAME_PROJECT_GUIDE.md) 🎮
-- **Building for the first time:** [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md) ⭐
+- **First-time setup:** [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md) ⭐
 
 This comprehensive guide walks you through:
 - ✅ What goes where (DLL vs asset pack vs your game folder)
+- ✅ **Lua vs C++ scripting** - both work for game code!
 - ✅ How the build process works
+- ✅ Building from the editor (easy!)
 - ✅ Installing prerequisites
-- ✅ Building the engine for the first time
 - ✅ Running and testing
 - ✅ Troubleshooting common issues
 

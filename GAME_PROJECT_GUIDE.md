@@ -104,6 +104,181 @@ C:\Users\YourName\
 
 ---
 
+## 💻 Lua vs C++: Two Ways to Write Game Logic
+
+**YES! Lua scripts CAN be used for game code!** In fact, Source67 supports **dual scripting** - you can write game logic in both C++ and Lua.
+
+### The Key Difference
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│  C++ GAME CODE                          LUA GAME SCRIPTS               │
+│  (Compiled)                             (Interpreted)                  │
+│                                                                         │
+│  game/src/portal_gun.cpp                assets/lua/door.lua            │
+│  ↓                                      ↓                              │
+│  [Compiled to Game.dll]                 [Packed in GameAssets.apak]    │
+│  ↓                                      ↓                              │
+│  Fast, compiled, requires rebuild       Interpreted, hot-reload ready  │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### C++ Game Code (Game.dll)
+
+**Use C++ when you need:**
+- ✅ **Performance** - Critical systems, physics, AI pathfinding
+- ✅ **Low-level control** - Direct memory management, engine integration
+- ✅ **Complex systems** - Inventory, networking, save systems
+- ✅ **Type safety** - Compile-time error checking
+
+**Example C++ game code:**
+```cpp
+// game/src/Components/PlayerController.cpp
+class PlayerController {
+public:
+    void OnUpdate(float deltaTime) {
+        // High-performance movement calculations
+        velocity = CalculateVelocity(input, deltaTime);
+        ApplyPhysics(velocity);
+        
+        // Complex AI decision making
+        UpdateEnemyBehavior();
+    }
+};
+```
+
+**Workflow:**
+1. Edit `game/src/*.cpp`
+2. Rebuild: `build.bat Debug game` (~30 seconds)
+3. Restart engine to see changes
+
+### Lua Game Scripts (GameAssets.apak)
+
+**Use Lua when you need:**
+- ✅ **Rapid iteration** - Change code, reload instantly (no rebuild!)
+- ✅ **Quick prototyping** - Test ideas fast
+- ✅ **Designer-friendly** - Non-programmers can edit
+- ✅ **Entity behavior** - Door scripts, button logic, pickups
+
+**Example Lua game code:**
+```lua
+-- assets/lua/door.lua
+Door = {}
+
+function Door:OnCreate()
+    self.isOpen = false
+    self.openSpeed = 2.0
+end
+
+function Door:OnUpdate(deltaTime)
+    if self.isOpen then
+        -- Move door up
+        local pos = self:GetPosition()
+        pos.y = pos.y + self.openSpeed * deltaTime
+        self:SetPosition(pos)
+    end
+end
+
+function Door:Open()
+    self.isOpen = true
+    -- Play sound
+    Audio.Play("door_open.wav")
+end
+```
+
+**Workflow:**
+1. Edit `assets/lua/*.lua`
+2. Repack: `build.bat Debug assets` (~10 seconds)
+3. **Hot-reload:** Press F5 in engine or reload scene - instant changes!
+
+### Comparison Table
+
+| Feature | C++ (Game.dll) | Lua (GameAssets.apak) |
+|---------|----------------|------------------------|
+| **Speed** | Very Fast (compiled) | Fast enough for most logic |
+| **Reload** | Requires engine restart | Hot-reload support |
+| **Build time** | 30 seconds - 2 minutes | 10 seconds (just repack) |
+| **Learning curve** | Steeper (C++ knowledge) | Easier (simpler syntax) |
+| **Type safety** | Compile-time checks | Runtime checks |
+| **Use for** | Core systems, performance-critical | Entity behavior, UI, prototyping |
+| **File location** | `game/src/` | `assets/lua/` |
+| **Becomes** | Game.dll | Part of GameAssets.apak |
+| **Access to engine** | Full API via game_api.h | Subset via Lua bindings |
+
+### Current Implementation: Both Work!
+
+**Source67 currently supports BOTH:**
+
+1. **C++ Native Scripting** (game/src/)
+   - Inherits from `ScriptableEntity`
+   - Full engine API access
+   - Registered with `REGISTER_SCRIPT()`
+   - Example: `PlayerController`, custom game systems
+
+2. **Lua Scripting** (assets/lua/)
+   - Loaded from GameAssets.apak at runtime
+   - Lua API bindings (Input, Audio, Transform, etc.)
+   - Hot-reload supported
+   - Example: Door scripts, UI, pickups
+
+### Which Should You Use?
+
+**For your Portal game:**
+
+```
+Portal/
+├── src/                            Use C++ for:
+│   ├── portal_gun.cpp             → Portal gun physics (complex math)
+│   ├── physics_manager.cpp        → Portal momentum transfer
+│   └── puzzle_system.cpp          → Core puzzle logic
+│
+└── assets/lua/                     Use Lua for:
+    ├── button.lua                 → Simple on/off behavior
+    ├── door.lua                   → Open/close animation
+    ├── cube.lua                   → Companion cube interactions
+    └── turret.lua                 → Enemy behavior
+```
+
+**Best Practice: Use Both!**
+- **C++ for the "engine"** of your game (core systems)
+- **Lua for the "content"** of your game (individual entities, levels)
+
+### Example: Hybrid Approach
+
+**C++ System:**
+```cpp
+// game/src/PuzzleManager.cpp
+class PuzzleManager {
+public:
+    void RegisterPuzzleElement(const std::string& name, int id) {
+        m_Elements[id] = name;
+    }
+    
+    bool CheckPuzzleSolved() {
+        // Complex logic in C++
+        return AllButtonsPressed() && AllCubesPlaced();
+    }
+};
+```
+
+**Lua Content:**
+```lua
+-- assets/lua/puzzle_button.lua
+Button = {}
+
+function Button:OnPressed()
+    -- Simple behavior in Lua
+    PuzzleManager.RegisterElement("button", self.id)
+    self:PlayAnimation("press")
+end
+```
+
+**Result:** Fast C++ core, flexible Lua content!
+
+---
+
 ## 🏗️ What Goes Where? The Build Process Explained
 
 ### Part 1: C++ Game Code → Game.dll

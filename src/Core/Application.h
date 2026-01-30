@@ -70,6 +70,11 @@ public:
 
   void CreateTestScene();
 
+  // Build System Methods
+  void OnBuildGame();
+  void OnBuildAssets();
+  void OnBuildAll();
+
   // Tick System Methods
   void SetTickRate(float rate);
   void UpdateGameTick(float tick_dt);

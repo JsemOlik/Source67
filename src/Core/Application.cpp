@@ -894,6 +894,78 @@ void Application::OnEntityCollidableChanged(Ref<Entity> entity) {
   }
 }
 
+void Application::OnBuildGame() {
+  S67_CORE_INFO("Building Game.dll...");
+  
+  // Save current scene first
+  if (m_LevelLoaded && m_SceneModified) {
+    OnSaveScene();
+  }
+
+#ifdef _WIN32
+  std::string buildCmd = "cd \"" + m_ProjectRoot.string() + "\" && build.bat Debug game";
+#else
+  std::string buildCmd = "cd \"" + m_ProjectRoot.string() + "\" && ./build.sh Debug game";
+#endif
+
+  S67_CORE_INFO("Executing: {0}", buildCmd);
+  int result = system(buildCmd.c_str());
+  
+  if (result == 0) {
+    S67_CORE_INFO("Game.dll built successfully!");
+  } else {
+    S67_CORE_ERROR("Game.dll build failed with exit code {0}", result);
+  }
+}
+
+void Application::OnBuildAssets() {
+  S67_CORE_INFO("Building GameAssets.apak...");
+  
+  // Save current scene first
+  if (m_LevelLoaded && m_SceneModified) {
+    OnSaveScene();
+  }
+
+#ifdef _WIN32
+  std::string buildCmd = "cd \"" + m_ProjectRoot.string() + "\" && build.bat Debug assets";
+#else
+  std::string buildCmd = "cd \"" + m_ProjectRoot.string() + "\" && ./build.sh Debug assets";
+#endif
+
+  S67_CORE_INFO("Executing: {0}", buildCmd);
+  int result = system(buildCmd.c_str());
+  
+  if (result == 0) {
+    S67_CORE_INFO("GameAssets.apak built successfully!");
+  } else {
+    S67_CORE_ERROR("GameAssets.apak build failed with exit code {0}", result);
+  }
+}
+
+void Application::OnBuildAll() {
+  S67_CORE_INFO("Building all (Game.dll + GameAssets.apak + Engine)...");
+  
+  // Save current scene first
+  if (m_LevelLoaded && m_SceneModified) {
+    OnSaveScene();
+  }
+
+#ifdef _WIN32
+  std::string buildCmd = "cd \"" + m_ProjectRoot.string() + "\" && build.bat Debug all";
+#else
+  std::string buildCmd = "cd \"" + m_ProjectRoot.string() + "\" && ./build.sh Debug all";
+#endif
+
+  S67_CORE_INFO("Executing: {0}", buildCmd);
+  int result = system(buildCmd.c_str());
+  
+  if (result == 0) {
+    S67_CORE_INFO("Build all completed successfully!");
+  } else {
+    S67_CORE_ERROR("Build all failed with exit code {0}", result);
+  }
+}
+
 void Application::OnEvent(Event &e) {
   // 1. Console Toggle (Global Priority)
   if (e.GetEventType() == EventType::KeyPressed) {
@@ -2158,6 +2230,33 @@ void Application::RenderFrame(float alpha) {
           m_ShowSettingsWindow = true;
         if (ImGui::MenuItem("Project Settings"))
           m_ShowProjectSettingsWindow = true;
+        ImGui::EndMenu();
+      }
+
+      if (ImGui::BeginMenu("Building")) {
+        if (ImGui::MenuItem("Build Game", "F7", false, m_LevelLoaded)) {
+          OnBuildGame();
+        }
+        if (ImGui::MenuItem("Build Assets", nullptr, false, m_LevelLoaded)) {
+          OnBuildAssets();
+        }
+        if (ImGui::MenuItem("Build All", "Ctrl+F7", false, m_LevelLoaded)) {
+          OnBuildAll();
+        }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Open Build Folder", nullptr, false, m_LevelLoaded)) {
+          // Open the build output folder
+#ifdef _WIN32
+          std::string cmd = "explorer \"" + m_ProjectRoot.string() + "\"";
+          system(cmd.c_str());
+#elif __APPLE__
+          std::string cmd = "open \"" + m_ProjectRoot.string() + "\"";
+          system(cmd.c_str());
+#else
+          std::string cmd = "xdg-open \"" + m_ProjectRoot.string() + "\"";
+          system(cmd.c_str());
+#endif
+        }
         ImGui::EndMenu();
       }
 
