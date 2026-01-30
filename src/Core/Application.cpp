@@ -404,8 +404,13 @@ void Application::OnScenePlay() {
     }
 
     float aspect = 1.0f;
+#ifndef S67_RUNTIME
     if (m_GameViewportSize.x > 0 && m_GameViewportSize.y > 0)
       aspect = m_GameViewportSize.x / m_GameViewportSize.y;
+#else
+    if (m_Window->GetHeight() > 0)
+        aspect = (float)m_Window->GetWidth() / (float)m_Window->GetHeight();
+#endif
 
     m_Camera->SetProjection(fov, aspect, 0.1f, 100.0f);
   }
@@ -422,7 +427,9 @@ void Application::OnScenePause() {
   m_SceneState = SceneState::Pause;
 
   // Re-enable ImGui mouse handling
+#ifndef S67_RUNTIME
   ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
+#endif
 
   m_Window->SetCursorLocked(false);
   m_CursorLocked = false;
@@ -432,7 +439,9 @@ void Application::OnSceneStop() {
   m_SceneState = SceneState::Edit;
 
   // Re-enable ImGui mouse handling
+#ifndef S67_RUNTIME
   ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
+#endif
 
   m_Window->SetCursorLocked(false);
   m_CursorLocked = false;
@@ -479,8 +488,10 @@ void Application::OnSceneStop() {
 
 void Application::SetProjectRoot(const std::filesystem::path &root) {
   m_ProjectRoot = root;
+#ifndef S67_RUNTIME
   if (m_ContentBrowserPanel)
     m_ContentBrowserPanel->SetRoot(root);
+#endif
 
   // Unload previous project modules
   ScriptRegistry::Get().UnloadModules();
@@ -728,12 +739,16 @@ void Application::DiscoverProject(const std::filesystem::path &levelPath) {
 void Application::OnNewScene() {
   // Check for unsaved changes
   if (m_SceneModified) {
+#ifndef S67_RUNTIME
     ImGui::OpenPopup("Unsaved Changes##NewScene");
+#endif
     return;
   }
 
   m_Scene->Clear();
+#ifndef S67_RUNTIME
   m_SceneHierarchyPanel->SetSelectedEntity(nullptr);
+#endif
 
   PhysicsSystem::Shutdown();
   PhysicsSystem::Init();
@@ -745,13 +760,17 @@ void Application::OnNewScene() {
   m_Window->SetCursorLocked(false);
   m_CursorLocked = false;
   m_SceneModified = false;
+#ifndef S67_RUNTIME
   ImGui::SetWindowFocus("Scene");
+#endif
   S67_CORE_INFO("Created new level");
 }
 
 void Application::CloseScene() {
   m_Scene->Clear();
+#ifndef S67_RUNTIME
   m_SceneHierarchyPanel->SetSelectedEntity(nullptr);
+#endif
   m_LevelLoaded = false;
   m_LevelFilePath = "";
   m_ProjectName = "Standalone";
@@ -765,7 +784,9 @@ void Application::CloseProject() {
   m_ProjectFilePath = "";
   m_ProjectName = "Standalone";
   m_ProjectVersion = "N/A";
+#ifndef S67_RUNTIME
   m_ContentBrowserPanel->SetRoot("");
+#endif
   S67_CORE_INFO("Closed project");
 }
 
@@ -1717,10 +1738,13 @@ void Application::UI_ProjectSettingsWindow() {
 
 void Application::SaveSettings() {
   nlohmann::json j;
+#ifndef S67_RUNTIME
   j["FontSize"] = m_FontSize;
   j["EditorFOV"] = m_EditorFOV;
+#endif
   j["FPSCap"] = m_FPSCap;
   j["VSync"] = m_VSync;
+#ifndef S67_RUNTIME
   j["Theme"] = (int)m_EditorTheme;
   j["CustomColor"] = {m_CustomColor.r, m_CustomColor.g, m_CustomColor.b,
                       m_CustomColor.a};
@@ -1733,6 +1757,7 @@ void Application::SaveSettings() {
   j["ShowToolbar"] = m_ShowToolbar;
   j["ShowStats"] = m_ShowStats;
   j["EnableConsole"] = m_EnableConsole;
+#endif
 
   j["RecentProjects"] = m_RecentProjects;
 
@@ -1747,13 +1772,17 @@ void Application::LoadSettings() {
     try {
       nlohmann::json j;
       i >> j;
+#ifndef S67_RUNTIME
       m_FontSize = j.at("FontSize").get<float>();
       if (j.contains("EditorFOV"))
         m_EditorFOV = j["EditorFOV"];
+#endif
       if (j.contains("FPSCap"))
         m_FPSCap = j["FPSCap"];
       if (j.contains("VSync"))
         m_VSync = j["VSync"];
+
+#ifndef S67_RUNTIME
       m_EditorTheme = (EditorTheme)j.at("Theme").get<int>();
 
       if (j.contains("CustomColor")) {
@@ -1779,6 +1808,7 @@ void Application::LoadSettings() {
         m_ShowStats = j["ShowStats"];
       if (j.contains("EnableConsole"))
         m_EnableConsole = j["EnableConsole"];
+#endif
 
       if (j.contains("RecentProjects")) {
         m_RecentProjects = j["RecentProjects"].get<std::vector<std::string>>();

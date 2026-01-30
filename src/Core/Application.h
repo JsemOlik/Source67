@@ -77,7 +77,9 @@ public:
   void RenderFrame(float alpha);
 
   inline Window &GetWindow() { return *m_Window; }
+#ifndef S67_RUNTIME
   ImGuiLayer &GetImGuiLayer() { return *m_ImGuiLayer; }
+#endif
   inline static Application &Get() { return *s_Instance; }
 
   Ref<PerspectiveCamera> GetCamera() { return m_Camera; }
@@ -86,7 +88,9 @@ public:
   const std::filesystem::path &GetProjectRoot() const { return m_ProjectRoot; }
   void SetProjectRoot(const std::filesystem::path &root);
 
+#ifndef S67_RUNTIME
   UndoSystem &GetUndoSystem() { return m_UndoSystem; }
+#endif
 
   Ref<Shader> GetDefaultShader() const { return m_DefaultShader; }
   Ref<Texture2D> GetDefaultTexture() const { return m_DefaultTexture; }
