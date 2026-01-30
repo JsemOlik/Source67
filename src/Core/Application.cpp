@@ -902,13 +902,14 @@ void Application::OnBuildGame() {
     OnSaveScene();
   }
 
-  // Use project root if set, otherwise use engine assets root (integrated development mode)
-  std::filesystem::path buildRoot = m_ProjectRoot.empty() ? m_EngineAssetsRoot : m_ProjectRoot;
+  // Always run build scripts from the engine root
+  // The build.bat/build.sh scripts are part of the engine, not the game project
+  std::filesystem::path buildScriptPath = m_EngineAssetsRoot;
 
 #ifdef _WIN32
-  std::string buildCmd = "cd \"" + buildRoot.string() + "\" && build.bat Debug game";
+  std::string buildCmd = "cd \"" + buildScriptPath.string() + "\" && build.bat Debug game";
 #else
-  std::string buildCmd = "cd \"" + buildRoot.string() + "\" && ./build.sh Debug game";
+  std::string buildCmd = "cd \"" + buildScriptPath.string() + "\" && ./build.sh Debug game";
 #endif
 
   S67_CORE_INFO("Executing: {0}", buildCmd);
@@ -929,13 +930,13 @@ void Application::OnBuildAssets() {
     OnSaveScene();
   }
 
-  // Use project root if set, otherwise use engine assets root (integrated development mode)
-  std::filesystem::path buildRoot = m_ProjectRoot.empty() ? m_EngineAssetsRoot : m_ProjectRoot;
+  // Always run build scripts from the engine root
+  std::filesystem::path buildScriptPath = m_EngineAssetsRoot;
 
 #ifdef _WIN32
-  std::string buildCmd = "cd \"" + buildRoot.string() + "\" && build.bat Debug assets";
+  std::string buildCmd = "cd \"" + buildScriptPath.string() + "\" && build.bat Debug assets";
 #else
-  std::string buildCmd = "cd \"" + buildRoot.string() + "\" && ./build.sh Debug assets";
+  std::string buildCmd = "cd \"" + buildScriptPath.string() + "\" && ./build.sh Debug assets";
 #endif
 
   S67_CORE_INFO("Executing: {0}", buildCmd);
@@ -956,13 +957,13 @@ void Application::OnBuildAll() {
     OnSaveScene();
   }
 
-  // Use project root if set, otherwise use engine assets root (integrated development mode)
-  std::filesystem::path buildRoot = m_ProjectRoot.empty() ? m_EngineAssetsRoot : m_ProjectRoot;
+  // Always run build scripts from the engine root
+  std::filesystem::path buildScriptPath = m_EngineAssetsRoot;
 
 #ifdef _WIN32
-  std::string buildCmd = "cd \"" + buildRoot.string() + "\" && build.bat Debug all";
+  std::string buildCmd = "cd \"" + buildScriptPath.string() + "\" && build.bat Debug all";
 #else
-  std::string buildCmd = "cd \"" + buildRoot.string() + "\" && ./build.sh Debug all";
+  std::string buildCmd = "cd \"" + buildScriptPath.string() + "\" && ./build.sh Debug all";
 #endif
 
   S67_CORE_INFO("Executing: {0}", buildCmd);
@@ -983,22 +984,24 @@ void Application::OnPackageGame() {
     OnSaveScene();
   }
 
-  // Use project root if set, otherwise use engine assets root (integrated development mode)
-  std::filesystem::path buildRoot = m_ProjectRoot.empty() ? m_EngineAssetsRoot : m_ProjectRoot;
+  // Always run package scripts from the engine root
+  std::filesystem::path packageScriptPath = m_EngineAssetsRoot;
 
   // Get project name from manifest or use folder name
   std::string projectName = "MyGame";
-  if (!buildRoot.empty()) {
-    projectName = buildRoot.filename().string();
+  if (!m_ProjectRoot.empty()) {
+    projectName = m_ProjectRoot.filename().string();
+  } else if (!m_EngineAssetsRoot.empty()) {
+    projectName = m_EngineAssetsRoot.filename().string();
   }
   
   // Get version (you could load this from a settings file)
   std::string version = "1.0.0";
 
 #ifdef _WIN32
-  std::string packageCmd = "cd \"" + buildRoot.string() + "\" && package.bat " + projectName + " " + version;
+  std::string packageCmd = "cd \"" + packageScriptPath.string() + "\" && package.bat " + projectName + " " + version;
 #else
-  std::string packageCmd = "cd \"" + buildRoot.string() + "\" && ./package.sh " + projectName + " " + version;
+  std::string packageCmd = "cd \"" + packageScriptPath.string() + "\" && ./package.sh " + projectName + " " + version;
 #endif
 
   S67_CORE_INFO("Executing: {0}", packageCmd);
@@ -2297,19 +2300,18 @@ void Application::RenderFrame(float alpha) {
           OnPackageGame();
         }
         ImGui::Separator();
-        // Open Build Folder requires a valid path
-        bool hasValidPath = !m_ProjectRoot.empty() || !m_EngineAssetsRoot.empty();
+        // Open Build Folder - always opens engine root where builds happen
+        bool hasValidPath = !m_EngineAssetsRoot.empty();
         if (ImGui::MenuItem("Open Build Folder", nullptr, false, hasValidPath)) {
-          // Open the build output folder
-          std::filesystem::path folderToOpen = m_ProjectRoot.empty() ? m_EngineAssetsRoot : m_ProjectRoot;
+          // Open the engine root folder where build outputs are located
 #ifdef _WIN32
-          std::string cmd = "explorer \"" + folderToOpen.string() + "\"";
+          std::string cmd = "explorer \"" + m_EngineAssetsRoot.string() + "\"";
           system(cmd.c_str());
 #elif __APPLE__
-          std::string cmd = "open \"" + folderToOpen.string() + "\"";
+          std::string cmd = "open \"" + m_EngineAssetsRoot.string() + "\"";
           system(cmd.c_str());
 #else
-          std::string cmd = "xdg-open \"" + folderToOpen.string() + "\"";
+          std::string cmd = "xdg-open \"" + m_EngineAssetsRoot.string() + "\"";
           system(cmd.c_str());
 #endif
         }
