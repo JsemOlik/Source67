@@ -2,6 +2,8 @@
 
 **Welcome to Source67!** This guide will walk you through building and running the engine for the first time.
 
+> 💡 **Prefer visual learning?** Check out [VISUAL_WORKFLOW.md](VISUAL_WORKFLOW.md) for diagrams and step-by-step illustrations!
+
 ---
 
 ## 📋 Table of Contents
