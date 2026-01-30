@@ -3,6 +3,7 @@
 #include "Core/Logger.h"
 #include "Core/UndoSystem.h"
 #include "Renderer/ScriptRegistry.h"
+#include <filesystem>
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -510,8 +511,28 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
 
     DrawComponent("Lua Scripts", [&]() {
       if (ImGui::Button("Add Lua Script")) {
-        entity->LuaScripts.push_back({"", false});
-        Application::Get().SetSceneModified(true);
+        ImGui::OpenPopup("AddLuaScriptPopup");
+      }
+
+      if (ImGui::BeginPopup("AddLuaScriptPopup")) {
+        std::filesystem::path scriptDir = "Scripts";
+        if (!std::filesystem::exists(scriptDir))
+            scriptDir = "../Scripts"; // Try up one level if running from build dir
+
+        if (std::filesystem::exists(scriptDir)) {
+             for (const auto& entry : std::filesystem::directory_iterator(scriptDir)) {
+                 if (entry.path().extension() == ".lua") {
+                     if (ImGui::MenuItem(entry.path().filename().string().c_str())) {
+                         std::string relativePath = std::filesystem::relative(entry.path(), std::filesystem::current_path()).string();
+                         entity->LuaScripts.push_back({relativePath, false});
+                         Application::Get().SetSceneModified(true);
+                     }
+                 }
+             }
+        } else {
+            ImGui::Text("Scripts folder not found!");
+        }
+        ImGui::EndPopup();
       }
 
       ImGui::Spacing();
