@@ -21,7 +21,6 @@
 #include <filesystem>
 #include <glad/glad.h>
 
-
 namespace S67 {
 
 class ContentBrowserPanel;
@@ -60,6 +59,7 @@ public:
   void OnNewScene();
   void CloseScene();
   void CloseProject();
+  void OnPackageAssets();
 
   void OnEntityCollidableChanged(Ref<Entity> entity);
   void SetSceneModified(bool modified) { m_SceneModified = modified; }

@@ -14,6 +14,7 @@
 #include "Renderer/VertexArray.h"
 #include <glad/glad.h>
 
+#include "Builder/AssetProcessor.h"
 #include "Core/Input.h"
 #include "Core/PlatformUtils.h"
 #include "Game/Console/ConVar.h"
@@ -747,6 +748,79 @@ void Application::CloseProject() {
   m_ProjectVersion = "N/A";
   m_ContentBrowserPanel->SetRoot("");
   S67_CORE_INFO("Closed project");
+}
+
+void Application::OnPackageAssets() {
+  if (m_ProjectRoot.empty()) {
+    S67_CORE_WARN("Cannot package assets: No project loaded!");
+    return;
+  }
+
+  std::string defaultName = m_ProjectName + ".pak";
+  std::string filepath = FileDialogs::SaveFile("Source67 Pak (*.pak)\0*.pak\0",
+                                               defaultName.c_str(), "pak");
+  if (filepath.empty())
+    return;
+
+  S67_CORE_INFO("Packaging assets from {0} to {1}...", m_ProjectRoot.string(),
+                filepath);
+
+  PakWriter writer(filepath);
+  TextureProcessor texProc;
+  MeshProcessor meshProc;
+  ShaderProcessor shaderProc;
+  LevelProcessor levelProc;
+
+  std::filesystem::path assetsDir = m_ProjectRoot / "assets";
+  if (!std::filesystem::exists(assetsDir)) {
+    S67_CORE_ERROR("Assets directory not found: {0}", assetsDir.string());
+    return;
+  }
+
+  uint32_t processedCount = 0;
+  uint32_t rawCount = 0;
+
+  for (const auto &entry :
+       std::filesystem::recursive_directory_iterator(assetsDir)) {
+    if (entry.is_directory())
+      continue;
+
+    std::filesystem::path path = entry.path();
+    std::string ext = path.extension().string();
+    ProcessedAsset asset;
+    bool processed = false;
+
+    if (ext == ".png" || ext == ".jpg" || ext == ".tga") {
+      processed = texProc.Process(path, asset);
+    } else if (ext == ".obj" || ext == ".stl") {
+      processed = meshProc.Process(path, asset);
+    } else if (ext == ".glsl") {
+      processed = shaderProc.Process(path, asset);
+    } else if (ext == ".s67") {
+      processed = levelProc.Process(path, asset);
+    } else {
+      // For other files, just bundle them raw
+      std::string relPath =
+          std::filesystem::relative(path, m_ProjectRoot).generic_string();
+      writer.AddFile(relPath, path.string());
+      rawCount++;
+      continue;
+    }
+
+    if (processed) {
+      std::string relPath =
+          std::filesystem::relative(path, m_ProjectRoot).generic_string();
+      writer.AddFile(relPath, asset.Data.data(), (uint32_t)asset.Data.size());
+      processedCount++;
+    }
+  }
+
+  if (writer.Write()) {
+    S67_CORE_INFO("Package created successfully! Processed: {0}, Raw: {1}",
+                  processedCount, rawCount);
+  } else {
+    S67_CORE_ERROR("Failed to create package at {0}", filepath);
+  }
 }
 
 void Application::OnSaveScene() {
@@ -2120,6 +2194,13 @@ void Application::RenderFrame(float alpha) {
         if (ImGui::MenuItem("Exit", "Cmd+Q"))
           m_Running = false;
 
+        ImGui::EndMenu();
+      }
+
+      if (ImGui::BeginMenu("Project")) {
+        if (ImGui::MenuItem("Package Assets...", nullptr, false,
+                            !m_ProjectRoot.empty()))
+          OnPackageAssets();
         ImGui::EndMenu();
       }
 

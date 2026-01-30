@@ -137,8 +137,8 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 )
 list(APPEND SOURCES "main.cpp")
 
-# Exclude builder files from main application
-list(FILTER SOURCES EXCLUDE REGEX "src/Builder/.*")
+# Exclude only the builder's main tool from the application to avoid duplicate main()
+list(FILTER SOURCES EXCLUDE REGEX "src/Builder/BuilderTool.cpp")
 
 # Builder Tool Files
 file(GLOB_RECURSE BUILDER_SOURCES CONFIGURE_DEPENDS
