@@ -2393,7 +2393,6 @@ void Application::RenderFrame(float alpha) {
   if (m_ProjectRoot.empty()) {
     UI_LauncherScreen();
   }
-
   // Unsaved Changes Modal Dialogs
   if (ImGui::BeginPopupModal("Unsaved Changes##NewScene", nullptr,
                              ImGuiWindowFlags_AlwaysAutoResize)) {
