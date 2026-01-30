@@ -206,8 +206,6 @@ void HUDRenderer::BeginHUD(float width, float height) {
   glDisable(GL_DEPTH_TEST);
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-  s_Data->TextQueue.clear();
 }
 
 void HUDRenderer::EndHUD() {
@@ -226,6 +224,8 @@ void HUDRenderer::EndHUD() {
     DrawString(queued.Text, pos, scale, queued.Color);
     yOffset += 40.0f; // Move down for next line
   }
+
+  s_Data->TextQueue.clear();
 
   glEnable(GL_DEPTH_TEST);
 }

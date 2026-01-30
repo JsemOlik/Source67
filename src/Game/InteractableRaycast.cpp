@@ -28,7 +28,7 @@ public:
     direction.z = cos(pitch) * sin(yaw);
     direction = glm::normalize(direction);
 
-    float distance = 5.0f; // 5 meters interaction range
+    float distance = 10.0f; // 10 meters interaction range
     JPH::BodyID hitBody = PhysicsSystem::Raycast(origin, direction, distance);
 
     if (!hitBody.IsInvalid()) {
