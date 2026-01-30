@@ -1,353 +1,592 @@
-# Game Engine Build System Specification
+# Source67 Engine - Hybrid Build System Specification
 
 ## Overview
 
-This document specifies a complete build system for an OpenGL/C++20 3D game engine that separates the engine runtime from game code and assets using a DLL-based architecture with asset packing.
+This document specifies a complete build system for **Source67**, a modern C++20 3D game engine with OpenGL 4.5+, Jolt Physics v5.0.0, ImGui (docking branch), and **dual-scripting support** (C++ native + Lua via sol2). The system separates game code and assets from the engine runtime using a DLL-based architecture with custom asset packing.
 
-**Architecture Pattern:**
+**Architecture Pattern (Source67 Hybrid):**
 
-- Game code compiles to a single `Game.dll` (dynamic library)
-- Assets pack into an `Assetpack` binary file (scenes, models, textures, sounds, etc.)
-- Engine builds into a standalone executable that loads both at runtime
-- Editor mode includes debug helpers that are stripped in standalone builds
+- **C++ Game Code** compiles to a single `Game.dll` dynamic library (native game logic, custom components, entity behavior)
+- **Lua Game Scripts** package into the `GameAssets.apak` file (hot-reloadable gameplay scripts, entity behaviors, game logic)
+- **Assets** pack into `GameAssets.apak` binary file (scenes `.s67`, models, textures, shaders, fonts, **Lua scripts**)
+- **Engine** builds into standalone executable `Source67.exe` that loads both DLL and asset pack at runtime
+- **Editor Mode** includes ImGui panels, gizmos, debugging, asset browser, developer console (stripped in standalone)
+- **Full Integration** with Jolt Physics, spdlog logging, sol2 Lua bindings, existing renderer pipeline
 
 ---
 
 ## Build Pipeline Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        BUILD PROCESS                            │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                     SOURCE67 BUILD PROCESS                           │
+└──────────────────────────────────────────────────────────────────────┘
 
-[Game Source Code]  [Asset Files]         [Engine Source Code]
-        │                  │                        │
-        │                  │                        │
-        ▼                  ▼                        ▼
-    ┌────────────┐    ┌─────────────┐         ┌─────────────┐
-    │C++20 Compiler│    │Asset Packer │         │C++20 Compiler
-    │             │    │  (Custom)   │         │             │
-    └────────────┘    └─────────────┘         └─────────────┘
-        │                  │                        │
-        ▼                  ▼                        ▼
-   [Game.dll]      [Assetpack.bin]          [Engine.exe]
-        │                  │                        │
-        └──────────────────┴────────────────────────┘
-                          │
-                          ▼
-                    ┌─────────────────┐
-                    │ Runtime Loader  │
-                    │ (Engine.exe)    │
-                    └─────────────────┘
-                          │
-            ┌─────────────┼─────────────┐
-            │             │             │
-            ▼             ▼             ▼
-      Load DLL    Load Assetpack   Initialize
-                                    OpenGL/Graphics
-                          │
-                          ▼
-                   ┌────────────────┐
-                   │ Running Game   │
-                   └────────────────┘
+[C++ Game Code]  [Lua Scripts]  [Asset Files]   [Engine Source Code]
+        │              │              │                    │
+        │              │              │                    │
+        ▼              ▼              ▼                    ▼
+    ┌────────────┐ ┌────────────┐ ┌──────────┐       ┌─────────────┐
+    │C++20       │ │Lua Scripts │ │Asset     │       │C++20 Compiler
+    │ Compiler   │ │(packaged)  │ │Packer    │       │ + GLAD+    │
+    │ (MSVC)     │ │into apak   │ │Tool      │       │ImGui+Jolt  │
+    └────────────┘ └────────────┘ └──────────┘       └─────────────┘
+        │              │              │                    │
+        ▼              ▼              ▼                    ▼
+   [Game.dll]    ┌─────────────────────────┐          [Source67.exe]
+                 │   GameAssets.apak       │
+                 ├─────────────────────────┤
+                 │ - Scenes (.s67)         │
+                 │ - Models/Textures       │
+                 │ - Shaders (.glsl)       │
+                 │ - Fonts                 │
+                 │ - Lua Scripts (.lua)    │
+                 │ - Metadata              │
+                 └─────────────────────────┘
+                         │
+        ┌────────────────┼────────────────┐
+        │                │                │
+        ▼                ▼                ▼
+    [Game.dll]  [GameAssets.apak]  [Source67.exe]
+        │                │                │
+        └────────────────┼────────────────┘
+                         │
+                         ▼
+            ┌──────────────────────────┐
+            │   Runtime Startup        │
+            │   (Source67.exe main())  │
+            └──────────────────────────┘
+                         │
+        ┌────────────────┼────────────────┐
+        │                │                │
+        ▼                ▼                ▼
+    Load DLL    Load Asset Pack    Initialize
+    (Game.dll)  (GameAssets.apak)  OpenGL/Physics/
+                                    ImGui/Lua
+                         │
+                         ▼
+            ┌──────────────────────────┐
+            │   Running Game           │
+            │ (Editor or Standalone)   │
+            └──────────────────────────┘
 ```
 
 ---
 
-## Part 1: Game Code Compilation (Game.dll)
+## Part 1: C++ Game Code Compilation (Game.dll)
 
 ### 1.1 Game Source Structure
 
 ```
 game/
 ├── src/
-│   ├── main.cpp              # Game entry point
-│   ├── game_state.h
-│   ├── game_state.cpp
-│   ├── player.h
-│   ├── player.cpp
-│   ├── world.h
-│   ├── world.cpp
-│   ├── game_api.h            # API exposed to engine
-│   └── game_api.cpp
-├── CMakeLists.txt            # Or build script
-└── build/                     # Output directory
+│   ├── game_dll_main.cpp         # DLL entry point
+│   ├── game_api.h                # API exposed to engine (C-compatible)
+│   ├── game_api.cpp              # API implementation
+│   ├── Components/
+│   │   ├── PlayerComponent.h
+│   │   ├── PlayerComponent.cpp
+│   │   ├── EnemyComponent.h
+│   │   └── EnemyComponent.cpp
+│   ├── Systems/
+│   │   ├── GameLogicSystem.h
+│   │   └── GameLogicSystem.cpp
+│   ├── Scripts/
+│   │   ├── MyGameScript.h
+│   │   └── MyGameScript.cpp
+│   └── CMakeLists.txt
+├── CMakeLists.txt                # Game build config
+└── build/
     └── Release/
-        └── Game.dll          # Compiled output
+        └── Game.dll              # Compiled output
 ```
 
-### 1.2 Game API Interface
+### 1.2 Game API Interface (C-Compatible)
 
-The game code must expose a C-compatible interface (`game_api.h`) with these core functions:
+The game DLL exposes a C-compatible interface that the engine calls:
 
 ```cpp
-// game_api.h - Exported functions for engine to call
+// game_api.h - Exported API for engine to call
 
-extern "C" {
-    // Initialization
-    void game_initialize(void* engine_context);
-
-    // Update loop
-    void game_update(float delta_time);
-    void game_render();
-
-    // Input handling
-    void game_on_key_pressed(int key_code);
-    void game_on_key_released(int key_code);
-    void game_on_mouse_moved(float x, float y);
-
-    // Asset loading (engine calls this when Assetpack is loaded)
-    void game_on_assets_loaded(void* assetpack_handle);
-
-    // Shutdown
-    void game_shutdown();
-
-    // Version/metadata
-    const char* game_get_version();
-    int game_get_build_number();
-}
-```
-
-### 1.3 Compilation Process
-
-**Release Mode Build:**
-
-```bash
-# Using CMake example (or your build system)
-cd game/
-cmake -DCMAKE_BUILD_TYPE=Release -B build
-cmake --build build --config Release
-
-# Output: game/build/Release/Game.dll
-# On Linux/Mac: game/build/Release/libGame.so or libGame.dylib
-```
-
-**Compilation Flags:**
-
-- Optimize for performance (`-O3` or `/O2`)
-- Strip debug symbols (can be optional for post-mortem debugging)
-- Position-independent code (for DLL loading): `-fPIC`
-- Export symbols: Add `__declspec(dllexport)` (Windows) or visibility attributes (Linux)
-
-### 1.4 Game DLL Exports
-
-The DLL must explicitly export the API functions:
-
-```cpp
-// game_api.cpp
 #ifdef _WIN32
     #define GAME_API __declspec(dllexport)
 #else
     #define GAME_API __attribute__((visibility("default")))
 #endif
 
-GAME_API void game_initialize(void* engine_context) { /* ... */ }
-GAME_API void game_update(float delta_time) { /* ... */ }
-// ... etc
+extern "C" {
+    // Initialization with engine context and Lua state
+    void game_initialize(void* engine_context, void* lua_state);
+
+    // Core game loop
+    void game_update(float delta_time);
+    void game_render();
+
+    // Input callbacks
+    void game_on_key_pressed(int key_code);
+    void game_on_key_released(int key_code);
+    void game_on_mouse_moved(float x, float y);
+    void game_on_mouse_button(int button, int action);
+
+    // Asset and scene loading
+    void game_on_assets_loaded(void* assetpack_handle);
+    void game_on_scene_loaded(const char* scene_path);
+
+    // Lua integration
+    void game_on_lua_script_loaded(const char* script_path);
+    void game_on_lua_script_reloaded(const char* script_path);
+
+    // Lifecycle
+    void game_shutdown();
+
+    // Metadata
+    const char* game_get_version();
+    int game_get_build_number();
+}
+```
+
+### 1.3 Game API Implementation Pattern
+
+```cpp
+// game_api.cpp
+#include "game_api.h"
+#include "Source67/S67.h"
+
+// Global state
+static S67::Ref<S67::Scene> g_scene;
+static void* g_assetpack = nullptr;
+static sol::state* g_lua = nullptr;
+
+GAME_API void game_initialize(void* engine_context, void* lua_state) {
+    // Store lua state for script access
+    g_lua = static_cast<sol::state*>(lua_state);
+
+    // Create game scene
+    g_scene = S67::CreateRef<S67::Scene>();
+
+    S67_INFO("Game DLL Initialized!");
+}
+
+GAME_API void game_update(float delta_time) {
+    // Update game logic
+    if (g_scene) {
+        g_scene->OnUpdate(delta_time);
+    }
+}
+
+GAME_API void game_render() {
+    // Render game (engine handles most rendering)
+    // Game can queue custom render calls
+}
+
+GAME_API void game_on_assets_loaded(void* assetpack_handle) {
+    g_assetpack = assetpack_handle;
+    // Load initial scene
+    game_on_scene_loaded("scenes/main.s67");
+}
+
+GAME_API void game_on_lua_script_loaded(const char* script_path) {
+    // Called when Lua script is loaded from assets
+    if (g_lua) {
+        try {
+            g_lua->script_file(script_path);
+            S67_INFO("Lua script loaded: {}", script_path);
+        } catch (const sol::error& e) {
+            S67_ERROR("Failed to load Lua script {}: {}", script_path, e.what());
+        }
+    }
+}
+
+// ... other API functions ...
+```
+
+### 1.4 Native C++ Script Component Pattern
+
+Game can use Source67's `ScriptableEntity` for native C++ components:
+
+```cpp
+// game/src/Components/PlayerComponent.h
+#pragma once
+#include "Source67/Renderer/ScriptableEntity.h"
+
+class PlayerComponent : public S67::ScriptableEntity {
+public:
+    void OnCreate() override;
+    void OnUpdate(float ts) override;
+    void OnEvent(S67::Event& e) override;
+    void OnDestroy() override;
+
+private:
+    float speed = 5.0f;
+};
+
+// Registration (placed in game_api.cpp or ComponentRegistry)
+#include "Source67/Renderer/ScriptRegistry.h"
+REGISTER_SCRIPT(PlayerComponent);
+```
+
+### 1.5 Compilation Process
+
+**Build with CMake:**
+
+```bash
+cd game/
+cmake -DCMAKE_BUILD_TYPE=Release -B build
+cmake --build build --config Release
+
+# Output: game/build/Release/Game.dll
+# On Linux: game/build/Release/libGame.so
+# On macOS: game/build/Release/libGame.dylib
+```
+
+**Game CMakeLists.txt:**
+
+```cmake
+cmake_minimum_required(VERSION 3.20)
+project(GameDLL)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Include Source67 headers (from engine installation or relative path)
+include_directories(${CMAKE_SOURCE_DIR}/../src)
+
+# Add source files
+file(GLOB_RECURSE GAME_SOURCES "src/**/*.cpp")
+
+# Create DLL
+add_library(Game SHARED ${GAME_SOURCES})
+
+# Link to Source67 (or just headers if static linking engine)
+target_include_directories(Game PRIVATE ${CMAKE_SOURCE_DIR}/../src)
+
+# Output to Release/Debug subdirectory
+set_target_properties(Game PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIG>"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIG>"
+)
 ```
 
 ---
 
-## Part 2: Asset Packing (Assetpack.bin)
+## Part 2: Lua Scripts & Asset Packing (GameAssets.apak)
 
 ### 2.1 Asset File Structure
 
 ```
 assets/
 ├── scenes/
-│   ├── main_menu.scene
-│   ├── level_01.scene
-│   └── level_02.scene
+│   ├── main.s67                  # Main scene (JSON format)
+│   ├── level_01.s67
+│   └── level_02.s67
 ├── models/
-│   ├── player.fbx
+│   ├── player.obj
 │   ├── enemy.fbx
 │   └── building.obj
 ├── textures/
 │   ├── player_diffuse.png
 │   ├── terrain.png
 │   └── ui_atlas.png
-├── sounds/
-│   ├── bgm_main.ogg
-│   ├── sfx_jump.wav
-│   └── voice_intro.ogg
-├── scripts/
-│   ├── player_controller.gd
-│   └── enemy_ai.gd
-└── config.json               # Asset metadata
+├── shaders/
+│   ├── lighting.glsl
+│   ├── texture.glsl
+│   └── custom_shader.glsl
+├── fonts/
+│   ├── Roboto-Medium.ttf
+│   └── monospace.ttf
+├── lua/                          # NEW: Lua game scripts
+│   ├── gameplay/
+│   │   ├── player_controller.lua
+│   │   ├── enemy_ai.lua
+│   │   └── game_manager.lua
+│   ├── ui/
+│   │   ├── hud.lua
+│   │   └── menu.lua
+│   └── util/
+│       ├── math.lua
+│       └── helpers.lua
+└── config.json                   # Asset metadata
 ```
 
-### 2.2 Asset Packer Implementation
+### 2.2 Lua Script Examples
 
-The asset packer is a custom tool that reads all assets and bundles them into a single binary file.
+**Gameplay Script:**
 
-**Assetpack Binary Format:**
+```lua
+-- assets/lua/gameplay/player_controller.lua
+
+local PlayerController = {}
+
+function PlayerController:OnCreate()
+    self.speed = 5.0
+    self.health = 100
+    print("Player created with speed:", self.speed)
+end
+
+function PlayerController:OnUpdate(dt)
+    -- Check input from engine
+    local input = GetInput()
+
+    if input.forward then
+        local transform = self:GetComponent("Transform")
+        transform.position.y = transform.position.y + self.speed * dt
+    end
+end
+
+function PlayerController:TakeDamage(amount)
+    self.health = self.health - amount
+    print("Player health:", self.health)
+
+    if self.health <= 0 then
+        self:Die()
+    end
+end
+
+function PlayerController:Die()
+    print("Player died!")
+    self:Destroy()
+end
+
+return PlayerController
+```
+
+**UI Script:**
+
+```lua
+-- assets/lua/ui/hud.lua
+
+local HUD = {}
+
+function HUD:OnCreate()
+    self.visible = true
+end
+
+function HUD:OnUpdate(dt)
+    -- Render HUD elements (through engine's HUDRenderer)
+    if self.visible then
+        DrawText("Health: " .. GetPlayerHealth(), 10, 10)
+        DrawText("Score: " .. GetScore(), 10, 30)
+    end
+end
+
+function HUD:SetVisible(visible)
+    self.visible = visible
+end
+
+return HUD
+```
+
+### 2.3 Asset Packer Implementation
+
+The asset packer scans assets/ and creates a binary package including Lua scripts:
+
+**Enhanced Assetpack Binary Format:**
 
 ```
-[ASSETPACK HEADER]
-├── Magic Number: "APAK" (4 bytes)
-├── Version: 1 (4 bytes)
-├── Total Asset Count: N (4 bytes)
-├── Index Table Offset: (4 bytes)
+[HEADER]
+├── Magic: "AP67" (4 bytes)       # Changed from "APAK" for Source67
+├── Version: 2 (4 bytes)
+├── Asset Count: N (4 bytes)
+├── Index Offset: (8 bytes)
+├── Lua Script Count: M (4 bytes)
+├── Flags: [has_compression, has_encryption] (4 bytes)
 ├── Reserved: (8 bytes)
 │
 [ASSET DATA SECTION]
-├── Asset 1 Data (raw bytes)
-├── Asset 2 Data (raw bytes)
-├── ... N Assets ...
+├── Scene 1 (.s67 JSON)
+├── Model 1 (binary)
+├── Texture 1 (PNG/etc)
+├── Shader 1 (GLSL text)
+├── Lua Script 1 (text)
+├── Lua Script 2 (text)
+├── ... N total assets ...
 │
 [INDEX TABLE]
-├── Asset Entry 1
-│   ├── Asset ID Hash (8 bytes)
-│   ├── Asset Type (4 bytes)
-│   ├── Data Offset (8 bytes)
-│   ├── Data Size (8 bytes)
-│   ├── Compression Type (1 byte)
-│   └── Path String (variable, null-terminated)
-├── Asset Entry 2
-│   └── ... same structure ...
-├── ... N Asset Entries ...
+├── Entry 1: { path_hash, type, offset, size, compression }
+├── Entry 2: ...
+├── Entry M: ... (Lua script entries)
+│
+[LUA SCRIPT INDEX] (NEW)
+├── Script 1: { path, hash, offset, size }
+├── Script 2: ...
+├── ... M script entries ...
 │
 [FOOTER]
-├── Checksum/CRC (8 bytes)
-└── Index Table Checksum (8 bytes)
+├── Checksum (8 bytes)
+└── Metadata Checksum (8 bytes)
 ```
 
-### 2.3 Asset Packer Algorithm
-
-```
-INPUT: assets/ directory
-OUTPUT: Assetpack.bin
-
-1. Scan all asset files recursively
-2. For each file:
-   a. Calculate unique ID (hash of relative path)
-   b. Determine asset type (model, texture, sound, scene, etc.)
-   c. Apply compression if beneficial (DEFLATE or LZ4)
-   d. Record metadata (type, offset, size, path)
-3. Write header with metadata
-4. Write all asset data sequentially
-5. Write index table (sorted by asset ID for fast lookup)
-6. Calculate checksums
-7. Write footer
-8. Output: Assetpack.bin
-```
-
-### 2.4 Asset Type Enumeration
+### 2.4 Asset Type Enumeration (Extended)
 
 ```cpp
 enum AssetType : uint32_t {
+    // Existing types
     ASSET_UNKNOWN = 0,
     ASSET_TEXTURE = 1,
     ASSET_MODEL = 2,
-    ASSET_SOUND = 3,
-    ASSET_SCENE = 4,
-    ASSET_SCRIPT = 5,
-    ASSET_CONFIG = 6,
-    ASSET_SHADER = 7,
-    ASSET_FONT = 8,
-    // ... add as needed
+    ASSET_SCENE = 3,
+    ASSET_SHADER = 4,
+    ASSET_FONT = 5,
+
+    // NEW: Lua support
+    ASSET_LUA_SCRIPT = 6,
+    ASSET_CONFIG_JSON = 7,
+
+    // Future
+    ASSET_AUDIO = 8,
+    ASSET_ANIMATION = 9,
 };
 ```
 
-### 2.5 Packer Tool Command
+### 2.5 Asset Packer Tool
 
 ```bash
 # Command-line interface
-./asset_packer -i assets/ -o Assetpack.bin -c lz4 -v
+./asset_packer -i assets/ -o GameAssets.apak -c lz4 -v --validate
 
 # Options:
-# -i, --input <dir>      Input assets directory
-# -o, --output <file>    Output Assetpack filename
-# -c, --compression <type>  Compression algorithm (none, deflate, lz4)
-# -v, --verbose          Verbose output
-# --validate             Validate integrity after packing
+# -i, --input <dir>           Input assets directory
+# -o, --output <file>         Output Assetpack filename
+# -c, --compression <type>    Compression (none, deflate, lz4)
+# -v, --verbose               Verbose output
+# --validate                  Validate integrity
+# --include-lua               Include Lua scripts (default: yes)
+# --lua-dir <dir>             Lua scripts subdirectory (default: lua/)
+```
+
+### 2.6 Packer Implementation Snippet
+
+```cpp
+// tools/asset_packer/AssetPacker.cpp
+
+struct AssetPackerContext {
+    std::vector<AssetEntry> entries;
+    std::vector<LuaScriptEntry> lua_scripts;
+    std::ofstream output_file;
+    uint64_t current_offset = 0;
+};
+
+void PackAssets(const std::string& input_dir, const std::string& output_file) {
+    AssetPackerContext ctx;
+
+    // Scan regular assets
+    for (const auto& entry : fs::recursive_directory_iterator(input_dir)) {
+        if (entry.is_regular_file()) {
+            AssetType type = DetermineAssetType(entry.path());
+            ctx.entries.push_back(PackAsset(entry.path(), type, ctx.current_offset));
+            ctx.current_offset += GetFileSize(entry.path());
+        }
+    }
+
+    // Scan Lua scripts (NEW)
+    auto lua_dir = fs::path(input_dir) / "lua";
+    if (fs::exists(lua_dir)) {
+        for (const auto& entry : fs::recursive_directory_iterator(lua_dir)) {
+            if (entry.path().extension() == ".lua") {
+                ctx.lua_scripts.push_back(PackLuaScript(entry.path(), ctx.current_offset));
+                ctx.current_offset += GetFileSize(entry.path());
+            }
+        }
+    }
+
+    // Write to file
+    WriteAssetPackHeader(ctx, output_file);
+    WriteAssetData(ctx, output_file);
+    WriteIndexTable(ctx, output_file);
+    WriteLuaScriptIndex(ctx, output_file);
+    WriteFooter(ctx, output_file);
+}
 ```
 
 ---
 
-## Part 3: Engine Runtime (Engine.exe)
+## Part 3: Engine Runtime (Source67.exe)
 
-### 3.1 Engine Startup Sequence
+### 3.1 Enhanced Engine Startup Sequence
 
-When `Engine.exe` launches, it performs these steps in order:
+When `Source67.exe` launches in **Standalone Mode**:
 
 ```cpp
+// src/Core/Application.cpp - Standalone initialization
+
 int main(int argc, char* argv[]) {
     try {
-        // Step 1: Initialize window and graphics context
-        Engine engine;
-        engine.initialize_graphics();
+        // Step 1: Initialize GLFW and window
+        S67::Application app("Source67 - Standalone");
 
-        // Step 2: Search for Game.dll and Assetpack.bin
-        std::string game_dll_path = engine.find_game_dll();
-        std::string assetpack_path = engine.find_assetpack();
+        // Step 2: Initialize OpenGL (GLAD)
+        app.Initialize();
+
+        // Step 3: Initialize Lua runtime
+        sol::state lua;
+        lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string, sol::lib::table);
+
+        // Step 4: Search for Game.dll and GameAssets.apak
+        std::string game_dll_path = app.FindGameDLL();
+        std::string assetpack_path = app.FindAssetPack();
 
         if (game_dll_path.empty() || assetpack_path.empty()) {
-            throw std::runtime_error("Game DLL or Assetpack not found!");
+            throw std::runtime_error("Game DLL or asset pack not found!");
         }
 
-        // Step 3: Load Assetpack into memory
-        void* assetpack_handle = engine.load_assetpack(assetpack_path);
+        // Step 5: Load asset pack into memory
+        void* assetpack_handle = app.LoadAssetPack(assetpack_path);
 
-        // Step 4: Load Game.dll dynamically
-        void* game_dll_handle = engine.load_game_dll(game_dll_path);
+        // Step 6: Load Lua scripts from asset pack (NEW)
+        app.LoadLuaScriptsFromAssets(assetpack_handle, lua);
 
-        // Step 5: Resolve game API functions from DLL
-        GameAPI game_api = engine.resolve_game_api(game_dll_handle);
+        // Step 7: Load Game.dll dynamically
+        void* game_dll_handle = app.LoadGameDLL(game_dll_path);
 
-        // Step 6: Initialize game with engine context
-        game_api.game_initialize(&engine);
+        // Step 8: Resolve game API functions
+        GameAPI game_api = app.ResolveGameAPI(game_dll_handle);
 
-        // Step 7: Notify game that assets are ready
+        // Step 9: Initialize game with both engine context and Lua state
+        game_api.game_initialize(&app, &lua);
+
+        // Step 10: Notify game that assets are loaded
         game_api.game_on_assets_loaded(assetpack_handle);
 
-        // Step 8: Main loop
-        while (engine.is_running()) {
-            float delta_time = engine.calculate_delta_time();
+        // Step 11: Main loop
+        while (!glfwWindowShouldClose((GLFWwindow*)app.GetWindowHandle())) {
+            float delta_time = app.GetDeltaTime();
 
-            // Handle input and pass to game
-            engine.handle_input();
+            // Physics update
+            app.UpdatePhysics(delta_time);
 
-            // Update game logic
+            // Game update
             game_api.game_update(delta_time);
 
-            // Render frame
+            // Render
             game_api.game_render();
+            app.RenderFrame();
 
-            engine.swap_buffers();
+            glfwSwapBuffers((GLFWwindow*)app.GetWindowHandle());
+            glfwPollEvents();
         }
 
-        // Step 9: Cleanup
+        // Step 12: Shutdown
         game_api.game_shutdown();
-        engine.unload_game_dll(game_dll_handle);
-        engine.unload_assetpack(assetpack_handle);
-        engine.shutdown();
+        app.UnloadGameDLL(game_dll_handle);
+        app.UnloadAssetPack(assetpack_handle);
+        app.Shutdown();
 
         return 0;
     }
     catch (const std::exception& e) {
-        std::cerr << "Engine error: " << e.what() << std::endl;
+        S67_CORE_ERROR("Engine error: {}", e.what());
         return 1;
     }
 }
 ```
 
-### 3.2 Finding Game Assets
-
-The engine searches for DLL and Assetpack in this order:
+### 3.2 Finding Game Components
 
 ```cpp
-std::string Engine::find_game_dll() {
-    // Search locations (in order):
-    // 1. Same directory as Engine.exe
-    // 2. ./game/ subdirectory
-    // 3. ../game/build/Release/ (relative to exe)
-    // 4. Environment variable GAME_DLL_PATH
-    // 5. Current working directory
-
+std::string Application::FindGameDLL() {
     std::vector<std::string> search_paths = {
         "./Game.dll",
-        "./game/Game.dll",
+        "./game/build/Release/Game.dll",
         "../game/build/Release/Game.dll",
         std::getenv("GAME_DLL_PATH") ? std::getenv("GAME_DLL_PATH") : "",
     };
@@ -357,16 +596,14 @@ std::string Engine::find_game_dll() {
             return std::filesystem::absolute(path).string();
         }
     }
-
-    return "";  // Not found
+    return "";
 }
 
-std::string Engine::find_assetpack() {
-    // Similar search for Assetpack.bin
+std::string Application::FindAssetPack() {
     std::vector<std::string> search_paths = {
-        "./Assetpack.bin",
-        "./assets/Assetpack.bin",
-        "../assets/Assetpack.bin",
+        "./GameAssets.apak",
+        "./assets/GameAssets.apak",
+        "../assets/GameAssets.apak",
         std::getenv("ASSETPACK_PATH") ? std::getenv("ASSETPACK_PATH") : "",
     };
 
@@ -375,15 +612,46 @@ std::string Engine::find_assetpack() {
             return std::filesystem::absolute(path).string();
         }
     }
-
-    return "";  // Not found
+    return "";
 }
 ```
 
-### 3.3 Dynamic DLL Loading
+### 3.3 Lua Script Loading from Assets (NEW)
 
 ```cpp
-void* Engine::load_game_dll(const std::string& dll_path) {
+// src/Scripting/LuaScriptEngine.cpp
+
+void Application::LoadLuaScriptsFromAssets(void* assetpack_handle, sol::state& lua) {
+    AssetpackData* pack = (AssetpackData*)assetpack_handle;
+
+    // Get Lua script index from asset pack
+    auto lua_scripts = pack->GetLuaScriptIndex();
+
+    for (const auto& script_entry : lua_scripts) {
+        try {
+            // Get script data from asset pack
+            const uint8_t* script_data = pack->GetAssetData(script_entry.path);
+            std::string script_code(
+                (const char*)script_data,
+                script_entry.size
+            );
+
+            // Execute in Lua state
+            lua.script(script_code, script_entry.path);
+
+            S67_CORE_INFO("Loaded Lua script: {}", script_entry.path);
+        }
+        catch (const sol::error& e) {
+            S67_CORE_ERROR("Failed to load Lua script {}: {}", script_entry.path, e.what());
+        }
+    }
+}
+```
+
+### 3.4 Dynamic DLL Loading (Unchanged)
+
+```cpp
+void* Application::LoadGameDLL(const std::string& dll_path) {
     #ifdef _WIN32
         HMODULE dll = LoadLibraryA(dll_path.c_str());
         if (!dll) {
@@ -404,23 +672,30 @@ void* Engine::load_game_dll(const std::string& dll_path) {
         return dll;
     #endif
 }
-
-void Engine::unload_game_dll(void* dll_handle) {
-    #ifdef _WIN32
-        FreeLibrary((HMODULE)dll_handle);
-    #else
-        dlclose(dll_handle);
-    #endif
-}
 ```
 
-### 3.4 API Function Resolution
+### 3.5 API Function Resolution
 
 ```cpp
-GameAPI Engine::resolve_game_api(void* dll_handle) {
+struct GameAPI {
+    void (*game_initialize)(void* engine_context, void* lua_state);
+    void (*game_update)(float delta_time);
+    void (*game_render)();
+    void (*game_on_key_pressed)(int key_code);
+    void (*game_on_key_released)(int key_code);
+    void (*game_on_mouse_moved)(float x, float y);
+    void (*game_on_mouse_button)(int button, int action);
+    void (*game_on_assets_loaded)(void* assetpack_handle);
+    void (*game_on_scene_loaded)(const char* scene_path);
+    void (*game_on_lua_script_loaded)(const char* script_path);
+    void (*game_on_lua_script_reloaded)(const char* script_path);
+    void (*game_shutdown)();
+};
+
+GameAPI Application::ResolveGameAPI(void* dll_handle) {
     GameAPI api = {};
 
-    auto resolve_function = [dll_handle](const char* name) -> void* {
+    auto resolve = [dll_handle](const char* name) -> void* {
         #ifdef _WIN32
             return (void*)GetProcAddress((HMODULE)dll_handle, name);
         #else
@@ -428,119 +703,16 @@ GameAPI Engine::resolve_game_api(void* dll_handle) {
         #endif
     };
 
-    api.game_initialize = (decltype(api.game_initialize))
-        resolve_function("game_initialize");
-    api.game_update = (decltype(api.game_update))
-        resolve_function("game_update");
-    api.game_render = (decltype(api.game_render))
-        resolve_function("game_render");
-    api.game_on_key_pressed = (decltype(api.game_on_key_pressed))
-        resolve_function("game_on_key_pressed");
-    api.game_on_key_released = (decltype(api.game_on_key_released))
-        resolve_function("game_on_key_released");
-    api.game_on_mouse_moved = (decltype(api.game_on_mouse_moved))
-        resolve_function("game_on_mouse_moved");
-    api.game_on_assets_loaded = (decltype(api.game_on_assets_loaded))
-        resolve_function("game_on_assets_loaded");
-    api.game_shutdown = (decltype(api.game_shutdown))
-        resolve_function("game_shutdown");
+    api.game_initialize = (decltype(api.game_initialize))resolve("game_initialize");
+    api.game_update = (decltype(api.game_update))resolve("game_update");
+    api.game_render = (decltype(api.game_render))resolve("game_render");
+    // ... resolve others ...
 
-    // Verify all functions are found
     if (!api.game_initialize || !api.game_update || !api.game_render) {
         throw std::runtime_error("Failed to resolve required game API functions");
     }
 
     return api;
-}
-```
-
-### 3.5 Assetpack Loading
-
-```cpp
-void* Engine::load_assetpack(const std::string& path) {
-    std::ifstream file(path, std::ios::binary);
-    if (!file) {
-        throw std::runtime_error("Failed to open Assetpack: " + path);
-    }
-
-    // Read and validate header
-    AssetpackHeader header;
-    file.read((char*)&header, sizeof(header));
-
-    if (std::memcmp(header.magic, "APAK", 4) != 0) {
-        throw std::runtime_error("Invalid Assetpack magic number");
-    }
-
-    if (header.version != 1) {
-        throw std::runtime_error("Unsupported Assetpack version");
-    }
-
-    // Allocate memory for entire assetpack
-    AssetpackData* data = new AssetpackData();
-    data->asset_count = header.asset_count;
-
-    // Read all asset data into memory
-    file.seekg(0, std::ios::end);
-    size_t file_size = file.tellg();
-    file.seekg(0, std::ios::beg);
-
-    data->memory = new uint8_t[file_size];
-    file.read((char*)data->memory, file_size);
-    file.close();
-
-    // Read index table
-    file.seekg(header.index_table_offset);
-    data->index_table = new AssetEntry[header.asset_count];
-    for (uint32_t i = 0; i < header.asset_count; ++i) {
-        // Read entry (implementation depends on your format)
-    }
-
-    // Validate checksum
-    uint64_t expected_checksum = *(uint64_t*)(data->memory + file_size - 16);
-    uint64_t calculated = calculate_crc(data->memory, file_size - 8);
-    if (expected_checksum != calculated) {
-        throw std::runtime_error("Assetpack checksum failed");
-    }
-
-    return (void*)data;
-}
-
-void Engine::unload_assetpack(void* handle) {
-    AssetpackData* data = (AssetpackData*)handle;
-    delete[] data->memory;
-    delete[] data->index_table;
-    delete data;
-}
-```
-
-### 3.6 Asset Retrieval API
-
-The engine exposes functions for the game to access packed assets:
-
-```cpp
-// Called by game code to load an asset
-void* Engine::get_asset(void* assetpack_handle, const char* asset_path) {
-    AssetpackData* pack = (AssetpackData*)assetpack_handle;
-
-    // Hash the asset path for fast lookup
-    uint64_t asset_id = hash_string(asset_path);
-
-    // Binary search in index table
-    const AssetEntry* entry = pack->find_asset(asset_id);
-    if (!entry) {
-        return nullptr;  // Asset not found
-    }
-
-    // Return pointer to asset data in memory
-    return (void*)(pack->memory + entry->data_offset);
-}
-
-size_t Engine::get_asset_size(void* assetpack_handle, const char* asset_path) {
-    AssetpackData* pack = (AssetpackData*)assetpack_handle;
-    uint64_t asset_id = hash_string(asset_path);
-
-    const AssetEntry* entry = pack->find_asset(asset_id);
-    return entry ? entry->data_size : 0;
 }
 ```
 
@@ -550,120 +722,110 @@ size_t Engine::get_asset_size(void* assetpack_handle, const char* asset_path) {
 
 ### 4.1 Editor Mode
 
-When running in **Editor Mode** (development/debugging):
+When running in **Editor Mode** (development):
 
 ```cpp
-// In engine code
 #ifdef EDITOR_MODE
-    // Enable debug overlays
-    engine.show_debug_ui();
-    engine.show_asset_inspector();
-    engine.show_performance_metrics();
+    // Keep all ImGui panels visible
+    engine.show_scene_hierarchy_panel();
+    engine.show_inspector_panel();
+    engine.show_content_browser_panel();
+    engine.show_viewport_panel();
+    engine.show_developer_console();
 
-    // Hot-reload capabilities
-    engine.enable_hot_reload();
+    // Enable Lua hot-reload
+    engine.enable_lua_hot_reload();
+
+    // Enable gizmos
+    engine.enable_gizmos();
 
     // Detailed logging
-    engine.set_log_level(LogLevel::DEBUG);
+    spdlog::set_level(spdlog::level::debug);
 #endif
 ```
 
-**Building for Editor Mode:**
+**Build for Editor:**
 
 ```bash
-cmake -DCMAKE_BUILD_TYPE=Debug -DEDITOR_MODE=ON -B build
-cmake --build build --config Debug
+cmake -DCMAKE_BUILD_TYPE=Debug -DEDITOR_MODE=ON -B cmake-build-debug
+cmake --build cmake-build-debug
 ```
 
 ### 4.2 Standalone Mode
 
-When running in **Standalone Mode** (shipping/release):
+When running in **Standalone Mode** (shipping):
 
 ```cpp
-// In engine code
 #ifdef STANDALONE_MODE
-    // Remove all debug code
-    #define EDITOR_DEBUG(x)  // No-op macro
+    // Hide all editor UI
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
 
-    // Disable hot-reload
-    engine.disable_hot_reload();
+    // Disable Lua hot-reload (scripts are readonly)
+    engine.disable_lua_hot_reload();
+
+    // Disable gizmos
+    engine.disable_gizmos();
 
     // Minimal logging
-    engine.set_log_level(LogLevel::ERROR);
-
-    // Optimize for performance
-    engine.enable_optimizations();
+    spdlog::set_level(spdlog::level::err);
 #endif
 ```
 
-**Building for Standalone Mode:**
+**Build for Standalone:**
 
 ```bash
-cmake -DCMAKE_BUILD_TYPE=Release -DSTANDALONE_MODE=ON -B build
-cmake --build build --config Release
-```
-
-**Stripping Debug Helpers:**
-
-```cpp
-// Headers should have guard macros
-#ifndef STANDALONE_MODE
-    // This code is removed in standalone builds
-    void debug_draw_bounding_boxes() { /* ... */ }
-    void debug_show_entity_tree() { /* ... */ }
-#endif
+cmake -DCMAKE_BUILD_TYPE=Release -DSTANDALONE_MODE=ON -B cmake-build-release
+cmake --build cmake-build-release
 ```
 
 ---
 
 ## Part 5: Complete Build Script
 
-### 5.1 Master Build Script (`build.sh` or `build.bat`)
+### 5.1 Master Build Script (`build.sh`)
 
 ```bash
 #!/bin/bash
-# Complete build script for game engine + game + assets
+# Complete build for Source67 + Game.dll + GameAssets.apak
 
-set -e  # Exit on error
+set -e
 
 BUILD_TYPE=${1:-Release}
 TARGET=${2:-all}
 
 echo "========================================="
-echo "Game Engine Build System"
+echo "Source67 Engine - Hybrid Build System"
 echo "========================================="
 echo "Build Type: $BUILD_TYPE"
 echo "Target: $TARGET"
 echo ""
 
-# Build game code
+# Step 1: Build Game.dll
 if [ "$TARGET" = "all" ] || [ "$TARGET" = "game" ]; then
     echo "[1/3] Building Game.dll..."
     cd game
     cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -B build
     cmake --build build --config $BUILD_TYPE
-    GAME_DLL="$(pwd)/build/$BUILD_TYPE/Game.dll"
+    echo "✓ Game.dll compiled"
     cd ..
-    echo "✓ Game.dll built at: $GAME_DLL"
     echo ""
 fi
 
-# Pack assets
+# Step 2: Pack Assets (including Lua scripts)
 if [ "$TARGET" = "all" ] || [ "$TARGET" = "assets" ]; then
-    echo "[2/3] Packing assets into Assetpack.bin..."
-    ./asset_packer -i assets/ -o Assetpack.bin -c lz4 -v --validate
-    echo "✓ Assetpack.bin created"
+    echo "[2/3] Packing assets (GameAssets.apak)..."
+    ./asset_packer -i assets/ -o GameAssets.apak -c lz4 -v --validate --include-lua
+    echo "✓ GameAssets.apak created"
     echo ""
 fi
 
-# Build engine
+# Step 3: Build Engine
 if [ "$TARGET" = "all" ] || [ "$TARGET" = "engine" ]; then
-    echo "[3/3] Building Engine.exe..."
-    cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DSTANDALONE_MODE=ON -B build
-    cmake --build build --config $BUILD_TYPE
-    ENGINE_EXE="$(pwd)/build/$BUILD_TYPE/Engine.exe"
-    cd ..
-    echo "✓ Engine executable built at: $ENGINE_EXE"
+    echo "[3/3] Building Source67.exe..."
+    cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DSTANDALONE_MODE=ON -B cmake-build-$BUILD_TYPE
+    cmake --build cmake-build-$BUILD_TYPE --config $BUILD_TYPE
+    echo "✓ Source67.exe built"
     echo ""
 fi
 
@@ -671,51 +833,50 @@ echo "========================================="
 echo "Build Complete!"
 echo "========================================="
 echo ""
-echo "Distribution package:"
-echo "  - $ENGINE_EXE"
-echo "  - Assetpack.bin"
-echo "  - Game.dll"
+echo "Distribution package contents:"
+echo "  - cmake-build-$BUILD_TYPE/Source67.exe"
+echo "  - GameAssets.apak"
+echo "  - game/build/$BUILD_TYPE/Game.dll"
 echo ""
-echo "To run: $ENGINE_EXE"
+echo "To run: cmake-build-$BUILD_TYPE/Source67.exe"
 ```
 
-### 5.2 Build Targets
+### 5.2 CMakeLists.txt Integration
 
-```makefile
-# CMakeLists.txt (root)
+Root `CMakeLists.txt` should support building as one unit or separately:
 
+```cmake
 cmake_minimum_required(VERSION 3.20)
-project(GameEngine)
+project(Source67 CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(STANDALONE_MODE "Build in standalone mode (no editor features)" OFF)
-option(EDITOR_MODE "Build in editor mode (with debug features)" ON)
+option(EDITOR_MODE "Build editor with full debug features" ON)
+option(BUILD_GAME_DLL "Build Game.dll from game/ subdirectory" ON)
 
-# Subdirectories
-add_subdirectory(engine)
-add_subdirectory(game)
+# Main engine
+add_subdirectory(src)
 
-# Custom targets
+# Game DLL (optional)
+if(BUILD_GAME_DLL AND EXISTS "${CMAKE_SOURCE_DIR}/game/CMakeLists.txt")
+    add_subdirectory(game)
+endif()
+
+# Asset packing target
 add_custom_target(pack_assets
     COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/asset_packer
         -i ${CMAKE_CURRENT_SOURCE_DIR}/assets/
-        -o ${CMAKE_BINARY_DIR}/Assetpack.bin
-        -c lz4 -v
-    COMMENT "Packing assets..."
+        -o ${CMAKE_BINARY_DIR}/GameAssets.apak
+        -c lz4 -v --include-lua
+    COMMENT "Packing GameAssets.apak..."
 )
 
+# Full build target
 add_custom_target(build_complete
-    DEPENDS engine game pack_assets
-    COMMENT "Full build complete"
-)
-
-# Run game
-add_custom_target(run
-    COMMAND ${CMAKE_BINARY_DIR}/engine/Engine
-    DEPENDS build_complete
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    DEPENDS Source67 Game pack_assets
+    COMMENT "Complete build (engine + game + assets)"
 )
 ```
 
@@ -723,222 +884,188 @@ add_custom_target(run
 
 ## Part 6: File Locations and Distribution
 
-### 6.1 Final Distribution Structure
+### 6.1 Final Standalone Distribution
 
 ```
-game_release/
-├── Engine.exe              # Main executable (or Engine on Linux/Mac)
-├── Assetpack.bin          # All game assets
-├── Game.dll               # Game code (Windows)
-├── libGame.so             # Game code (Linux)
-├── libGame.dylib          # Game code (macOS)
-└── README.txt             # Distribution notes
+Source67_Release/
+├── Source67.exe               # Main executable
+├── GameAssets.apak           # Assets + Lua scripts
+├── Game.dll                  # Game code (Windows)
+├── Game.so / Game.dylib      # Game code (Linux/macOS)
+└── README.md                 # Shipping notes
 ```
 
 ### 6.2 Runtime Requirements
 
-**For the game to run, all three components must be present:**
+**All three components required:**
 
-1. **Engine.exe** - The runtime
-2. **Game.dll** - Game logic
-3. **Assetpack.bin** - Assets
+1. **Source67.exe** - Engine runtime (contains OpenGL, Jolt, ImGui)
+2. **Game.dll** - C++ game logic
+3. **GameAssets.apak** - Scenes, models, textures, shaders, Lua scripts
 
-If any are missing, the engine should provide a clear error message:
+Missing any component results in clear error:
 
 ```
-ERROR: Cannot find Game.dll
+ERROR: Cannot find GameAssets.apak
 Searched in:
-  - ./Game.dll
-  - ./game/Game.dll
-  - ../game/build/Release/Game.dll
+  - ./GameAssets.apak
+  - ./assets/GameAssets.apak
+  - $ASSETPACK_PATH environment variable
 ```
 
 ---
 
-## Part 7: Workflows
+## Part 7: Lua Hot-Reload (Development Feature)
 
-### 7.1 Development Workflow
+### 7.1 Editor Mode: Live Script Reloading
 
-```
-1. Edit game source code in game/src/
-2. Edit assets in assets/
-3. Run: ./build.sh Debug all
-4. Test in debug mode with editor features
-5. Iterate until satisfied
-```
-
-### 7.2 Shipping Workflow
-
-```
-1. Final game code review
-2. Ensure all assets are in assets/
-3. Run: ./build.sh Release all
-4. Verify Engine.exe + Game.dll + Assetpack.bin exist
-5. Package as distribution
-6. Ship!
-```
-
----
-
-## Part 8: Error Handling and Validation
-
-### 8.1 Compilation Errors
-
-**Game DLL Compilation Fails:**
-
-```
-Error: Game.dll failed to compile
-- Check game/src/ for syntax errors
-- Verify all headers are present
-- Ensure game_api.h exports are correct
-```
-
-**Engine Compilation Fails:**
-
-```
-Error: Engine.exe failed to compile
-- Check engine/ for syntax errors
-- Verify OpenGL headers and libraries are linked
-- Check CMake configuration
-```
-
-### 8.2 Runtime Errors
-
-**DLL Not Found:**
-
-```
-ERROR: Game.dll not found at ./Game.dll
-Searched in:
-  - ./Game.dll
-  - ./game/Game.dll
-  - ../game/build/Release/Game.dll
-  - $GAME_DLL_PATH environment variable
-```
-
-**Assetpack Corrupted:**
-
-```
-ERROR: Assetpack.bin checksum validation failed
-File may be corrupted. Try rebuilding with: ./build.sh Release assets
-```
-
-**API Function Missing:**
-
-```
-ERROR: Failed to resolve game_initialize from Game.dll
-Game DLL may be incompatible or outdated. Rebuild with matching engine version.
-```
-
-### 8.3 Validation Checklist
-
-Before shipping, verify:
-
-```
-[ ] Game.dll compiles with no warnings
-[ ] Assetpack.bin passes integrity check
-[ ] Engine.exe starts without errors
-[ ] Game initializes and loads assets
-[ ] Frame rate is stable (60+ FPS)
-[ ] All assets are accessible by the game
-[ ] No memory leaks in profiler
-[ ] Standalone mode builds successfully
-[ ] Distribution package contains all three files
-```
-
----
-
-## Part 9: API Reference
-
-### 9.1 Engine Context
-
-The engine passes a context pointer to `game_initialize`:
+In **Editor Mode**, Lua scripts can be reloaded without restarting:
 
 ```cpp
-struct EngineContext {
-    // Graphics
-    void (*get_asset)(void* assetpack, const char* path);
-    size_t (*get_asset_size)(void* assetpack, const char* path);
-
-    // Input
-    void (*set_key_callback)(void (*callback)(int key, int action));
-    void (*set_mouse_callback)(void (*callback)(float x, float y));
-
-    // Logging
-    void (*log_info)(const char* message);
-    void (*log_error)(const char* message);
-
-    // Window
-    int (*get_window_width)();
-    int (*get_window_height)();
-};
-```
-
-### 9.2 Assetpack Handle
-
-Opaque handle passed to game:
-
-```cpp
-void game_on_assets_loaded(void* assetpack_handle) {
-    // Use with engine->get_asset(assetpack_handle, "textures/player.png");
-    // Store for later use in update/render
-    g_assetpack = assetpack_handle;
+// Editor: Watch assets/lua/ for changes
+if (ImGui::Button("Reload Lua Scripts")) {
+    app.ReloadLuaScriptsFromAssets(assetpack_handle, lua_state);
+    game_api.game_on_lua_script_reloaded("*");  // Notify game of reload
 }
 ```
 
+### 7.2 Lua Script Hot-Reload Flow
+
+1. Developer edits `assets/lua/gameplay/player_controller.lua`
+2. Editor detects file change
+3. Asset packer re-packs only changed scripts into GameAssets.apak
+4. Engine reloads Lua state with new script code
+5. Game receives `game_on_lua_script_reloaded()` callback
+6. No engine/DLL restart needed
+
 ---
 
-## Part 10: Build System Implementation Checklist
+## Part 8: Developer Workflow
 
-For the AI agent implementing this system, follow in order:
+### 8.1 Editor/Development Workflow
 
-- [ ] **Create game API header** (`game/src/game_api.h`)
-  - Define C-compatible function signatures
-  - Add export macros for DLL
-- [ ] **Implement game API stubs** (`game/src/game_api.cpp`)
-  - Implement all exported functions
-  - Handle initialization, update, render, shutdown
-- [ ] **Create asset packer tool** (`tools/asset_packer/`)
-  - Parse asset directory
-  - Implement binary format writer
-  - Add compression support
-  - Create CLI interface
-- [ ] **Implement engine runtime** (`engine/src/runtime.cpp`)
-  - DLL search and loading
-  - Function resolution
-  - Assetpack loading
-- [ ] **Add engine context** (`engine/src/engine_context.h`)
-  - Define EngineContext struct
-  - Populate with function pointers
-- [ ] **Create build scripts** (`build.sh`, `build.bat`)
-  - Sequential build of game, assets, engine
-  - Support for build modes
-- [ ] **Update CMakeLists.txt**
-  - Add game subdirectory
-  - Add asset packing target
-  - Add run target
-- [ ] **Add error handling**
-  - Comprehensive error messages
-  - File existence checks
-  - Validation of all components
-- [ ] **Test complete pipeline**
-  - Build game code
-  - Pack assets
-  - Build engine
-  - Run engine and verify game loads
-  - Test asset access
-- [ ] **Document the system**
-  - Create developer guide
-  - Add build instructions
-  - Document API
+```bash
+# Build for editor with debug symbols and hot-reload
+./build.sh Debug all
+
+# Run editor
+./cmake-build-debug/Source67
+
+# In editor:
+# - Develop scenes and entities
+# - Edit Lua scripts in assets/lua/
+# - Scripts hot-reload on save
+# - C++ changes require rebuild
+```
+
+### 8.2 Shipping/Release Workflow
+
+```bash
+# Final build for standalone (optimized, no editor)
+./build.sh Release all
+
+# Verify distribution package
+ls -la cmake-build-release/Source67.exe
+ls -la GameAssets.apak
+ls -la game/build/Release/Game.dll
+
+# Package and ship
+zip Source67_Release.zip \
+    cmake-build-release/Source67.exe \
+    GameAssets.apak \
+    game/build/Release/Game.dll \
+    README.md
+```
+
+---
+
+## Part 9: Dual-Scripting Integration
+
+### 9.1 C++ + Lua Script Coordination
+
+**C++ Native Script (game/src/Components/PlayerComponent.h):**
+
+```cpp
+class PlayerComponent : public S67::ScriptableEntity {
+    void OnCreate() override {
+        // C++ initialization
+        lua_state->script(R"(
+            local player = GetEntity()
+            player.lua_controller = require("lua/gameplay/player_controller")
+            player.lua_controller:OnCreate()
+        )");
+    }
+
+    void OnUpdate(float ts) override {
+        // Call Lua update
+        auto lua_controller = lua_state->globals()["player"]["lua_controller"];
+        lua_controller["OnUpdate"](ts);
+    }
+};
+```
+
+**Lua Script (assets/lua/gameplay/player_controller.lua):**
+
+```lua
+local PlayerController = {speed = 5.0}
+
+function PlayerController:OnCreate()
+    print("Lua player initialized!")
+end
+
+function PlayerController:OnUpdate(dt)
+    -- Lua gameplay logic
+end
+
+return PlayerController
+```
+
+### 9.2 Lua API Bindings
+
+The engine exposes C++ functions to Lua via sol2:
+
+```cpp
+// Register engine functions for Lua
+lua.set_function("GetInput", [](){ return GetCurrentInput(); });
+lua.set_function("GetEntity", [](){ return GetActiveEntity(); });
+lua.set_function("DrawText", [](const std::string& text, float x, float y) {
+    HUDRenderer::QueueString(text, glm::vec2(x, y));
+});
+lua.set_function("GetPlayerHealth", [](){ return GetPlayer()->GetHealth(); });
+```
+
+---
+
+## Part 10: Implementation Checklist
+
+For AI agent implementing this system:
+
+- [ ] **Extend game_api.h** with Lua callbacks
+- [ ] **Implement Lua script loading** in Application class
+- [ ] **Create asset packer enhancements** for .lua files
+- [ ] **Update AssetType enum** to include ASSET_LUA_SCRIPT
+- [ ] **Implement GameAPI struct** with all 11 function pointers
+- [ ] **Create game_dll_main.cpp** entry point
+- [ ] **Update CMakeLists.txt** with Lua search paths
+- [ ] **Add sol2 dependency** to CMakeLists.txt (already in Source67)
+- [ ] **Create example Lua scripts** in assets/lua/
+- [ ] **Implement sol2 bindings** to expose engine API to Lua
+- [ ] **Test build pipeline**: game → assets → engine → run
+- [ ] **Test Lua hot-reload** in editor mode
+- [ ] **Verify standalone mode** strips editor UI
 
 ---
 
 ## Conclusion
 
-This build system separates concerns cleanly:
+This **hybrid build system** for Source67 combines:
 
-- **Game code** is isolated in a DLL (easy to update/patch)
-- **Assets** are packed efficiently (fast load, easy distribution)
-- **Engine** is the stable runtime (stays the same across updates)
+✅ **C++ Game DLL** - Performance-critical native code  
+✅ **Lua Scripts** - Hot-reloadable gameplay logic  
+✅ **Packed Assets** - Single efficient asset file  
+✅ **Modular Engine** - Engine stays stable across updates  
+✅ **Editor & Standalone** - Same binary, different modes  
+✅ **Full Jolt Physics Integration** - Physics available to both C++ and Lua  
+✅ **ImGui Editor UI** - Stripped in standalone builds
 
-This allows you to update just the Game.dll or Assetpack.bin without rebuilding the entire engine, similar to how the example engine works.
+The system allows rapid iteration through Lua scripting while maintaining performance with C++ native code for critical systems.
