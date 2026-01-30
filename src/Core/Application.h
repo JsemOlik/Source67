@@ -6,6 +6,7 @@
 #include "ImGui/Panels/SceneHierarchyPanel.h"
 #include "Physics/PhysicsSystem.h"
 // #include "Physics/PlayerController.h" // Removed to break potential cycle
+#include "Core/PakSystem.h"
 #include "Renderer/Camera.h"
 #include "Renderer/CameraController.h"
 #include "Renderer/Framebuffer.h"
@@ -19,6 +20,7 @@
 #include "Window.h"
 #include <filesystem>
 #include <glad/glad.h>
+
 
 namespace S67 {
 
@@ -96,6 +98,11 @@ public:
   const std::filesystem::path &GetEngineAssetsRoot() const {
     return m_EngineAssetsRoot;
   }
+
+  void MountPak(const std::string &path);
+  bool HasPakAsset(const std::string &path) const;
+  bool GetPakAsset(const std::string &path,
+                   std::vector<uint8_t> &outBuffer) const;
 
 private:
   bool OnWindowClose(WindowCloseEvent &e);
@@ -212,6 +219,7 @@ private:
 
   std::vector<std::string> m_RecentProjects;
   Ref<Texture2D> m_LauncherLogo;
+  std::vector<Scope<PakReader>> m_MountedPaks;
 
   static Application *s_Instance;
 };

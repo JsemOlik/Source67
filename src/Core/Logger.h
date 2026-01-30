@@ -3,10 +3,12 @@
 #include <memory>
 
 #include <filesystem>
+#include <mutex>
 #include <spdlog/fmt/ostr.h>
 #include <spdlog/spdlog.h>
 #include <string>
 #include <vector>
+
 
 namespace S67 {
 
@@ -27,20 +29,20 @@ public:
     return s_ClientLogger;
   }
 
-  static const std::vector<LogEntry> GetLogHistory() { 
+  static const std::vector<LogEntry> GetLogHistory() {
     std::lock_guard<std::mutex> lock(s_LogMutex);
-    return s_LogHistory; 
+    return s_LogHistory;
   }
-  
-  static void ClearLogHistory() { 
+
+  static void ClearLogHistory() {
     std::lock_guard<std::mutex> lock(s_LogMutex);
-    s_LogHistory.clear(); 
+    s_LogHistory.clear();
   }
-  
+
   static void AddLogEntry(const LogEntry &entry) {
     std::lock_guard<std::mutex> lock(s_LogMutex);
     s_LogHistory.push_back(entry);
-    
+
     // Limit history size to prevent unbounded growth
     if (s_LogHistory.size() > 10000) {
       s_LogHistory.erase(s_LogHistory.begin());

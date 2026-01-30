@@ -25,8 +25,8 @@
 #include "Physics/PlayerController.h"
 #include "Renderer/Framebuffer.h"
 #include "Renderer/SceneSerializer.h"
-#include "Renderer/ScriptableEntity.h"
 #include "Renderer/ScriptRegistry.h"
+#include "Renderer/ScriptableEntity.h"
 #include "Scripting/LuaScriptEngine.h"
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -59,8 +59,8 @@ static SceneBackup s_SceneBackup;
 
 Application *Application::s_Instance = nullptr;
 
-static ConVar* s_ClShowFPS = nullptr;
-static ConVar* s_SvTickRate = nullptr;
+static ConVar *s_ClShowFPS = nullptr;
+static ConVar *s_SvTickRate = nullptr;
 
 Application::Application(const std::string &executablePath,
                          const std::string &arg) {
@@ -71,12 +71,15 @@ Application::Application(const std::string &executablePath,
   s_ClShowFPS = new ConVar("cl_showfps", "0", FCVAR_ARCHIVE, "Draw FPS meter");
   Console::Get().RegisterConVar(s_ClShowFPS);
 
-  s_SvTickRate = new ConVar("sv_tickrate", "66", FCVAR_NOTIFY | FCVAR_ARCHIVE, "Server tick rate", [](ConVar* var, const std::string& newVal) {
-      try {
-          float rate = std::stof(newVal);
-          Application::Get().SetTickRate(rate);
-      } catch(...) {}
-  });
+  s_SvTickRate = new ConVar("sv_tickrate", "66", FCVAR_NOTIFY | FCVAR_ARCHIVE,
+                            "Server tick rate",
+                            [](ConVar *var, const std::string &newVal) {
+                              try {
+                                float rate = std::stof(newVal);
+                                Application::Get().SetTickRate(rate);
+                              } catch (...) {
+                              }
+                            });
   Console::Get().RegisterConVar(s_SvTickRate);
 
   // Find assets root
@@ -105,6 +108,14 @@ Application::Application(const std::string &executablePath,
     m_EngineAssetsRoot = currentPath;
     S67_CORE_INFO("Set working directory to project root: {0}",
                   currentPath.string());
+  }
+
+  // Auto-mount Engine Paks
+  for (const auto &entry :
+       std::filesystem::directory_iterator(m_EngineAssetsRoot)) {
+    if (entry.path().extension() == ".pak") {
+      MountPak(entry.path().string());
+    }
   }
 
   S67_CORE_INFO("Initializing Window...");
@@ -188,7 +199,7 @@ Application::Application(const std::string &executablePath,
   // Initialize Scripting
   S67_CORE_INFO("Initializing Lua Engine...");
   LuaScriptEngine::Init();
-  
+
   // Script loading is now deferred to SetProjectRoot or DiscoverProject
 
   m_HUDShader =
@@ -452,6 +463,13 @@ void Application::SetProjectRoot(const std::filesystem::path &root) {
   if (std::filesystem::exists(scriptsDir)) {
     S67_CORE_INFO("Loading project scripts from: {0}", scriptsDir.string());
     ScriptRegistry::Get().LoadModules(scriptsDir);
+  }
+
+  // Auto-mount Project Paks
+  for (const auto &entry : std::filesystem::directory_iterator(root)) {
+    if (entry.path().extension() == ".pak") {
+      MountPak(entry.path().string());
+    }
   }
 }
 
@@ -1159,7 +1177,8 @@ void Application::Run() {
 }
 
 void Application::SetTickRate(float rate) {
-  if (rate <= 0.0f) return;
+  if (rate <= 0.0f)
+    return;
   m_TickRate = rate;
   m_TickDuration = 1.0f / rate;
 }
@@ -2037,11 +2056,12 @@ void Application::RenderFrame(float alpha) {
   HUDRenderer::RenderCrosshair();
 
   if (s_ClShowFPS && s_ClShowFPS->GetBool()) {
-      float scale = 4.0f;
-      float charHeight = 8.0f * scale;
-      float padding = 10.0f;
-      glm::vec2 pos = {padding, m_GameViewportSize.y - charHeight - padding};
-      HUDRenderer::DrawString("FPS: " + std::to_string((int)m_GameFPS), pos, scale, {0, 1, 0, 1});
+    float scale = 4.0f;
+    float charHeight = 8.0f * scale;
+    float padding = 10.0f;
+    glm::vec2 pos = {padding, m_GameViewportSize.y - charHeight - padding};
+    HUDRenderer::DrawString("FPS: " + std::to_string((int)m_GameFPS), pos,
+                            scale, {0, 1, 0, 1});
   }
 
   if (m_Scene) {
@@ -2625,6 +2645,34 @@ void Application::RenderFrame(float alpha) {
   }
 
   m_ImGuiLayer->End();
+}
+
+void Application::MountPak(const std::string &path) {
+  auto reader = CreateScope<PakReader>(path);
+  if (reader->Open()) {
+    m_MountedPaks.push_back(std::move(reader));
+    S67_CORE_INFO("Mounted PAK: {0}", path);
+  } else {
+    S67_CORE_ERROR("Failed to mount PAK: {0}", path);
+  }
+}
+
+bool Application::HasPakAsset(const std::string &path) const {
+  for (const auto &pak : m_MountedPaks) {
+    if (pak->HasFile(path))
+      return true;
+  }
+  return false;
+}
+
+bool Application::GetPakAsset(const std::string &path,
+                              std::vector<uint8_t> &outBuffer) const {
+  for (const auto &pak : m_MountedPaks) {
+    if (pak->HasFile(path)) {
+      return pak->ExtractFile(path, outBuffer);
+    }
+  }
+  return false;
 }
 
 } // namespace S67

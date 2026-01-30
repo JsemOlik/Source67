@@ -1,10 +1,12 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "Mesh.h"
+#include "Core/Application.h"
 #include "Core/Logger.h"
 #include "tinyobjloader/tiny_obj_loader.h"
 #include <fstream>
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
+#include <sstream>
 #include <unordered_map>
 
 namespace S67 {
@@ -45,10 +47,20 @@ Ref<VertexArray> MeshLoader::LoadOBJ(const std::string &path) {
   std::vector<tinyobj::material_t> materials;
   std::string warn, err;
 
-  if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
-                        path.c_str())) {
-    S67_CORE_ERROR("Failed to load OBJ: {0}", err);
-    return nullptr;
+  std::vector<uint8_t> pakBuffer;
+  if (Application::Get().GetPakAsset(path, pakBuffer)) {
+    std::string source((char *)pakBuffer.data(), pakBuffer.size());
+    std::stringstream ss(source);
+    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, &ss)) {
+      S67_CORE_ERROR("Failed to load OBJ from PAK: {0}", err);
+      return nullptr;
+    }
+  } else {
+    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
+                          path.c_str())) {
+      S67_CORE_ERROR("Failed to load OBJ: {0}", err);
+      return nullptr;
+    }
   }
 
   std::vector<OBJVertex> vertices;
@@ -112,23 +124,40 @@ Ref<VertexArray> MeshLoader::LoadOBJ(const std::string &path) {
 }
 
 Ref<VertexArray> MeshLoader::LoadSTL(const std::string &path) {
-  std::ifstream file(path, std::ios::binary);
-  if (!file.is_open()) {
-    S67_CORE_ERROR("Failed to open STL file: {0}", path);
-    return nullptr;
+  std::vector<uint8_t> pakBuffer;
+  bool fromPak = Application::Get().GetPakAsset(path, pakBuffer);
+
+  // STL Binary header is 80 bytes
+  const uint8_t *dataPtr = nullptr;
+  size_t dataSize = 0;
+  std::ifstream file;
+
+  if (fromPak) {
+    dataPtr = pakBuffer.data();
+    dataSize = pakBuffer.size();
+  } else {
+    file.open(path, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) {
+      S67_CORE_ERROR("Failed to open STL file: {0}", path);
+      return nullptr;
+    }
+    dataSize = file.tellg();
+    file.seekg(0, std::ios::beg);
   }
 
-  // STL Binary header is 80 bytes, ignored.
-  file.seekg(0, std::ios::end);
-  size_t fileSize = file.tellg();
-  if (fileSize < 84) {
-    S67_CORE_ERROR("STL file too small: {0}", path);
+  if (dataSize < 84) {
+    S67_CORE_ERROR("STL data too small: {0}", path);
     return nullptr;
   }
-  file.seekg(80, std::ios::beg);
 
   uint32_t triangleCount;
-  file.read(reinterpret_cast<char *>(&triangleCount), sizeof(uint32_t));
+  if (fromPak) {
+    memcpy(&triangleCount, dataPtr + 80, sizeof(uint32_t));
+    dataPtr += 84;
+  } else {
+    file.seekg(80, std::ios::beg);
+    file.read(reinterpret_cast<char *>(&triangleCount), sizeof(uint32_t));
+  }
 
   std::vector<OBJVertex> vertices;
   std::vector<uint32_t> indices;

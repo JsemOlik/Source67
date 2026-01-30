@@ -136,7 +136,19 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "vendor/**/*.h"
 )
 list(APPEND SOURCES "main.cpp")
-list(APPEND SOURCES "src/Renderer/Scene.cpp")
+
+# Exclude builder files from main application
+list(FILTER SOURCES EXCLUDE REGEX "src/Builder/.*")
+
+# Builder Tool Files
+file(GLOB_RECURSE BUILDER_SOURCES CONFIGURE_DEPENDS
+    "src/Builder/*.cpp"
+    "src/Builder/*.h"
+    "src/Core/PakSystem.cpp"
+    "src/Core/PakSystem.h"
+    "src/Core/Logger.cpp"
+    "src/Core/Logger.h"
+)
 
 # ImGui Files
 set(IMGUI_DIR ${imgui_SOURCE_DIR})
@@ -220,3 +232,25 @@ add_custom_command(TARGET Source67 POST_BUILD
     ${CMAKE_CURRENT_SOURCE_DIR}/assets
     $<TARGET_FILE_DIR:Source67>/assets
 )
+
+# Source67 Builder Target
+add_executable(Source67Builder ${BUILDER_SOURCES})
+target_include_directories(Source67Builder PUBLIC 
+    ${INCLUDE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb_image
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/tinyobjloader
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor
+    ${jolt_SOURCE_DIR}
+    ${IMGUI_DIR}
+    ${sol2_SOURCE_DIR}/include
+)
+target_link_libraries(Source67Builder PUBLIC 
+    spdlog::spdlog
+    nlohmann_json::nlohmann_json
+)
+if(MSVC)
+    target_compile_options(Source67Builder PRIVATE /W4)
+    target_compile_definitions(Source67Builder PUBLIC _CRT_SECURE_NO_WARNINGS)
+else()
+    target_compile_options(Source67Builder PRIVATE -Wall -Wextra -Wpedantic)
+endif()

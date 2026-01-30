@@ -148,15 +148,21 @@ void SceneSerializer::Serialize(const std::string &filepath) {
 }
 
 bool SceneSerializer::Deserialize(const std::string &filepath) {
-  std::ifstream fin(filepath);
-  if (!fin.is_open()) {
-    S67_CORE_ERROR("Failed to open file '{0}' for loading", filepath);
-    return false;
-  }
+  std::string content;
+  std::vector<uint8_t> pakBuffer;
+  if (Application::Get().GetPakAsset(filepath, pakBuffer)) {
+    content = std::string((char *)pakBuffer.data(), pakBuffer.size());
+  } else {
+    std::ifstream fin(filepath);
+    if (!fin.is_open()) {
+      S67_CORE_ERROR("Failed to open file '{0}' for loading", filepath);
+      return false;
+    }
 
-  std::stringstream ss;
-  ss << fin.rdbuf();
-  std::string content = ss.str();
+    std::stringstream ss;
+    ss << fin.rdbuf();
+    content = ss.str();
+  }
 
   // Try JSON first
   try {
@@ -247,9 +253,9 @@ bool SceneSerializer::Deserialize(const std::string &filepath) {
         // Native Scripts
         if (e.contains("Scripts")) {
           for (auto &script : e["Scripts"]) {
-             NativeScriptComponent nsc;
-             nsc.Name = script["Name"];
-             entity->Scripts.push_back(nsc);
+            NativeScriptComponent nsc;
+            nsc.Name = script["Name"];
+            entity->Scripts.push_back(nsc);
           }
         }
 
