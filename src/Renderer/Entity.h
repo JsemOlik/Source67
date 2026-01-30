@@ -9,10 +9,15 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <string>
 #include <vector>
+#include "Renderer/ScriptableEntity.h"
 
 // Forward declaration
 namespace S67 {
 class ScriptableEntity;
+struct LuaScriptComponent {
+  std::string FilePath;
+  bool Initialized = false;
+};
 }
 
 namespace S67 {
