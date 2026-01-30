@@ -49,7 +49,29 @@ Section "Main Engine (Required)" SecMain
   SetOutPath "$INSTDIR"
   
   ; Core Files
-  File "..\cmake-build-debug\Source67.exe"
+  ; Try Debug build first, then Release, then root
+  IfFileExists "..\cmake-build-debug\Debug\Source67.exe" 0 +3
+    File "..\cmake-build-debug\Debug\Source67.exe"
+    Goto DoneExe
+  IfFileExists "..\cmake-build-debug\Release\Source67.exe" 0 +3
+    File "..\cmake-build-debug\Release\Source67.exe"
+    Goto DoneExe
+  IfFileExists "..\cmake-build-debug\Source67.exe" 0 +3
+    File "..\cmake-build-debug\Source67.exe"
+    Goto DoneExe
+  ; If none found, show error
+  MessageBox MB_OK|MB_ICONEXCLAMATION "Source67.exe not found in cmake-build-debug. Please build the engine first!"
+  Abort
+  
+  DoneExe:
+  
+  ; Copy any DLL files from Debug/Release folders
+  IfFileExists "..\cmake-build-debug\Debug\*.dll" 0 +2
+    File /nonfatal "..\cmake-build-debug\Debug\*.dll"
+  IfFileExists "..\cmake-build-debug\Release\*.dll" 0 +2
+    File /nonfatal "..\cmake-build-debug\Release\*.dll"
+  IfFileExists "..\cmake-build-debug\*.dll" 0 +2
+    File /nonfatal "..\cmake-build-debug\*.dll"
   
   ; Assets
   SetOutPath "$INSTDIR\assets"
@@ -197,6 +219,7 @@ Section "Uninstall"
 
   ; Remove files and uninstaller
   Delete "$INSTDIR\Source67.exe"
+  Delete "$INSTDIR\*.dll"
   Delete "$INSTDIR\uninstall.exe"
   RMDir /r "$INSTDIR\assets"
   RMDir /r "$INSTDIR\Tools"
