@@ -6,8 +6,22 @@
 
 ## 🎯 I Want To...
 
+### → **Understand what this engine is and how game projects work**
+Start here: **[GAME_PROJECT_GUIDE.md](GAME_PROJECT_GUIDE.md)** 🎮 **NEW!**
+
+Essential reading that explains:
+- The difference between the engine and your game project
+- What goes in Game.dll vs GameAssets.apak
+- How to structure your own game folder
+- The complete build and run process
+- Answers "Where do I put my Portal game folder?"
+
+**Time:** 20 minutes to read (worth it!)
+
+---
+
 ### → **Build and run the engine for the first time**
-Start here: **[QUICK_START_GUIDE.md](QUICK_START_GUIDE.md)** ⭐
+See: **[QUICK_START_GUIDE.md](QUICK_START_GUIDE.md)** ⭐
 
 This comprehensive guide covers:
 - Prerequisites and installation
@@ -141,6 +155,21 @@ Source67/                           Your project root
 
 ## ❓ FAQ
 
+**Q: Where do I put my game (like "Portal")?**  
+A: **Option 1 (Current/Easy):** Use the integrated setup - put code in `game/src/` and assets in `assets/`. **Option 2 (Advanced):** Create a separate folder (e.g., Desktop/Portal/) with its own src/, assets/, build.bat. See **GAME_PROJECT_GUIDE.md** for full details.
+
+**Q: What goes in the .dll file?**  
+A: Your C++ game code from `game/src/` or your project's `src/` folder. This is compiled game logic, not assets. See **GAME_PROJECT_GUIDE.md** for details.
+
+**Q: What goes in the .apak file?**  
+A: All your assets (textures, models, audio) AND Lua scripts from the `assets/` folder. See **GAME_PROJECT_GUIDE.md** for complete breakdown.
+
+**Q: Do I need to rebuild the engine for each game?**  
+A: No! Build Source67.exe once. Each game is just its own Game.dll + GameAssets.apak. See **GAME_PROJECT_GUIDE.md**.
+
+**Q: Can I have multiple games?**  
+A: Yes! One engine (Source67.exe), many games (each with its own Game.dll and assets). See **GAME_PROJECT_GUIDE.md**.
+
 **Q: Where do I run build.bat from?**  
 A: Always from the `Source67` root directory (where build.bat is located).
 
@@ -167,9 +196,10 @@ A: No! Just run `build.bat Debug game` to rebuild only the game DLL (~30 seconds
 ## 🎓 Learning Path
 
 ### Day 1: Getting Started
-1. Read QUICK_START_GUIDE.md (15 min)
-2. Build the engine (5-10 min)
-3. Run and explore the editor (15 min)
+1. Read **GAME_PROJECT_GUIDE.md** to understand the architecture (20 min)
+2. Read QUICK_START_GUIDE.md (15 min)
+3. Build the engine (5-10 min)
+4. Run and explore the editor (15 min)
 
 ### Day 2: Understanding the System
 1. Read README.md engine overview (10 min)
