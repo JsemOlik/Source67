@@ -6,6 +6,7 @@
 #include <cstring>
 #include <fstream>
 #include <imgui.h>
+#include <nlohmann/json.hpp>
 #include <string>
 
 namespace S67 {
@@ -371,8 +372,9 @@ void ContentBrowserPanel::RenderDirectoryTree(
   if (!hasSubdirs)
     flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
-  bool opened = ImGui::TreeNodeEx((void *)std::filesystem::hash_value(directoryPath), flags,
-                                  "%s", filename.c_str());
+  bool opened =
+      ImGui::TreeNodeEx((void *)std::filesystem::hash_value(directoryPath),
+                        flags, "%s", filename.c_str());
 
   if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
     m_CurrentDirectory = directoryPath;
@@ -393,56 +395,67 @@ void ContentBrowserPanel::RenderDirectoryTree(
 
 void ContentBrowserPanel::CreateDefaultLevel(
     const std::filesystem::path &path) {
-  std::ofstream f(path);
-  if (!f.is_open())
-    return;
+  nlohmann::ordered_json root;
+  root["Scene"] = path.stem().string();
 
-  f << "Scene: " << path.stem().string() << "\n";
-  f << "Entities:\n";
+  nlohmann::json entities = nlohmann::json::array();
 
   // 1. Floor (Anchored)
-  f << "  - Entity: Floor\n";
-  f << "    Transform:\n";
-  f << "      Position: [0, -2, 0]\n";
-  f << "      Rotation: [0, 0, 0]\n";
-  f << "      Scale: [20, 1, 20]\n";
-  f << "    MeshPath: Cube\n";
-  f << "    ShaderPath: assets/shaders/Lighting.glsl\n";
-  f << "    TexturePath: assets/textures/Checkerboard.png\n";
-  f << "    TextureTiling: [1, 1]\n";
-  f << "    Collidable: true\n";
-  f << "    Anchored: true\n";
+  {
+    nlohmann::json floor;
+    floor["Entity"] = "Floor";
+    floor["Transform"] = {{"Position", {0.0f, -2.0f, 0.0f}},
+                          {"Rotation", {0.0f, 0.0f, 0.0f}},
+                          {"Scale", {20.0f, 1.0f, 20.0f}}};
+    floor["MeshPath"] = "Cube";
+    floor["ShaderPath"] = "assets/shaders/Lighting.glsl";
+    floor["TexturePath"] = "assets/textures/Checkerboard.png";
+    floor["TextureTiling"] = {1.0f, 1.0f};
+    floor["Collidable"] = true;
+    floor["Anchored"] = true;
+    entities.push_back(floor);
+  }
 
   // 2. Dynamic Cubes
   for (int i = 0; i < 5; i++) {
-    f << "  - Entity: Cube " << i << "\n";
-    f << "    Transform:\n";
-    f << "      Position: [" << (float)i * 2.0f - 4.0f << ", "
-      << 10.0f + (float)i * 2.0f << ", 0]\n";
-    f << "      Rotation: [0, 0, 0]\n";
-    f << "      Scale: [1, 1, 1]\n";
-    f << "    MeshPath: Cube\n";
-    f << "    ShaderPath: assets/shaders/Lighting.glsl\n";
-    f << "    TexturePath: assets/textures/Checkerboard.png\n";
-    f << "    TextureTiling: [1, 1]\n";
-    f << "    Collidable: true\n";
-    f << "    Anchored: false\n";
+    nlohmann::json cube;
+    cube["Entity"] = "Cube " + std::to_string(i);
+    cube["Transform"] = {
+        {"Position", {(float)i * 2.0f - 4.0f, 10.0f + (float)i * 2.0f, 0.0f}},
+        {"Rotation", {0.0f, 0.0f, 0.0f}},
+        {"Scale", {1.0f, 1.0f, 1.0f}}};
+    cube["MeshPath"] = "Cube";
+    cube["ShaderPath"] = "assets/shaders/Lighting.glsl";
+    cube["TexturePath"] = "assets/textures/Checkerboard.png";
+    cube["TextureTiling"] = {1.0f, 1.0f};
+    cube["Collidable"] = true;
+    cube["Anchored"] = false;
+    entities.push_back(cube);
   }
 
   // 3. Player
-  f << "  - Entity: Player\n";
-  f << "    Transform:\n";
-  f << "      Position: [0, 2, 0]\n";
-  f << "      Rotation: [0, 0, 0]\n";
-  f << "      Scale: [1, 1.5, 1]\n";
-  f << "    MeshPath: Cube\n";
-  f << "    ShaderPath: assets/shaders/Lighting.glsl\n";
-  f << "    TexturePath: assets/textures/Debug.png\n";
-  f << "    TextureTiling: [1, 1]\n";
-  f << "    Collidable: true\n";
-  f << "    CameraFOV: 45\n";
+  {
+    nlohmann::json player;
+    player["Entity"] = "Player";
+    player["Transform"] = {{"Position", {0.0f, 2.0f, 0.0f}},
+                           {"Rotation", {0.0f, 0.0f, 0.0f}},
+                           {"Scale", {1.0f, 1.5f, 1.0f}}};
+    player["MeshPath"] = "Cube";
+    player["ShaderPath"] = "assets/shaders/Lighting.glsl";
+    player["TexturePath"] = "assets/textures/Debug.png";
+    player["TextureTiling"] = {1.0f, 1.0f};
+    player["Collidable"] = true;
+    player["CameraFOV"] = 45.0f;
+    entities.push_back(player);
+  }
 
-  f.close();
+  root["Entities"] = entities;
+
+  std::ofstream fout(path);
+  if (fout.is_open()) {
+    fout << root.dump(2);
+    fout.close();
+  }
 }
 
 } // namespace S67

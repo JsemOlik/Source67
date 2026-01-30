@@ -1968,9 +1968,6 @@ void Application::RenderFrame(float alpha) {
 
         ImGui::Separator();
 
-        if (ImGui::MenuItem("New Level"))
-          OnNewScene();
-
         if (ImGui::MenuItem("Open Level...", "Cmd+O"))
           OnOpenScene();
 
