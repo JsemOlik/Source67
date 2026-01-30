@@ -28,8 +28,8 @@ public:
 
 protected:
   virtual void OnCreate() {}
-  virtual void OnUpdate(float ts) {}
-  virtual void OnEvent(Event &e) {}
+  virtual void OnUpdate(float ts) { (void)ts; }
+  virtual void OnEvent(Event &e) { (void)e; }
   virtual void OnDestroy() {}
 
 private:
