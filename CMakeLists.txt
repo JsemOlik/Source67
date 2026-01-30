@@ -181,8 +181,12 @@ target_link_libraries(Source67 PUBLIC
     Jolt
     nlohmann_json::nlohmann_json
     lua_static
+    lua_static
     sol2
 )
+
+# Fix for sol2 optional error on C++17+
+target_compile_definitions(Source67 PUBLIC SOL_ALL_SAFETIES_ON SOL_NO_CHECK_EXCEPTIONS)
 
 # Compiler warnings
 if(MSVC)

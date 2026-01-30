@@ -5,6 +5,7 @@
 #include <sol/sol.hpp>
 #include <string>
 #include <filesystem>
+#include <optional>
 
 namespace S67 {
 
