@@ -22,18 +22,26 @@ graph TD
 
 - **Renderer**: OpenGL 4.5 based renderer with custom shaders and texture support.
 - **Physics**: Integrated **Jolt Physics** engine with a Virtual Character Controller for smooth player movement (Source-engine style air strafing implemented).
-- **Scripting**: Native C++ Scripting system allowing entities to have custom logic (`OnCreate`, `OnUpdate`, `OnDestroy`).
+- **Scripting**: Unity-like native C++ Scripting system allowing entities to have multiple custom logic components (`OnCreate`, `OnUpdate`, `OnDestroy`). Managed via Inspector.
+- **Tags**: Entity tagging system (up to 10 tags per entity) for easy identification in scripts.
+- **HUD**: Text queueing system for scripts to display information on the screen.
 - **Console**: Quake-style in-game console (`~` key) with support for Variables (ConVars) and Commands.
-- **Editor Tools**: ImGui-based editor with Scene Hierarchy, Inspector, and Console panels.
+- **Editor Tools**: ImGui-based editor with Scene Hierarchy, Inspector, Content Browser, and Console panels.
 
 ## Scripting Guide
 
 To create custom behavior, inherit from `S67::ScriptableEntity`. The engine handles instantiation and binding.
 
-### creating a New Script
+### Creating a New Script
+
+1. Inherit from `S67::ScriptableEntity`.
+2. Use `REGISTER_SCRIPT(ClassName)` to make it available in the editor.
+3. Call `HUDRenderer::QueueString` to show text on the HUD.
 
 ```cpp
 #include "S67.h"
+#include "Renderer/ScriptRegistry.h"
+#include "Renderer/HUDRenderer.h"
 
 class MyScript : public S67::ScriptableEntity {
 public:
@@ -45,17 +53,22 @@ public:
         // Input Handling
         if (S67::Input::IsKeyPressed(S67::Key::Space)) {
             S67_CORE_INFO("Jump!");
+            // Queue text to HUD (upper center)
+            S67::HUDRenderer::QueueString("Space Pressed!", {0.0f, 1.0f, 0.0f, 1.0f});
         }
 
         // Access Transform
-        auto& transform = GetComponent<TransformComponent>();
+        auto& transform = GetTransform();
         transform.Rotation.y += 90.0f * ts;
-    }
-
-    void OnDestroy() override {
-        // Cleanup
+        
+        // Check for tags
+        if (GetEntity().Tags.size() > 0) {
+            S67::HUDRenderer::QueueString("I have tags!");
+        }
     }
 };
+
+REGISTER_SCRIPT(MyScript);
 ```
 
 ### Player Controller Implementation

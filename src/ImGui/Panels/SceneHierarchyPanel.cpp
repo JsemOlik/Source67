@@ -2,6 +2,8 @@
 #include "Core/Application.h"
 #include "Core/Logger.h"
 #include "Core/UndoSystem.h"
+#include "Renderer/ScriptRegistry.h"
+#include <filesystem>
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -445,6 +447,142 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
         DrawVec2Control("Tiling", entity->Material.Tiling, 1.0f);
       });
     }
+
+    DrawComponent("Tags", [&]() {
+      static char tagBuffer[256] = "";
+      ImGui::InputText("##NewTag", tagBuffer, sizeof(tagBuffer));
+      ImGui::SameLine();
+      if (ImGui::Button("Add Tag")) {
+        if (entity->Tags.size() < 10 && strlen(tagBuffer) > 0) {
+          entity->Tags.push_back(tagBuffer);
+          tagBuffer[0] = '\0';
+          Application::Get().SetSceneModified(true);
+        }
+      }
+
+      ImGui::Spacing();
+      for (int i = 0; i < entity->Tags.size(); i++) {
+        ImGui::PushID(i);
+        ImGui::Text("%s", entity->Tags[i].c_str());
+        ImGui::SameLine();
+        if (ImGui::Button("X")) {
+          entity->Tags.erase(entity->Tags.begin() + i);
+          Application::Get().SetSceneModified(true);
+          ImGui::PopID();
+          break;
+        }
+        ImGui::PopID();
+      }
+    });
+
+    DrawComponent("Scripts (Native)", [&]() {
+      if (ImGui::Button("Add Native Script")) {
+        ImGui::OpenPopup("AddScriptPopup");
+      }
+
+      if (ImGui::BeginPopup("AddScriptPopup")) {
+        for (auto const &[name, func] :
+             ScriptRegistry::Get().GetAvailableScripts()) {
+          if (ImGui::MenuItem(name.c_str())) {
+            NativeScriptComponent nsc;
+            ScriptRegistry::Get().Bind(name, nsc);
+            entity->Scripts.push_back(nsc);
+            Application::Get().SetSceneModified(true);
+          }
+        }
+        ImGui::EndPopup();
+      }
+
+      ImGui::Spacing();
+      for (int i = 0; i < entity->Scripts.size(); i++) {
+        ImGui::PushID(i);
+        ImGui::Text("%s", entity->Scripts[i].Name.c_str());
+        ImGui::SameLine();
+        if (ImGui::Button("Remove")) {
+          // Native scripts are handled by Scene::OnUpdate or destructor usually
+          entity->Scripts.erase(entity->Scripts.begin() + i);
+          Application::Get().SetSceneModified(true);
+          ImGui::PopID();
+          break;
+        }
+        ImGui::PopID();
+      }
+    });
+
+    DrawComponent("Lua Scripts", [&]() {
+      if (ImGui::Button("Add Lua Script")) {
+        ImGui::OpenPopup("AddLuaScriptPopup");
+      }
+
+      if (ImGui::BeginPopup("AddLuaScriptPopup")) {
+        auto projectRoot = Application::Get().GetProjectRoot();
+        std::filesystem::path scriptDir = projectRoot / "scripts";
+
+        if (std::filesystem::exists(scriptDir)) {
+          for (const auto &entry :
+               std::filesystem::directory_iterator(scriptDir)) {
+            if (entry.path().extension() == ".lua") {
+              if (ImGui::MenuItem(entry.path().filename().string().c_str())) {
+                // Store as "scripts/Filename.lua"
+                std::string relativePath =
+                    "scripts/" + entry.path().filename().string();
+                entity->LuaScripts.push_back({relativePath, false});
+                Application::Get().SetSceneModified(true);
+              }
+            }
+          }
+        } else {
+          ImGui::Text("scripts folder not found!");
+        }
+        ImGui::EndPopup();
+      }
+
+      ImGui::Spacing();
+      for (int i = 0; i < entity->LuaScripts.size(); i++) {
+        ImGui::PushID(i + 100); // Offset to avoid ID collision
+
+        std::string scriptPathStr = entity->LuaScripts[i].FilePath;
+        std::filesystem::path path(scriptPathStr);
+        std::filesystem::path fullPath =
+            Application::Get().ResolveAssetPath(path);
+        bool exists = std::filesystem::exists(fullPath);
+
+        if (!exists) {
+          ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+          ImGui::Text("%s (Missing)", path.filename().string().c_str());
+          ImGui::PopStyleColor();
+        } else {
+          ImGui::Text("%s", path.filename().string().c_str());
+        }
+
+        if (ImGui::IsItemHovered()) {
+          ImGui::SetTooltip("%s", scriptPathStr.c_str());
+        }
+
+        if (ImGui::BeginDragDropTarget()) {
+          if (const ImGuiPayload *payload =
+                  ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+            const char *path = (const char *)payload->Data;
+            std::filesystem::path assetPath = path;
+            if (assetPath.extension() == ".lua") {
+              entity->LuaScripts[i].FilePath = assetPath.string();
+              entity->LuaScripts[i].Initialized = false;
+              Application::Get().SetSceneModified(true);
+            }
+          }
+          ImGui::EndDragDropTarget();
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Remove")) {
+          entity->LuaScripts.erase(entity->LuaScripts.begin() + i);
+          Application::Get().SetSceneModified(true);
+          ImGui::PopID();
+          break;
+        }
+        ImGui::PopID();
+      }
+    });
   }
 }
 

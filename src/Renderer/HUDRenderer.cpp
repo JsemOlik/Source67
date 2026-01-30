@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iomanip>
+#include <map>
 #include <sstream>
 
 namespace S67 {
@@ -208,7 +209,38 @@ void HUDRenderer::BeginHUD(float width, float height) {
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
-void HUDRenderer::EndHUD() { glEnable(GL_DEPTH_TEST); }
+void HUDRenderer::EndHUD() {
+  if (!s_Data)
+    return;
+
+  // Render Queued Strings (Center Top)
+  float yOffset = 100.0f; // Start from 100px from top
+  float scale = 3.0f;
+  float charWidth = 8.0f * scale;
+
+  for (auto &queued : s_Data->TextQueue) {
+    float textWidth = queued.Text.length() * charWidth;
+    glm::vec2 pos = {(s_Data->ViewportWidth - textWidth) * 0.5f,
+                     s_Data->ViewportHeight - yOffset};
+    DrawString(queued.Text, pos, scale, queued.Color);
+    yOffset += 40.0f; // Move down for next line
+  }
+
+  // Render Persistent Texts
+  for (auto const &[id, pt] : s_Data->PersistentTexts) {
+    float charW = 8.0f * pt.Scale;
+    float textW = pt.Text.length() * charW;
+    // Position is normalized 0-1
+    glm::vec2 screenPos = {
+        (s_Data->ViewportWidth * pt.Position.x) - (textW * 0.5f),
+        s_Data->ViewportHeight * pt.Position.y};
+    DrawString(pt.Text, screenPos, pt.Scale, pt.Color);
+  }
+
+  s_Data->TextQueue.clear();
+
+  glEnable(GL_DEPTH_TEST);
+}
 
 void HUDRenderer::RenderCrosshair() {
   if (!s_Data || !s_Data->HUDShader || !s_Data->HUDShader->IsValid())
@@ -255,6 +287,26 @@ void HUDRenderer::RenderSpeed(float speed) {
   glm::vec4 orange = glm::vec4(1.0f, 0.7f, 0.0f, 0.9f);
 
   DrawString(speedText, position, scale, orange);
+}
+
+void HUDRenderer::QueueString(const std::string &text, const glm::vec4 &color) {
+  if (s_Data) {
+    s_Data->TextQueue.push_back({text, color});
+  }
+}
+
+void HUDRenderer::SetText(const std::string &id, const std::string &text,
+                          const glm::vec2 &position, float scale,
+                          const glm::vec4 &color) {
+  if (s_Data) {
+    s_Data->PersistentTexts[id] = {text, position, scale, color};
+  }
+}
+
+void HUDRenderer::ClearText(const std::string &id) {
+  if (s_Data) {
+    s_Data->PersistentTexts.erase(id);
+  }
 }
 
 void HUDRenderer::DrawString(const std::string &text, const glm::vec2 &position,

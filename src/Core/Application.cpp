@@ -16,6 +16,7 @@
 
 #include "Core/Input.h"
 #include "Core/PlatformUtils.h"
+#include "Game/Console/ConVar.h"
 #include "Game/Console/Console.h"
 #include "Game/Console/ConsolePanel.h"
 #include "ImGui/Panels/ContentBrowserPanel.h"
@@ -25,6 +26,8 @@
 #include "Renderer/Framebuffer.h"
 #include "Renderer/SceneSerializer.h"
 #include "Renderer/ScriptableEntity.h"
+#include "Renderer/ScriptRegistry.h"
+#include "Scripting/LuaScriptEngine.h"
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -56,10 +59,25 @@ static SceneBackup s_SceneBackup;
 
 Application *Application::s_Instance = nullptr;
 
+static ConVar* s_ClShowFPS = nullptr;
+static ConVar* s_SvTickRate = nullptr;
+
 Application::Application(const std::string &executablePath,
                          const std::string &arg) {
   S67_CORE_ASSERT(!s_Instance, "Application already exists!");
   s_Instance = this;
+
+  // Register Console Commands
+  s_ClShowFPS = new ConVar("cl_showfps", "0", FCVAR_ARCHIVE, "Draw FPS meter");
+  Console::Get().RegisterConVar(s_ClShowFPS);
+
+  s_SvTickRate = new ConVar("sv_tickrate", "66", FCVAR_NOTIFY | FCVAR_ARCHIVE, "Server tick rate", [](ConVar* var, const std::string& newVal) {
+      try {
+          float rate = std::stof(newVal);
+          Application::Get().SetTickRate(rate);
+      } catch(...) {}
+  });
+  Console::Get().RegisterConVar(s_SvTickRate);
 
   // Find assets root
   std::filesystem::path currentPath =
@@ -166,6 +184,13 @@ Application::Application(const std::string &executablePath,
   // Initialize HUD Renderer
   S67_CORE_INFO("Initializing HUD Renderer...");
   HUDRenderer::Init();
+
+  // Initialize Scripting
+  S67_CORE_INFO("Initializing Lua Engine...");
+  LuaScriptEngine::Init();
+  
+  // Script loading is now deferred to SetProjectRoot or DiscoverProject
+
   m_HUDShader =
       Shader::Create(ResolveAssetPath("assets/shaders/HUD.glsl").string());
   HUDRenderer::SetShader(m_HUDShader);
@@ -187,6 +212,17 @@ Application::Application(const std::string &executablePath,
     } else if (ext == ".source") {
       S67_CORE_INFO("Auto-loading project: {0}", cleanArg);
       DiscoverProject(p);
+
+      // Auto-load Default Level if set
+      if (!m_ProjectDefaultLevel.empty()) {
+        std::filesystem::path defaultLevelPath =
+            ResolveAssetPath(m_ProjectDefaultLevel);
+        if (std::filesystem::exists(defaultLevelPath)) {
+          S67_CORE_INFO("Auto-loading default project level: {0}",
+                        defaultLevelPath.string());
+          OpenScene(defaultLevelPath.string());
+        }
+      }
     }
   }
 
@@ -321,12 +357,7 @@ void Application::OnScenePlay() {
         startRotation = entity->Transform.Rotation;
         fov = entity->CameraFOV;
 
-        // Scene now handles script instantiation via Update or Explicit call
-        // We will trust the instance is ready or handled by OnUpdate(0) call if
-        // we add it, or better, we will access it safely.
-
-        if (auto *pc = dynamic_cast<PlayerController *>(
-                entity->NativeScript.Instance)) {
+        if (auto *pc = entity->GetScript<PlayerController>()) {
           pc->Reset(startPos);
           pc->SetRotation(startRotation.y, startRotation.x);
         }
@@ -393,9 +424,7 @@ void Application::OnSceneStop() {
   // Final sync: Update PlayerController and Camera to the restored state
   for (auto &entity : m_Scene->GetEntities()) {
     if (entity->Name == "Player") {
-      // Fetch Script
-      if (auto *pc =
-              dynamic_cast<PlayerController *>(entity->NativeScript.Instance)) {
+      if (auto *pc = entity->GetScript<PlayerController>()) {
         pc->Reset(entity->Transform.Position);
         pc->SetRotation(entity->Transform.Rotation.y,
                         entity->Transform.Rotation.x);
@@ -414,6 +443,16 @@ void Application::SetProjectRoot(const std::filesystem::path &root) {
   m_ProjectRoot = root;
   if (m_ContentBrowserPanel)
     m_ContentBrowserPanel->SetRoot(root);
+
+  // Unload previous project modules
+  ScriptRegistry::Get().UnloadModules();
+
+  // Scan for scripts in the project root
+  std::filesystem::path scriptsDir = root / "scripts";
+  if (std::filesystem::exists(scriptsDir)) {
+    S67_CORE_INFO("Loading project scripts from: {0}", scriptsDir.string());
+    ScriptRegistry::Get().LoadModules(scriptsDir);
+  }
 }
 
 std::filesystem::path
@@ -452,7 +491,7 @@ void Application::OnNewProject() {
 
     std::filesystem::path projectAssets = projectRoot / "assets";
     std::filesystem::path projectScripts =
-        projectRoot / "Scripts"; // Capitalized as requested
+        projectRoot / "scripts"; // Lowercase as requested
     std::filesystem::create_directories(projectAssets / "shaders");
     std::filesystem::create_directories(projectAssets / "textures");
     std::filesystem::create_directories(projectScripts);
@@ -540,6 +579,7 @@ void Application::SaveManifest() {
   root["ProjectName"] = m_ProjectName;
   root["Company"] = m_ProjectCompany;
   root["Version"] = m_ProjectVersion;
+  root["DefaultLevel"] = m_ProjectDefaultLevel;
 
   std::ofstream fout(manifestPath);
   if (fout.is_open()) {
@@ -565,6 +605,17 @@ void Application::OnOpenProject() {
       // now too
       DiscoverProject(
           manifestPath); // Discovery takes a "level" path essentially
+
+      // Auto-load Default Level if set
+      if (!m_ProjectDefaultLevel.empty()) {
+        std::filesystem::path defaultLevelPath =
+            ResolveAssetPath(m_ProjectDefaultLevel);
+        if (std::filesystem::exists(defaultLevelPath)) {
+          S67_CORE_INFO("Auto-loading default party level: {0}",
+                        defaultLevelPath.string());
+          OpenScene(defaultLevelPath.string());
+        }
+      }
     } else {
       m_ProjectName = folderPath.stem().string();
       m_ProjectVersion = "Developer Root";
@@ -612,6 +663,7 @@ void Application::DiscoverProject(const std::filesystem::path &levelPath) {
         m_ProjectName = data.value("ProjectName", "Unnamed Project");
         m_ProjectCompany = data.value("Company", "Untitled Company");
         m_ProjectVersion = data.value("Version", "1.0.0");
+        m_ProjectDefaultLevel = data.value("DefaultLevel", "");
 
         S67_CORE_INFO("Discovered project: {0} (v{1}) at {2}", m_ProjectName,
                       m_ProjectVersion, currentDir.string());
@@ -873,8 +925,7 @@ void Application::OnEvent(Event &e) {
   if (m_SceneState == SceneState::Play) {
     if (m_Scene) {
       if (auto entity = m_Scene->FindEntityByName("Player")) {
-        if (auto *pc = dynamic_cast<PlayerController *>(
-                entity->NativeScript.Instance)) {
+        if (auto *pc = entity->GetScript<PlayerController>()) {
           pc->OnEvent(e);
         }
       }
@@ -1058,21 +1109,21 @@ void Application::Run() {
 
     // PHASE 4: Process all due physics ticks
     int tick_count = 0;
-    while (m_Accumulator >= TICK_DURATION) {
+    while (m_Accumulator >= m_TickDuration) {
       // Save previous state for interpolation
       m_PreviousState = m_CurrentState;
 
       // Run one physics tick with fixed delta time
-      UpdateGameTick(TICK_DURATION);
+      UpdateGameTick(m_TickDuration);
 
       // Deduct from accumulator
-      m_Accumulator -= TICK_DURATION;
+      m_Accumulator -= m_TickDuration;
       tick_count++;
       m_TickNumber++;
     }
 
     // PHASE 5: Render frame with interpolation
-    float alpha = static_cast<float>(m_Accumulator / TICK_DURATION);
+    float alpha = static_cast<float>(m_Accumulator / m_TickDuration);
     RenderFrame(alpha);
 
     // PHASE 6: Window update (swap buffers, poll events)
@@ -1107,6 +1158,12 @@ void Application::Run() {
   }
 }
 
+void Application::SetTickRate(float rate) {
+  if (rate <= 0.0f) return;
+  m_TickRate = rate;
+  m_TickDuration = 1.0f / rate;
+}
+
 void Application::UpdateGameTick(float tick_dt) {
   // This function runs at exactly 66 Hz with fixed TICK_DURATION
   // CRITICAL: Always use tick_dt, NEVER variable frame delta time
@@ -1126,9 +1183,8 @@ void Application::UpdateGameTick(float tick_dt) {
   // 3. Update game state from player controller for interpolation
   if (m_Scene) {
     Ref<Entity> playerEntity = m_Scene->FindEntityByName("Player");
-    if (playerEntity && playerEntity->NativeScript.Instance) {
-      if (auto *pc = dynamic_cast<PlayerController *>(
-              playerEntity->NativeScript.Instance)) {
+    if (playerEntity) {
+      if (auto *pc = playerEntity->GetScript<PlayerController>()) {
         m_CurrentState.player_position =
             m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
         m_CurrentState.player_velocity = pc->GetVelocity();
@@ -1423,6 +1479,17 @@ void Application::UI_LauncherScreen() {
         SetProjectRoot(p);
         DiscoverProject(p / "manifest.source");
         AddToRecentProjects(projectPath);
+
+        // Auto-load Default Level if set
+        if (!m_ProjectDefaultLevel.empty()) {
+          std::filesystem::path defaultLevelPath =
+              ResolveAssetPath(m_ProjectDefaultLevel);
+          if (std::filesystem::exists(defaultLevelPath)) {
+            S67_CORE_INFO("Auto-loading default project level: {0}",
+                          defaultLevelPath.string());
+            OpenScene(defaultLevelPath.string());
+          }
+        }
       }
       if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip("%s", projectPath.c_str());
@@ -1534,6 +1601,43 @@ void Application::UI_ProjectSettingsWindow() {
       if (ImGui::InputText("##CompanyName", companyBuffer,
                            sizeof(companyBuffer))) {
         m_ProjectCompany = companyBuffer;
+      }
+      ImGui::PopItemWidth();
+
+      // Default Level (Dropdown)
+      ImGui::TableNextRow();
+      ImGui::TableSetColumnIndex(0);
+      ImGui::Text("Default Level");
+      ImGui::TableSetColumnIndex(1);
+
+      std::vector<std::string> levelFiles;
+      levelFiles.push_back("<None>");
+      if (!m_ProjectRoot.empty()) {
+        for (const auto &entry :
+             std::filesystem::directory_iterator(m_ProjectRoot)) {
+          if (entry.path().extension() == ".s67") {
+            levelFiles.push_back(entry.path().filename().string());
+          }
+        }
+      }
+
+      const std::string &previewValue =
+          m_ProjectDefaultLevel.empty() ? "<None>" : m_ProjectDefaultLevel;
+
+      ImGui::PushItemWidth(-1.0f);
+      if (ImGui::BeginCombo("##DefaultLevel", previewValue.c_str())) {
+        for (const auto &file : levelFiles) {
+          bool isSelected = (previewValue == file);
+          if (ImGui::Selectable(file.c_str(), isSelected)) {
+            if (file == "<None>")
+              m_ProjectDefaultLevel = "";
+            else
+              m_ProjectDefaultLevel = file;
+          }
+          if (isSelected)
+            ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
       }
       ImGui::PopItemWidth();
 
@@ -1836,8 +1940,7 @@ void Application::RenderFrame(float alpha) {
     // Real-time Player Sync (during Play/Pause)
     if (entity->Name == "Player" && (m_SceneState == SceneState::Play ||
                                      m_SceneState == SceneState::Pause)) {
-      if (auto *pc =
-              dynamic_cast<PlayerController *>(entity->NativeScript.Instance)) {
+      if (auto *pc = entity->GetScript<PlayerController>()) {
         pc->SetSettings(entity->Movement);
         entity->Transform.Position =
             m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
@@ -1933,10 +2036,17 @@ void Application::RenderFrame(float alpha) {
   HUDRenderer::BeginHUD(m_GameViewportSize.x, m_GameViewportSize.y);
   HUDRenderer::RenderCrosshair();
 
+  if (s_ClShowFPS && s_ClShowFPS->GetBool()) {
+      float scale = 4.0f;
+      float charHeight = 8.0f * scale;
+      float padding = 10.0f;
+      glm::vec2 pos = {padding, m_GameViewportSize.y - charHeight - padding};
+      HUDRenderer::DrawString("FPS: " + std::to_string((int)m_GameFPS), pos, scale, {0, 1, 0, 1});
+  }
+
   if (m_Scene) {
     if (auto entity = m_Scene->FindEntityByName("Player")) {
-      if (auto *pc =
-              dynamic_cast<PlayerController *>(entity->NativeScript.Instance)) {
+      if (auto *pc = entity->GetScript<PlayerController>()) {
         // 1 unit = 0.75 inches
         // 1 meter = 52.4934 Hammer Units
         constexpr float METERS_TO_HU = 52.4934f;
@@ -2377,8 +2487,7 @@ void Application::RenderFrame(float alpha) {
       glm::vec3 vel(0.0f);
       if (m_Scene) {
         if (auto entity = m_Scene->FindEntityByName("Player")) {
-          if (auto *pc = dynamic_cast<PlayerController *>(
-                  entity->NativeScript.Instance)) {
+          if (auto *pc = entity->GetScript<PlayerController>()) {
             speed = pc->GetSpeed();
             vel = pc->GetVelocity();
           }

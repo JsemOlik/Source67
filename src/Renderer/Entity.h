@@ -8,10 +8,20 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <string>
+#include <vector>
+#include <filesystem>
+#include <memory>
+#include "Renderer/ScriptableEntity.h"
 
 // Forward declaration
 namespace S67 {
 class ScriptableEntity;
+struct LuaScriptComponent {
+  std::string FilePath;
+  bool Initialized = false;
+  std::filesystem::file_time_type LastWriteTime;
+  std::shared_ptr<void> Environment;
+};
 }
 
 namespace S67 {
@@ -36,13 +46,15 @@ struct Transform {
 class ScriptableEntity;
 
 struct NativeScriptComponent {
+  std::string Name;
   ScriptableEntity *Instance = nullptr;
 
-  ScriptableEntity *(*InstantiateScript)();
+  ScriptableEntity *(*InstantiateScript)(NativeScriptComponent *);
   void (*DestroyScript)(NativeScriptComponent *);
 
-  template <typename T> void Bind() {
-    InstantiateScript = []() {
+  template <typename T> void Bind(const std::string &name) {
+    Name = name;
+    InstantiateScript = [](NativeScriptComponent *) {
       return static_cast<ScriptableEntity *>(new T());
     };
     DestroyScript = [](NativeScriptComponent *nsc) {
@@ -93,7 +105,25 @@ public:
 
   MovementSettings Movement;
 
-  NativeScriptComponent NativeScript;
+  std::vector<NativeScriptComponent> Scripts;
+  std::vector<LuaScriptComponent> LuaScripts;
+  std::vector<std::string> Tags;
+
+  template <typename T> T *GetScript() {
+    for (auto &script : Scripts) {
+      if (T *instance = dynamic_cast<T *>(script.Instance))
+        return instance;
+    }
+    return nullptr;
+  }
+
+  bool HasTag(const std::string &tag) const {
+    for (const auto &t : Tags) {
+      if (t == tag)
+        return true;
+    }
+    return false;
+  }
 };
 
 } // namespace S67

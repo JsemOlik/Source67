@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cmath>
 #include <utility>
+#include "Renderer/ScriptRegistry.h"
 
 namespace S67 {
 
@@ -478,5 +479,7 @@ float PlayerController::GetSpeed() const {
   JPH::Vec3 v = m_Character->GetLinearVelocity();
   return glm::length(glm::vec2(v.GetX(), v.GetZ()));
 }
+
+REGISTER_SCRIPT(PlayerController);
 
 } // namespace S67

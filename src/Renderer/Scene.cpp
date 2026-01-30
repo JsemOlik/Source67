@@ -1,10 +1,13 @@
 #include "Scene.h"
 #include "Core/Application.h"
 #include "Core/Logger.h"
+#include "Renderer/Entity.h"
+#include "Renderer/ScriptRegistry.h"
 #include "Mesh.h"
 #include "Physics/PlayerController.h"
 #include "Renderer/ScriptableEntity.h"
 #include "Texture.h"
+#include "Scripting/LuaScriptEngine.h"
 #include <algorithm>
 
 namespace S67 {
@@ -75,8 +78,18 @@ void Scene::EnsurePlayerExists() {
   // User didn't ask for physics yet, just visual.
 
   // Bind PlayerController Script
-  if (!player->NativeScript.Instance) {
-    player->NativeScript.Bind<PlayerController>();
+  bool hasPlayerController = false;
+  for (auto &script : player->Scripts) {
+    if (script.Name == "PlayerController") {
+      hasPlayerController = true;
+      break;
+    }
+  }
+
+  if (!hasPlayerController) {
+    NativeScriptComponent nsc;
+    nsc.Bind<PlayerController>("PlayerController");
+    player->Scripts.push_back(nsc);
   }
 }
 
@@ -90,24 +103,44 @@ Ref<Entity> Scene::FindEntityByName(const std::string &name) {
 
 void Scene::InstantiateScripts() {
   for (auto &entity : m_Entities) {
-    auto &nsc = entity->NativeScript;
-    if (!nsc.Instance && nsc.InstantiateScript) {
-      S67_CORE_INFO("Instantiating script for entity {0}", entity->Name);
-      nsc.Instance = nsc.InstantiateScript();
-      nsc.Instance->m_Entity = entity.get();
-      nsc.Instance->OnCreate();
-      S67_CORE_INFO("Script instantiated successfully");
+    for (auto &script : entity->Scripts) {
+      if (!script.Instance) {
+        S67_CORE_INFO("Instantiating script {0} for entity {1}", script.Name,
+                      entity->Name);
+        script.Instance = ScriptRegistry::Get().Instantiate(script.Name);
+        if (script.Instance) {
+          script.Instance->m_Entity = entity.get();
+          script.Instance->OnCreate();
+        }
+      }
+    }
+
+    for (auto &luaScript : entity->LuaScripts) {
+      if (!luaScript.Initialized && !luaScript.FilePath.empty()) {
+        S67_CORE_INFO("Instantiating Lua script {0} for entity {1}",
+                      luaScript.FilePath, entity->Name);
+        LuaScriptEngine::OnCreate(entity.get());
+        luaScript.Initialized = true;
+      }
     }
   }
 }
 
 void Scene::OnUpdate(float ts) {
+  LuaScriptEngine::BeginFrame();
   InstantiateScripts();
 
   for (auto &entity : m_Entities) {
-    if (entity->NativeScript.Instance) {
-      // S67_CORE_TRACE("Updating script for {0}", entity->Name);
-      entity->NativeScript.Instance->OnUpdate(ts);
+    for (auto &script : entity->Scripts) {
+      if (script.Instance) {
+        script.Instance->OnUpdate(ts);
+      }
+    }
+
+    for (auto &luaScript : entity->LuaScripts) {
+      if (luaScript.Initialized) {
+        LuaScriptEngine::OnUpdate(entity.get(), ts);
+      }
     }
   }
 }

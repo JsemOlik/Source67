@@ -2,6 +2,7 @@
 #include "Core/Application.h"
 #include "Core/Logger.h"
 #include "Renderer/Mesh.h"
+#include "Renderer/ScriptRegistry.h"
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -90,6 +91,31 @@ void SceneSerializer::Serialize(const std::string &filepath) {
 
     e["Collidable"] = entity->Collidable;
     e["Anchored"] = entity->Anchored;
+
+    // Tags
+    if (!entity->Tags.empty()) {
+      e["Tags"] = entity->Tags;
+    }
+
+    // Native Scripts
+    if (!entity->Scripts.empty()) {
+      json scripts = json::array();
+      for (const auto &script : entity->Scripts) {
+        json s;
+        s["Name"] = script.Name;
+        scripts.push_back(s);
+      }
+      e["Scripts"] = scripts;
+    }
+
+    // Lua Scripts
+    if (!entity->LuaScripts.empty()) {
+      json luaScripts = json::array();
+      for (auto &script : entity->LuaScripts) {
+        luaScripts.push_back(MakeRelative(script.FilePath));
+      }
+      e["LuaScripts"] = luaScripts;
+    }
 
     if (entity->Name == "Player") {
       e["CameraFOV"] = entity->CameraFOV;
@@ -210,6 +236,34 @@ bool SceneSerializer::Deserialize(const std::string &filepath) {
 
         entity->Collidable = e.value("Collidable", false);
         entity->Anchored = e.value("Anchored", false);
+
+        // Tags
+        if (e.contains("Tags")) {
+          for (auto &tag : e["Tags"]) {
+            entity->Tags.push_back(tag.get<std::string>());
+          }
+        }
+
+        // Native Scripts
+        if (e.contains("Scripts")) {
+          for (auto &script : e["Scripts"]) {
+             NativeScriptComponent nsc;
+             nsc.Name = script["Name"];
+             entity->Scripts.push_back(nsc);
+          }
+        }
+
+        // Lua Scripts
+        if (e.contains("LuaScripts")) {
+          for (auto &luaPath : e["LuaScripts"]) {
+            std::string path = luaPath.get<std::string>();
+            if (!path.empty()) {
+              std::string resolvedPath =
+                  Application::Get().ResolveAssetPath(path).string();
+              entity->LuaScripts.push_back({resolvedPath, false});
+            }
+          }
+        }
 
         if (entity->Name == "Player" && e.contains("Movement")) {
           entity->CameraFOV = e.value("CameraFOV", 45.0f);
