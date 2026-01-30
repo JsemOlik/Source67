@@ -2,6 +2,27 @@
 
 A simple, modern 3D game engine written in C++ for learning purposes. Source67 features a Quake-style console, Jolt Physics integration, and a native C++ scripting system.
 
+## 🚀 Quick Start
+
+**New to Source67?** Start here: **[QUICK_START_GUIDE.md](QUICK_START_GUIDE.md)** 
+
+This comprehensive guide walks you through:
+- ✅ Installing prerequisites
+- ✅ Building the engine for the first time
+- ✅ Running and testing
+- ✅ Troubleshooting common issues
+
+**TL;DR:**
+```cmd
+# Windows (from Source67 root directory in Command Prompt)
+build.bat Debug all
+cmake-build-debug\Debug\Source67.exe
+
+# Linux/macOS
+./build.sh Debug all
+./cmake-build-debug/Source67
+```
+
 ## Engine Architecture
 
 The engine follows a component-based architecture where the `Application` manages the main loop, systems, and the active `Scene`. Entities in the scene can be controlled via attached native C++ scripts.
