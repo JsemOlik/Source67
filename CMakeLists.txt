@@ -118,6 +118,8 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "src/**/*.cpp"
     "src/**/*.mm"
     "src/**/*.h"
+    "Scripts/**/*.cpp"
+    "Scripts/**/*.h"
     "vendor/**/*.cpp"
     "vendor/**/*.h"
 )

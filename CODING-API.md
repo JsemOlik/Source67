@@ -1,13 +1,11 @@
-# Source67 Scripting API Guide
-
-Welcome to the Source67 Scripting API! This guide will help you create custom behaviors for your game entities using C++ scripts.
-
 ## Getting Started
 
 To create a new script:
-1. Create a new `.cpp` file in `src/Game/` (e.g., `MyScript.cpp`).
+1. Create a new `.cpp` file in the `Scripts/` folder in your project root (e.g., `Scripts/MyScript.cpp`).
 2. Inherit from `ScriptableEntity`.
 3. Register your script using `REGISTER_SCRIPT(ClassName)`.
+
+The build system is configured to automatically find and compile any file in the `Scripts/` folder!
 
 ```cpp
 #include "Renderer/ScriptableEntity.h"

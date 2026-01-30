@@ -14,7 +14,7 @@ public:
 
       if (IsKeyPressed(S67_KEY_F)) {
         // Try to find a specific cube to move
-        Entity *target = FindEntity("MoveTarget");
+        Entity *target = FindEntity("Player");
         if (target) {
           Move(target, {0.1f, 0.0f, 0.0f}); // Move 0.1 units on X each tick
         } else {
