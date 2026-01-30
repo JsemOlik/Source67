@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Entity.h"
+#include "Events/Event.h"
 
 namespace S67 {
 

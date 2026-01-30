@@ -436,6 +436,13 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
       }
     });
 
+    if (entity->Material.AlbedoMap) {
+      DrawComponent("Material", [&]() {
+        ImGui::Text("Texture: %s",
+                    std::filesystem::path(entity->Material.AlbedoMap->GetPath())
+                        .filename()
+                        .string()
+                        .c_str());
         DrawVec2Control("Tiling", entity->Material.Tiling, 1.0f);
       });
     }
@@ -448,7 +455,7 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
         if (entity->Tags.size() < 10 && strlen(tagBuffer) > 0) {
           entity->Tags.push_back(tagBuffer);
           tagBuffer[0] = '\0';
-          m_SceneModified = true;
+          Application::Get().SetSceneModified(true);
         }
       }
 
@@ -459,7 +466,7 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
         ImGui::SameLine();
         if (ImGui::Button("X")) {
           entity->Tags.erase(entity->Tags.begin() + i);
-          m_SceneModified = true;
+          Application::Get().SetSceneModified(true);
           ImGui::PopID();
           break;
         }
@@ -479,7 +486,7 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
             NativeScriptComponent nsc;
             ScriptRegistry::Get().Bind(name, nsc);
             entity->Scripts.push_back(nsc);
-            m_SceneModified = true;
+            Application::Get().SetSceneModified(true);
           }
         }
         ImGui::EndPopup();
@@ -494,7 +501,7 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
           if (entity->Scripts[i].DestroyScript)
             entity->Scripts[i].DestroyScript(&entity->Scripts[i]);
           entity->Scripts.erase(entity->Scripts.begin() + i);
-          m_SceneModified = true;
+          Application::Get().SetSceneModified(true);
           ImGui::PopID();
           break;
         }

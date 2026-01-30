@@ -60,6 +60,7 @@ public:
   void CloseProject();
 
   void OnEntityCollidableChanged(Ref<Entity> entity);
+  void SetSceneModified(bool modified) { m_SceneModified = modified; }
 
   void OnNewProject();
   void OnOpenProject();
