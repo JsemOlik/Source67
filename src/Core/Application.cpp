@@ -535,10 +535,13 @@ void Application::SaveManifest() {
     return;
 
   std::filesystem::path manifestPath = m_ProjectRoot / "manifest.source";
+  nlohmann::json root;
+  root["ProjectName"] = m_ProjectName;
+  root["Version"] = m_ProjectVersion;
+
   std::ofstream fout(manifestPath);
   if (fout.is_open()) {
-    fout << "ProjectName: " << m_ProjectName << "\n";
-    fout << "Version: " << m_ProjectVersion << "\n";
+    fout << root.dump(2);
     fout.close();
     S67_CORE_INFO("Saved project manifest to {0}", manifestPath.string());
   } else {
@@ -600,23 +603,23 @@ void Application::DiscoverProject(const std::filesystem::path &levelPath) {
       m_ProjectFilePath = manifestPath;
       SetProjectRoot(currentDir);
 
-      // Parse Manifest
-      std::ifstream fin(manifestPath);
-      std::string line;
-      while (std::getline(fin, line)) {
-        if (!line.empty() && line.back() == '\r')
-          line.pop_back();
-        if (line.find("ProjectName:") != std::string::npos) {
-          m_ProjectName = line.substr(line.find(":") + 2);
-        } else if (line.find("Version:") != std::string::npos) {
-          m_ProjectVersion = line.substr(line.find(":") + 2);
-        }
+      // Parse Manifest (JSON)
+      try {
+        std::ifstream fin(manifestPath);
+        nlohmann::json data = nlohmann::json::parse(fin);
+        m_ProjectName = data.value("ProjectName", "Unnamed Project");
+        m_ProjectVersion = data.value("Version", "1.0.0");
+
+        S67_CORE_INFO("Discovered project: {0} (v{1}) at {2}", m_ProjectName,
+                      m_ProjectVersion, currentDir.string());
+        AddToRecentProjects(currentDir.string());
+        found = true;
+        break;
+      } catch (const std::exception &e) {
+        S67_CORE_ERROR("Failed to parse manifest at {0}: {1}",
+                       manifestPath.string(), e.what());
+        // Continue searching upward if this one is corrupted
       }
-      S67_CORE_INFO("Discovered project: {0} (v{1}) at {2}", m_ProjectName,
-                    m_ProjectVersion, currentDir.string());
-      AddToRecentProjects(currentDir.string());
-      found = true;
-      break;
     }
     currentDir = currentDir.parent_path();
   }

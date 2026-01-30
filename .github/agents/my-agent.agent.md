@@ -197,8 +197,8 @@ Entities have:
 
 ### Project Structure
 
-- Projects have a root directory with `.s67project` manifest
-- Scenes saved as `.s67scene` JSON files
+- Projects have a root directory with `.source` manifest
+- Scenes saved as `.s67` JSON files
 - Assets organized in `assets/` subdirectories
 
 ## 🎨 Rendering Pipeline
@@ -395,8 +395,8 @@ cmake --build cmake-build-debug
 - **Default Font Size**: 18.0f
 - **Default Editor FOV**: 45.0f
 - **Default Theme**: Dracula
-- **Scene File Extension**: `.s67scene`
-- **Project File Extension**: `.s67project`
+- **Scene File Extension**: `.s67`
+- **Project File Extension**: `.source`
 
 ---
 

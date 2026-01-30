@@ -5,18 +5,14 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <string>
 
-namespace S67 {
+using json = nlohmann::ordered_json;
 
-static std::string Trim(const std::string &str) {
-  size_t first = str.find_first_not_of(" \t\r\n");
-  if (std::string::npos == first)
-    return "";
-  size_t last = str.find_last_not_of(" \t\r\n");
-  return str.substr(first, (last - first + 1));
-}
+namespace S67 {
 
 SceneSerializer::SceneSerializer(Scene *scene, const std::string &projectRoot)
     : m_Scene(scene), m_ProjectRoot(projectRoot) {}
@@ -60,64 +56,64 @@ void SceneSerializer::Serialize(const std::string &filepath) {
     std::filesystem::create_directories(path.parent_path());
   }
 
-  std::stringstream ss;
-  ss << "Scene: Untitled\n";
-  ss << "Entities:\n";
+  json root;
+  root["Scene"] = "Untitled";
 
+  json entities = json::array();
   for (auto &entity : m_Scene->GetEntities()) {
-    ss << "  - Entity: " << entity->Name << "\n";
-    ss << "    Transform:\n";
-    ss << "      Position: [" << entity->Transform.Position.x << ", "
-       << entity->Transform.Position.y << ", " << entity->Transform.Position.z
-       << "]\n";
-    ss << "      Rotation: [" << entity->Transform.Rotation.x << ", "
-       << entity->Transform.Rotation.y << ", " << entity->Transform.Rotation.z
-       << "]\n";
-    ss << "      Scale: [" << entity->Transform.Scale.x << ", "
-       << entity->Transform.Scale.y << ", " << entity->Transform.Scale.z
-       << "]\n";
-    ss << "    MeshPath: " << MakeRelative(entity->MeshPath) << "\n";
+    json e;
+    e["Entity"] = entity->Name;
 
-    if (entity->MaterialShader)
-      ss << "    ShaderPath: "
-         << MakeRelative(entity->MaterialShader->GetPath()) << "\n";
-    else
-      ss << "    ShaderPath: None\n";
+    json transform;
+    transform["Position"] = {entity->Transform.Position.x,
+                             entity->Transform.Position.y,
+                             entity->Transform.Position.z};
+    transform["Rotation"] = {entity->Transform.Rotation.x,
+                             entity->Transform.Rotation.y,
+                             entity->Transform.Rotation.z};
+    transform["Scale"] = {entity->Transform.Scale.x, entity->Transform.Scale.y,
+                          entity->Transform.Scale.z};
+    e["Transform"] = transform;
 
-    if (entity->Material.AlbedoMap)
-      ss << "    TexturePath: "
-         << MakeRelative(entity->Material.AlbedoMap->GetPath()) << "\n";
-    else
-      ss << "    TexturePath: None\n";
+    e["MeshPath"] = MakeRelative(entity->MeshPath);
+    e["ShaderPath"] = entity->MaterialShader
+                          ? MakeRelative(entity->MaterialShader->GetPath())
+                          : "None";
+    e["TexturePath"] = entity->Material.AlbedoMap
+                           ? MakeRelative(entity->Material.AlbedoMap->GetPath())
+                           : "None";
 
-    if (entity->Material.AlbedoMap)
-      ss << "    TextureTiling: [" << entity->Material.Tiling.x << ", "
-         << entity->Material.Tiling.y << "]\n";
+    if (entity->Material.AlbedoMap) {
+      e["TextureTiling"] = {entity->Material.Tiling.x,
+                            entity->Material.Tiling.y};
+    }
 
-    ss << "    Collidable: " << (entity->Collidable ? "true" : "false") << "\n";
-    ss << "    Anchored: " << (entity->Anchored ? "true" : "false") << "\n";
+    e["Collidable"] = entity->Collidable;
+    e["Anchored"] = entity->Anchored;
 
     if (entity->Name == "Player") {
-      ss << "    CameraFOV: " << entity->CameraFOV << "\n";
-      ss << "    Movement:\n";
-      ss << "      MaxSpeed: " << entity->Movement.MaxSpeed << "\n";
-      ss << "      MaxSprintSpeed: " << entity->Movement.MaxSprintSpeed << "\n";
-      ss << "      MaxCrouchSpeed: " << entity->Movement.MaxCrouchSpeed << "\n";
-      ss << "      Acceleration: " << entity->Movement.Acceleration << "\n";
-      ss << "      AirAcceleration: " << entity->Movement.AirAcceleration
-         << "\n";
-      ss << "      Friction: " << entity->Movement.Friction << "\n";
-      ss << "      StopSpeed: " << entity->Movement.StopSpeed << "\n";
-      ss << "      JumpVelocity: " << entity->Movement.JumpVelocity << "\n";
-      ss << "      Gravity: " << entity->Movement.Gravity << "\n";
-      ss << "      MaxAirWishSpeed: " << entity->Movement.MaxAirWishSpeed
-         << "\n";
+      e["CameraFOV"] = entity->CameraFOV;
+      json movement;
+      movement["MaxSpeed"] = entity->Movement.MaxSpeed;
+      movement["MaxSprintSpeed"] = entity->Movement.MaxSprintSpeed;
+      movement["MaxCrouchSpeed"] = entity->Movement.MaxCrouchSpeed;
+      movement["Acceleration"] = entity->Movement.Acceleration;
+      movement["AirAcceleration"] = entity->Movement.AirAcceleration;
+      movement["Friction"] = entity->Movement.Friction;
+      movement["StopSpeed"] = entity->Movement.StopSpeed;
+      movement["JumpVelocity"] = entity->Movement.JumpVelocity;
+      movement["Gravity"] = entity->Movement.Gravity;
+      movement["MaxAirWishSpeed"] = entity->Movement.MaxAirWishSpeed;
+      e["Movement"] = movement;
     }
+
+    entities.push_back(e);
   }
+  root["Entities"] = entities;
 
   std::ofstream fout(filepath);
   if (fout.is_open()) {
-    fout << ss.str();
+    fout << root.dump(2); // Indent with 2 spaces
     fout.close();
     S67_CORE_INFO("Scene saved to '{0}'", filepath);
   } else {
@@ -132,6 +128,119 @@ bool SceneSerializer::Deserialize(const std::string &filepath) {
     return false;
   }
 
+  std::stringstream ss;
+  ss << fin.rdbuf();
+  std::string content = ss.str();
+
+  // Try JSON first
+  try {
+    json data = json::parse(content);
+    m_Scene->Clear();
+
+    if (data.contains("Entities")) {
+      for (auto &e : data["Entities"]) {
+        Ref<Entity> entity = CreateRef<Entity>();
+        entity->Name = e.value("Entity", "Unnamed Entity");
+
+        if (e.contains("Transform")) {
+          auto &t = e["Transform"];
+          if (t.contains("Position")) {
+            entity->Transform.Position = {t["Position"][0], t["Position"][1],
+                                          t["Position"][2]};
+          }
+          if (t.contains("Rotation")) {
+            entity->Transform.Rotation = {t["Rotation"][0], t["Rotation"][1],
+                                          t["Rotation"][2]};
+          }
+          if (t.contains("Scale")) {
+            entity->Transform.Scale = {t["Scale"][0], t["Scale"][1],
+                                       t["Scale"][2]};
+          }
+        }
+
+        entity->MeshPath = e.value("MeshPath", "");
+        if (entity->MeshPath == "Cube") {
+          entity->Mesh = Application::Get().GetCubeMesh();
+        } else if (entity->MeshPath != "" && entity->MeshPath != "None") {
+          entity->MeshPath =
+              std::filesystem::path(entity->MeshPath).make_preferred().string();
+          std::string resolvedPath =
+              Application::Get().ResolveAssetPath(entity->MeshPath).string();
+
+          if (std::filesystem::path(resolvedPath).extension() == ".obj")
+            entity->Mesh = MeshLoader::LoadOBJ(resolvedPath);
+          else if (std::filesystem::path(resolvedPath).extension() == ".stl")
+            entity->Mesh = MeshLoader::LoadSTL(resolvedPath);
+        }
+
+        std::string shaderPath = e.value("ShaderPath", "None");
+        if (shaderPath != "None") {
+          std::string resolvedPath =
+              Application::Get().ResolveAssetPath(shaderPath).string();
+          auto defaultShader = Application::Get().GetDefaultShader();
+          if (defaultShader &&
+              (shaderPath.find("Lighting.glsl") != std::string::npos)) {
+            entity->MaterialShader = defaultShader;
+          } else {
+            auto shader = Shader::Create(resolvedPath);
+            if (shader)
+              entity->MaterialShader = shader;
+          }
+        }
+
+        std::string texPath = e.value("TexturePath", "None");
+        if (texPath != "None") {
+          std::string resolvedPath =
+              Application::Get().ResolveAssetPath(texPath).string();
+          auto defaultTex = Application::Get().GetDefaultTexture();
+          if (defaultTex &&
+              (texPath.find("Checkerboard.png") != std::string::npos)) {
+            entity->Material.AlbedoMap = defaultTex;
+          } else {
+            auto texture = Texture2D::Create(resolvedPath);
+            if (texture)
+              entity->Material.AlbedoMap = texture;
+          }
+        }
+
+        if (e.contains("TextureTiling")) {
+          entity->Material.Tiling = {e["TextureTiling"][0],
+                                     e["TextureTiling"][1]};
+        }
+
+        entity->Collidable = e.value("Collidable", false);
+        entity->Anchored = e.value("Anchored", false);
+
+        if (entity->Name == "Player" && e.contains("Movement")) {
+          entity->CameraFOV = e.value("CameraFOV", 45.0f);
+          auto &m = e["Movement"];
+          entity->Movement.MaxSpeed = m.value("MaxSpeed", 10.0f);
+          entity->Movement.MaxSprintSpeed = m.value("MaxSprintSpeed", 20.0f);
+          entity->Movement.MaxCrouchSpeed = m.value("MaxCrouchSpeed", 5.0f);
+          entity->Movement.Acceleration = m.value("Acceleration", 50.0f);
+          entity->Movement.AirAcceleration = m.value("AirAcceleration", 20.0f);
+          entity->Movement.Friction = m.value("Friction", 6.0f);
+          entity->Movement.StopSpeed = m.value("StopSpeed", 1.0f);
+          entity->Movement.JumpVelocity = m.value("JumpVelocity", 5.0f);
+          entity->Movement.Gravity = m.value("Gravity", 9.81f);
+          entity->Movement.MaxAirWishSpeed = m.value("MaxAirWishSpeed", 30.0f);
+        }
+
+        m_Scene->AddEntity(entity);
+      }
+    }
+
+    S67_CORE_INFO("Scene loaded from '{0}'", filepath);
+    return true;
+  } catch (const std::exception &e) {
+    S67_CORE_ERROR("JSON parsing failed for level '{0}': {1}", filepath,
+                   e.what());
+    return false;
+  }
+}
+
+bool SceneSerializer::DeserializeManual(std::istream &fin,
+                                        const std::string &filepath) {
   m_Scene->Clear();
 
   std::string line;
