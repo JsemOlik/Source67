@@ -143,28 +143,18 @@ if(APPLE)
     list(APPEND SOURCES ${MAC_SOURCES})
 endif()
 list(APPEND SOURCES "main.cpp")
-    list(APPEND SOURCES "src/Renderer/Scene.cpp")
+list(APPEND SOURCES "src/Renderer/Scene.cpp")
 
-if(BUILD_RUNTIME)
-    message(STATUS "Building Runtime: Excluding Editor Sources")
-    list(FILTER SOURCES EXCLUDE REGEX "src/ImGui/Panels/.*")
-    list(FILTER SOURCES EXCLUDE REGEX "src/ImGui/ImGuiLayer\\.cpp")
-    list(FILTER SOURCES EXCLUDE REGEX "src/Game/Console/ConsolePanel\\.cpp")
-    list(FILTER SOURCES EXCLUDE REGEX "vendor/ImGuizmo/.*")
-    add_definitions(-DS67_RUNTIME)
-else()
-    # ImGui Files (Editor Only)
-    set(IMGUI_DIR ${imgui_SOURCE_DIR})
-    list(APPEND SOURCES 
-        ${IMGUI_DIR}/imgui.cpp
-        ${IMGUI_DIR}/imgui_demo.cpp
-        ${IMGUI_DIR}/imgui_draw.cpp
-        ${IMGUI_DIR}/imgui_tables.cpp
-        ${IMGUI_DIR}/imgui_widgets.cpp
-        ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
-        ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
-    )
-endif()
+set(IMGUI_DIR ${imgui_SOURCE_DIR})
+list(APPEND SOURCES 
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_demo.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+)
 
 # On non-Apple platforms, compile .mm files as regular C++
 if(NOT APPLE)
@@ -175,13 +165,7 @@ if(NOT APPLE)
     endforeach()
 endif()
 
-option(BUILD_RUNTIME "Build the runtime version of the engine (No Editor)" OFF)
-
 add_executable(Source67 WIN32 ${SOURCES})
-
-if(BUILD_RUNTIME)
-    target_compile_definitions(Source67 PUBLIC S67_RUNTIME)
-endif()
 
 target_include_directories(Source67 PUBLIC 
     ${INCLUDE_DIR}
@@ -196,6 +180,7 @@ target_include_directories(Source67 PUBLIC
 
 # Let's set up the executable
 
+# Defaults for Editor Source67 target
 target_link_libraries(Source67 PUBLIC 
     glfw 
     glm::glm
@@ -234,6 +219,56 @@ if(APPLE)
 elseif(UNIX)
     find_package(OpenGL REQUIRED)
     target_link_libraries(Source67 PUBLIC OpenGL::GL)
+endif()
+
+# --- Runtime Executable Target ---
+
+# logical copy of sources
+set(RUNTIME_SOURCES ${SOURCES})
+
+# Exclude Editor-specific files
+list(FILTER RUNTIME_SOURCES EXCLUDE REGEX "src/ImGui/Panels/.*")
+list(FILTER RUNTIME_SOURCES EXCLUDE REGEX "src/ImGui/ImGuiLayer\\.cpp")
+list(FILTER RUNTIME_SOURCES EXCLUDE REGEX "src/Game/Console/ConsolePanel\\.cpp")
+list(FILTER RUNTIME_SOURCES EXCLUDE REGEX "vendor/ImGuizmo/.*")
+
+add_executable(Source67-Runtime WIN32 ${RUNTIME_SOURCES})
+
+target_compile_definitions(Source67-Runtime PUBLIC S67_RUNTIME)
+
+target_include_directories(Source67-Runtime PUBLIC 
+    ${INCLUDE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb_image
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/tinyobjloader
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor
+    ${jolt_SOURCE_DIR}
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
+    ${sol2_SOURCE_DIR}/include
+)
+
+target_link_libraries(Source67-Runtime PUBLIC 
+    glfw 
+    glm::glm
+    spdlog::spdlog
+    glad
+    Jolt
+    nlohmann_json::nlohmann_json
+    lua_static
+    sol2
+)
+
+if(MSVC)
+    target_compile_options(Source67-Runtime PRIVATE /W4)
+    target_compile_definitions(Source67-Runtime PUBLIC _CRT_SECURE_NO_WARNINGS _SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS)
+else()
+    target_compile_options(Source67-Runtime PRIVATE -Wall -Wextra -Wpedantic -Wno-changes-meaning)
+endif()
+
+if(APPLE)
+    target_link_libraries(Source67-Runtime PUBLIC "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
+elseif(UNIX)
+    target_link_libraries(Source67-Runtime PUBLIC OpenGL::GL)
 endif()
 
 # Copy assets to build directory

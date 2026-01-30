@@ -703,22 +703,101 @@ void Application::OnBuildRuntime() {
   if (outputDir.empty())
     return;
 
-  std::stringstream cmd;
-  // Quote paths to handle spaces
-  // Running python3 from CWD logic (Engine Root)
-  cmd << "python3 Scripts/build.py --project \"" << m_ProjectRoot.string()
-      << "\" --output \"" << outputDir << "\"";
-
-  std::string cmdStr = cmd.str();
-  S67_CORE_INFO("Starting Build: {0}", cmdStr);
+  std::filesystem::path projectRoot = m_ProjectRoot;
+  std::filesystem::path outDir = outputDir;
+  std::string projectName = m_ProjectName;
 
   // Run in a separate thread to prevent UI freezing
-  std::thread([cmdStr]() {
-    int result = std::system(cmdStr.c_str());
-    if (result == 0) {
-      S67_CORE_INFO("Build Successful!");
-    } else {
-      S67_CORE_ERROR("Build Failed. Check console for details.");
+  std::thread([projectRoot, outDir, projectName]() {
+    try {
+      S67_CORE_INFO("Starting Export to: {0}", outDir.string());
+
+      // 1. Locate Runtime Executable Template
+      std::string runtimeName = "Source67-Runtime";
+#ifdef _WIN32
+      runtimeName += ".exe";
+#endif
+
+      // Look in the current working directory (where Editor is running)
+      std::filesystem::path currentPath = std::filesystem::current_path();
+      std::filesystem::path runtimePath = currentPath / runtimeName;
+
+      if (!std::filesystem::exists(runtimePath)) {
+        S67_CORE_ERROR(
+            "Failed to locate Runtime Executable template at: {0}",
+            runtimePath.string());
+        S67_CORE_ERROR("Ensure Source67-Runtime is built and present next to "
+                       "the Editor.");
+        return;
+      }
+
+      // 2. Prepare Output Directory
+      if (!std::filesystem::exists(outDir))
+        std::filesystem::create_directories(outDir);
+
+      // 3. Copy Executable -> Output/ProjectName.exe
+      std::string targetExeName = projectName;
+#ifdef _WIN32
+      targetExeName += ".exe";
+#endif
+      std::filesystem::path targetExePath = outDir / targetExeName;
+
+      std::filesystem::copy_file(runtimePath, targetExePath,
+                                 std::filesystem::copy_options::overwrite_existing);
+      S67_CORE_INFO("Copied Runtime to {0}", targetExePath.string());
+
+      // 4. Copy Assets
+      // A. Engine Defaults (if 'assets' folder is next to Editor)
+      std::filesystem::path engineAssets = currentPath / "assets";
+      std::filesystem::path targetAssets = outDir / "assets";
+      
+      if (!std::filesystem::exists(targetAssets))
+          std::filesystem::create_directories(targetAssets);
+
+      auto copyOptions = std::filesystem::copy_options::recursive |
+                         std::filesystem::copy_options::overwrite_existing;
+
+      if (std::filesystem::exists(engineAssets)) {
+        std::filesystem::copy(engineAssets, targetAssets, copyOptions);
+        S67_CORE_INFO("Copied Engine Assets.");
+      }
+
+      // B. Project Assets (Overwrite Engine defaults)
+      std::filesystem::path projectAssets = projectRoot / "assets";
+      if (!std::filesystem::exists(projectAssets))
+        projectAssets = projectRoot / "Assets";
+
+      if (std::filesystem::exists(projectAssets)) {
+        std::filesystem::copy(projectAssets, targetAssets, copyOptions);
+        S67_CORE_INFO("Copied Project Assets.");
+      }
+
+      // 5. Copy Scripts
+      std::filesystem::path projectScripts = projectRoot / "scripts";
+      if (!std::filesystem::exists(projectScripts))
+        projectScripts = projectRoot / "Scripts";
+
+      if (std::filesystem::exists(projectScripts)) {
+        std::filesystem::path targetScripts = outDir / "scripts";
+        if (!std::filesystem::exists(targetScripts))
+            std::filesystem::create_directories(targetScripts);
+            
+        std::filesystem::copy(projectScripts, targetScripts, copyOptions);
+        S67_CORE_INFO("Copied Scripts.");
+      }
+
+      // 6. Copy Manifest
+      std::filesystem::path manifestPath = projectRoot / "manifest.source";
+      if (std::filesystem::exists(manifestPath)) {
+        std::filesystem::copy_file(
+            manifestPath, outDir / "manifest.source",
+            std::filesystem::copy_options::overwrite_existing);
+      }
+
+      S67_CORE_INFO("Export Complete Successfully!");
+
+    } catch (const std::exception &e) {
+      S67_CORE_ERROR("Export Failed: {0}", e.what());
     }
   }).detach();
 }
