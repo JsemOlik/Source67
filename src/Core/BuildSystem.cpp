@@ -284,7 +284,6 @@ bool BuildSystem::EnsureGameCMakeLists() {
         cmake << "# Windows-specific\n";
         cmake << "if(MSVC)\n";
         cmake << "    target_compile_options(Game PRIVATE /W4)\n";
-        cmake << "    set_property(TARGET Game PROPERTY MSVC_RUNTIME_LIBRARY \"MultiThreadedDLL$<$<CONFIG:Debug>:Debug>\")\n";
         cmake << "endif()\n\n";
         cmake << "# Include directories\n";
         cmake << "target_include_directories(Game PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})\n\n";
