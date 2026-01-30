@@ -191,6 +191,17 @@ Application::Application(const std::string &executablePath,
   
   // Script loading is now deferred to SetProjectRoot or DiscoverProject
 
+  // Initialize Hybrid Build System
+  S67_CORE_INFO("Initializing Hybrid Build System...");
+  m_HybridBuildSystem = CreateScope<HybridBuildSystem>();
+  if (!m_HybridBuildSystem->Initialize(this, &LuaScriptEngine::GetState())) {
+    S67_CORE_WARN("Hybrid build system not available (DLL/assets not found - this is normal if not built yet)");
+  }
+
+  // Initialize Build System
+  S67_CORE_INFO("Initializing Build System...");
+  m_BuildSystem = CreateScope<BuildSystem>();
+
   m_HUDShader =
       Shader::Create(ResolveAssetPath("assets/shaders/HUD.glsl").string());
   HUDRenderer::SetShader(m_HUDShader);
@@ -325,6 +336,9 @@ void Application::CreateTestScene() {
 }
 
 Application::~Application() {
+  if (m_HybridBuildSystem) {
+    m_HybridBuildSystem->Shutdown();
+  }
   HUDRenderer::Shutdown();
   m_ImGuiLayer->OnDetach();
   PhysicsSystem::Shutdown();
@@ -884,6 +898,210 @@ void Application::OnEntityCollidableChanged(Ref<Entity> entity) {
   }
 }
 
+void Application::OnBuildGame() {
+  S67_CORE_INFO("Building Game.dll with native build system...");
+  
+  // Save current scene first
+  if (m_LevelLoaded && m_SceneModified) {
+    OnSaveScene();
+  }
+
+  // Configure build system
+  BuildConfig config;
+  
+  // Determine project root: use m_ProjectRoot if set, otherwise engine root
+  if (!m_ProjectRoot.empty()) {
+    config.projectRoot = m_ProjectRoot;
+  } else {
+    config.projectRoot = m_EngineAssetsRoot;
+  }
+  
+  config.engineRoot = m_EngineAssetsRoot;
+  config.buildOutputDir = config.projectRoot / "build";
+  config.buildType = "Debug";
+  config.verbose = true;
+  
+  // Status callback to log to console
+  config.statusCallback = [](const std::string& message, bool isError) {
+    if (isError) {
+      S67_CORE_ERROR("{}", message);
+    } else {
+      S67_CORE_INFO("{}", message);
+    }
+  };
+  
+  m_BuildSystem->SetConfig(config);
+  
+  // Build
+  bool success = m_BuildSystem->BuildGame();
+  
+  if (success) {
+    S67_CORE_INFO("==========================================");
+    S67_CORE_INFO("Game.dll built successfully!");
+    S67_CORE_INFO("Output: {}", m_BuildSystem->GetGameDLLPath().string());
+    S67_CORE_INFO("==========================================");
+  } else {
+    S67_CORE_ERROR("==========================================");
+    S67_CORE_ERROR("Game.dll build FAILED!");
+    S67_CORE_ERROR("==========================================");
+  }
+}
+
+void Application::OnBuildAssets() {
+  S67_CORE_INFO("Building GameAssets.apak with native build system...");
+  
+  // Save current scene first
+  if (m_LevelLoaded && m_SceneModified) {
+    OnSaveScene();
+  }
+
+  // Configure build system
+  BuildConfig config;
+  
+  // Determine project root: use m_ProjectRoot if set, otherwise engine root
+  if (!m_ProjectRoot.empty()) {
+    config.projectRoot = m_ProjectRoot;
+  } else {
+    config.projectRoot = m_EngineAssetsRoot;
+  }
+  
+  config.engineRoot = m_EngineAssetsRoot;
+  config.buildOutputDir = config.projectRoot / "build";
+  config.buildType = "Debug";
+  config.verbose = true;
+  
+  // Status callback to log to console
+  config.statusCallback = [](const std::string& message, bool isError) {
+    if (isError) {
+      S67_CORE_ERROR("{}", message);
+    } else {
+      S67_CORE_INFO("{}", message);
+    }
+  };
+  
+  m_BuildSystem->SetConfig(config);
+  
+  // Build
+  bool success = m_BuildSystem->BuildAssets();
+  
+  if (success) {
+    S67_CORE_INFO("==========================================");
+    S67_CORE_INFO("GameAssets.apak built successfully!");
+    S67_CORE_INFO("Output: {}", m_BuildSystem->GetAssetsPackPath().string());
+    S67_CORE_INFO("==========================================");
+  } else {
+    S67_CORE_ERROR("==========================================");
+    S67_CORE_ERROR("GameAssets.apak build FAILED!");
+    S67_CORE_ERROR("==========================================");
+  }
+}
+
+void Application::OnBuildAll() {
+  S67_CORE_INFO("Building all with native build system...");
+  
+  // Save current scene first
+  if (m_LevelLoaded && m_SceneModified) {
+    OnSaveScene();
+  }
+
+  // Configure build system
+  BuildConfig config;
+  
+  // Determine project root: use m_ProjectRoot if set, otherwise engine root
+  if (!m_ProjectRoot.empty()) {
+    config.projectRoot = m_ProjectRoot;
+  } else {
+    config.projectRoot = m_EngineAssetsRoot;
+  }
+  
+  config.engineRoot = m_EngineAssetsRoot;
+  config.buildOutputDir = config.projectRoot / "build";
+  config.buildType = "Debug";
+  config.verbose = true;
+  
+  // Status callback to log to console
+  config.statusCallback = [](const std::string& message, bool isError) {
+    if (isError) {
+      S67_CORE_ERROR("{}", message);
+    } else {
+      S67_CORE_INFO("{}", message);
+    }
+  };
+  
+  m_BuildSystem->SetConfig(config);
+  
+  // Build
+  bool success = m_BuildSystem->BuildAll();
+  
+  if (success) {
+    S67_CORE_INFO("==========================================");
+    S67_CORE_INFO("BUILD ALL COMPLETED SUCCESSFULLY!");
+    S67_CORE_INFO("==========================================");
+  } else {
+    S67_CORE_ERROR("==========================================");
+    S67_CORE_ERROR("BUILD ALL FAILED!");
+    S67_CORE_ERROR("==========================================");
+  }
+}
+
+void Application::OnPackageGame() {
+  S67_CORE_INFO("Creating distribution package with native build system...");
+  
+  // Save current scene first
+  if (m_LevelLoaded && m_SceneModified) {
+    OnSaveScene();
+  }
+
+  // Configure build system
+  BuildConfig config;
+  
+  // Determine project root: use m_ProjectRoot if set, otherwise engine root
+  if (!m_ProjectRoot.empty()) {
+    config.projectRoot = m_ProjectRoot;
+  } else {
+    config.projectRoot = m_EngineAssetsRoot;
+  }
+  
+  config.engineRoot = m_EngineAssetsRoot;
+  config.buildOutputDir = config.projectRoot / "build";
+  config.buildType = "Release";  // Use Release for distribution
+  config.verbose = true;
+  
+  // Status callback to log to console
+  config.statusCallback = [](const std::string& message, bool isError) {
+    if (isError) {
+      S67_CORE_ERROR("{}", message);
+    } else {
+      S67_CORE_INFO("{}", message);
+    }
+  };
+  
+  m_BuildSystem->SetConfig(config);
+  
+  // Get project name
+  std::string projectName = "MyGame";
+  if (!config.projectRoot.empty()) {
+    projectName = config.projectRoot.filename().string();
+  }
+  
+  // Get version
+  std::string version = "1.0.0";
+  
+  // Package
+  bool success = m_BuildSystem->PackageForDistribution(projectName, version);
+  
+  if (success) {
+    S67_CORE_INFO("==========================================");
+    S67_CORE_INFO("PACKAGE CREATED SUCCESSFULLY!");
+    S67_CORE_INFO("Package: {}_v{}", projectName, version);
+    S67_CORE_INFO("==========================================");
+  } else {
+    S67_CORE_ERROR("==========================================");
+    S67_CORE_ERROR("PACKAGING FAILED!");
+    S67_CORE_ERROR("==========================================");
+  }
+}
+
 void Application::OnEvent(Event &e) {
   // 1. Console Toggle (Global Priority)
   if (e.GetEventType() == EventType::KeyPressed) {
@@ -921,6 +1139,36 @@ void Application::OnEvent(Event &e) {
   }
 
   m_ImGuiLayer->OnEvent(e);
+
+  // Forward events to Hybrid Build System (Game DLL)
+  if (m_HybridBuildSystem && m_HybridBuildSystem->IsReady()) {
+    EventDispatcher dispatcher(e);
+    
+    dispatcher.Dispatch<KeyPressedEvent>([this](KeyPressedEvent& event) {
+      m_HybridBuildSystem->OnKeyPressed(event.GetKeyCode());
+      return false; // Don't consume the event
+    });
+    
+    dispatcher.Dispatch<KeyReleasedEvent>([this](KeyReleasedEvent& event) {
+      m_HybridBuildSystem->OnKeyReleased(event.GetKeyCode());
+      return false;
+    });
+    
+    dispatcher.Dispatch<MouseMovedEvent>([this](MouseMovedEvent& event) {
+      m_HybridBuildSystem->OnMouseMoved(event.GetX(), event.GetY());
+      return false;
+    });
+    
+    dispatcher.Dispatch<MouseButtonPressedEvent>([this](MouseButtonPressedEvent& event) {
+      m_HybridBuildSystem->OnMouseButton(event.GetMouseButton(), 1);
+      return false;
+    });
+    
+    dispatcher.Dispatch<MouseButtonReleasedEvent>([this](MouseButtonReleasedEvent& event) {
+      m_HybridBuildSystem->OnMouseButton(event.GetMouseButton(), 0);
+      return false;
+    });
+  }
 
   if (m_SceneState == SceneState::Play) {
     if (m_Scene) {
@@ -1176,6 +1424,11 @@ void Application::UpdateGameTick(float tick_dt) {
   // 1. Update Scene (includes Scripts -> PlayerController::On
   if (m_Scene)
     m_Scene->OnUpdate(tick_dt);
+
+  // 1b. Update Hybrid Build System (Game DLL update)
+  if (m_HybridBuildSystem && m_HybridBuildSystem->IsReady()) {
+    m_HybridBuildSystem->Update(tick_dt);
+  }
 
   // 2. Update Jolt Physics with fixed timestep
   PhysicsSystem::OnUpdate(Timestep(tick_dt));
@@ -2060,6 +2313,11 @@ void Application::RenderFrame(float alpha) {
 
   m_GameFramebuffer->Unbind();
 
+  // 4. Hybrid Build System Render (Game DLL render)
+  if (m_HybridBuildSystem && m_HybridBuildSystem->IsReady()) {
+    m_HybridBuildSystem->Render();
+  }
+
   m_ImGuiLayer->Begin();
 
   if (m_ResetLayoutOnNextFrame) {
@@ -2108,6 +2366,42 @@ void Application::RenderFrame(float alpha) {
           m_ShowSettingsWindow = true;
         if (ImGui::MenuItem("Project Settings"))
           m_ShowProjectSettingsWindow = true;
+        ImGui::EndMenu();
+      }
+
+      if (ImGui::BeginMenu("Building")) {
+        // Build commands work in integrated mode (no project needed) or with project open
+        bool canBuild = true;
+        
+        if (ImGui::MenuItem("Build Game", "F7", false, canBuild)) {
+          OnBuildGame();
+        }
+        if (ImGui::MenuItem("Build Assets", nullptr, false, canBuild)) {
+          OnBuildAssets();
+        }
+        if (ImGui::MenuItem("Build All", "Ctrl+F7", false, canBuild)) {
+          OnBuildAll();
+        }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Package for Distribution", "Ctrl+Shift+F7", false, canBuild)) {
+          OnPackageGame();
+        }
+        ImGui::Separator();
+        // Open Build Folder - always opens engine root where builds happen
+        bool hasValidPath = !m_EngineAssetsRoot.empty();
+        if (ImGui::MenuItem("Open Build Folder", nullptr, false, hasValidPath)) {
+          // Open the engine root folder where build outputs are located
+#ifdef _WIN32
+          std::string cmd = "explorer \"" + m_EngineAssetsRoot.string() + "\"";
+          system(cmd.c_str());
+#elif __APPLE__
+          std::string cmd = "open \"" + m_EngineAssetsRoot.string() + "\"";
+          system(cmd.c_str());
+#else
+          std::string cmd = "xdg-open \"" + m_EngineAssetsRoot.string() + "\"";
+          system(cmd.c_str());
+#endif
+        }
         ImGui::EndMenu();
       }
 

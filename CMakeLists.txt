@@ -234,6 +234,9 @@ add_custom_command(TARGET Source67 POST_BUILD
 # Build asset packer tool
 if(BUILD_ASSET_PACKER)
     add_subdirectory(tools/asset_packer)
+    # Link AssetPackerLib into the main executable for BuildSystem
+    target_link_libraries(Source67 PUBLIC AssetPackerLib)
+    target_include_directories(Source67 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/tools/asset_packer)
 endif()
 
 # Build game DLL

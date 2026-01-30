@@ -2,6 +2,56 @@
 
 A simple, modern 3D game engine written in C++ for learning purposes. Source67 features a Quake-style console, Jolt Physics integration, and a native C++ scripting system.
 
+## 🚀 Quick Start
+
+**New to Source67?** Start here:
+- **Distributing your game:** [DISTRIBUTION.md](DISTRIBUTION.md) 📦 - Package for Steam, itch.io!
+- **Building your game:** [BUILDING.md](BUILDING.md) 🔨 - Use the in-editor build menu!
+- **Understanding the architecture:** [GAME_PROJECT_GUIDE.md](GAME_PROJECT_GUIDE.md) 🎮
+- **First-time setup:** [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md) ⭐
+- **CMake installation:** [CMAKE_INSTALLATION.md](CMAKE_INSTALLATION.md) 🔧 - Required for building!
+
+## 📋 Prerequisites
+
+**To USE the engine (play/edit):**
+- Windows 10/11, Linux, or macOS
+- Graphics card with OpenGL 4.1+ support
+- Nothing else! Just run Source67.exe
+
+**To BUILD games (compile C++ code):**
+- ✅ **CMake 3.20+** - [Installation Guide](CMAKE_INSTALLATION.md)
+- ✅ **C++ Compiler** (MSVC, GCC, or Clang)
+
+**Quick install CMake:**
+- Windows: Download from https://cmake.org/download/ or run `C:\Program Files\Source67\Tools\install_cmake.bat`
+- Linux: `sudo apt install cmake`
+- macOS: `brew install cmake`
+
+**Verify CMake:** `cmake --version`
+
+---
+
+This comprehensive guide walks you through:
+- ✅ What goes where (DLL vs asset pack vs your game folder)
+- ✅ **Lua vs C++ scripting** - both work for game code!
+- ✅ How the build process works
+- ✅ Building from the editor (easy!)
+- ✅ **Publishing your game** - complete distribution guide
+- ✅ Installing prerequisites
+- ✅ Running and testing
+- ✅ Troubleshooting common issues
+
+**TL;DR:**
+```cmd
+# Windows (from Source67 root directory in Command Prompt)
+build.bat Debug all
+cmake-build-debug\Debug\Source67.exe
+
+# Linux/macOS
+./build.sh Debug all
+./cmake-build-debug/Source67
+```
+
 ## Engine Architecture
 
 The engine follows a component-based architecture where the `Application` manages the main loop, systems, and the active `Scene`. Entities in the scene can be controlled via attached native C++ scripts.

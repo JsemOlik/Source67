@@ -1,5 +1,7 @@
 #include "Base.h"
 #include "Core/GameState.h"
+#include "Core/HybridBuildSystem.h"
+#include "Core/BuildSystem.h"
 #include "Core/UndoSystem.h"
 #include "Events/WindowEvent.h"
 #include "ImGui/ImGuiLayer.h"
@@ -68,6 +70,12 @@ public:
   void SaveManifest();
 
   void CreateTestScene();
+
+  // Build System Methods
+  void OnBuildGame();
+  void OnBuildAssets();
+  void OnBuildAll();
+  void OnPackageGame();
 
   // Tick System Methods
   void SetTickRate(float rate);
@@ -212,6 +220,12 @@ private:
 
   std::vector<std::string> m_RecentProjects;
   Ref<Texture2D> m_LauncherLogo;
+
+  // Hybrid Build System (runtime DLL/asset loading)
+  Scope<HybridBuildSystem> m_HybridBuildSystem;
+  
+  // Build System (compile/pack builds)
+  Scope<BuildSystem> m_BuildSystem;
 
   static Application *s_Instance;
 };
