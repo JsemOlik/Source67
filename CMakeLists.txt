@@ -5,6 +5,12 @@ project(Source67)
 
 # Trigger re-scan of src/ directory
 
+# Build mode options
+option(STANDALONE_MODE "Build in standalone mode (no editor features)" OFF)
+option(EDITOR_MODE "Build editor with full debug features" ON)
+option(BUILD_GAME_DLL "Build Game.dll from game/ subdirectory" ON)
+option(BUILD_ASSET_PACKER "Build asset packer tool" ON)
+
 set(CMAKE_CXX_STANDARD 20)
 # Nudge to pick up Framebuffer.cpp
 # Nudge to pick up SceneSerializer.cpp
@@ -220,3 +226,49 @@ add_custom_command(TARGET Source67 POST_BUILD
     ${CMAKE_CURRENT_SOURCE_DIR}/assets
     $<TARGET_FILE_DIR:Source67>/assets
 )
+
+# ============================================================================
+# Hybrid Build System Integration
+# ============================================================================
+
+# Build asset packer tool
+if(BUILD_ASSET_PACKER)
+    add_subdirectory(tools/asset_packer)
+endif()
+
+# Build game DLL
+if(BUILD_GAME_DLL AND EXISTS "${CMAKE_SOURCE_DIR}/game/CMakeLists.txt")
+    add_subdirectory(game)
+endif()
+
+# Custom target to pack assets
+if(BUILD_ASSET_PACKER)
+    add_custom_target(pack_assets
+        COMMAND asset_packer
+            -i ${CMAKE_CURRENT_SOURCE_DIR}/assets/
+            -o ${CMAKE_BINARY_DIR}/GameAssets.apak
+            -v --include-lua
+        DEPENDS asset_packer
+        COMMENT "Packing GameAssets.apak..."
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+endif()
+
+# Complete build target (engine + game + assets)
+if(BUILD_GAME_DLL AND BUILD_ASSET_PACKER)
+    add_custom_target(build_complete
+        DEPENDS Source67 Game pack_assets
+        COMMENT "Complete build (engine + game + assets)"
+    )
+endif()
+
+# Build mode compile definitions
+if(STANDALONE_MODE)
+    target_compile_definitions(Source67 PRIVATE STANDALONE_MODE)
+    message(STATUS "Building in STANDALONE mode (no editor features)")
+endif()
+
+if(EDITOR_MODE)
+    target_compile_definitions(Source67 PRIVATE EDITOR_MODE)
+    message(STATUS "Building in EDITOR mode (full debug features)")
+endif()

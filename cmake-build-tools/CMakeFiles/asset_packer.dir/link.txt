@@ -1,0 +1,1 @@
+/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/asset_packer.dir/link.d CMakeFiles/asset_packer.dir/main.cpp.o CMakeFiles/asset_packer.dir/AssetPacker.cpp.o -o asset_packer
