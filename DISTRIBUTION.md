@@ -34,9 +34,30 @@ YourGame/                           ← Distribution folder
 
 ## 🔧 Step-by-Step: Creating a Distribution Package
 
-### Quick Method: Use the Package Script ⭐
+### In-Editor Method (Super Easy!) 🌟
 
-**Easiest way to create a distribution package:**
+**The easiest way - right from the editor:**
+
+1. **Open your project** in Source67 editor
+2. Click **Building** menu → **Package for Distribution** (or press `Ctrl+Shift+F7`)
+3. Wait for the packaging process to complete
+4. Done! Your game is packaged and ready!
+
+**What it does:**
+- Automatically builds Release versions
+- Creates distribution folder named after your project
+- Packages everything into a ZIP file
+- Shows progress in the console
+
+**Output:** `YourProjectName_v1.0.0.zip` in your project folder!
+
+**This is the recommended method!** ⭐
+
+---
+
+### Quick Method: Use the Package Script
+
+**Command-line packaging:**
 
 ```bash
 # Windows

@@ -966,6 +966,40 @@ void Application::OnBuildAll() {
   }
 }
 
+void Application::OnPackageGame() {
+  S67_CORE_INFO("Creating distribution package...");
+  
+  // Save current scene first
+  if (m_LevelLoaded && m_SceneModified) {
+    OnSaveScene();
+  }
+
+  // Get project name from manifest or use folder name
+  std::string projectName = "MyGame";
+  if (!m_ProjectRoot.empty()) {
+    projectName = m_ProjectRoot.filename().string();
+  }
+  
+  // Get version (you could load this from a settings file)
+  std::string version = "1.0.0";
+
+#ifdef _WIN32
+  std::string packageCmd = "cd \"" + m_ProjectRoot.string() + "\" && package.bat " + projectName + " " + version;
+#else
+  std::string packageCmd = "cd \"" + m_ProjectRoot.string() + "\" && ./package.sh " + projectName + " " + version;
+#endif
+
+  S67_CORE_INFO("Executing: {0}", packageCmd);
+  int result = system(packageCmd.c_str());
+  
+  if (result == 0) {
+    S67_CORE_INFO("Package created successfully: {0}_v{1}.zip", projectName, version);
+    S67_CORE_INFO("Ready for distribution!");
+  } else {
+    S67_CORE_ERROR("Packaging failed with exit code {0}", result);
+  }
+}
+
 void Application::OnEvent(Event &e) {
   // 1. Console Toggle (Global Priority)
   if (e.GetEventType() == EventType::KeyPressed) {
@@ -2242,6 +2276,10 @@ void Application::RenderFrame(float alpha) {
         }
         if (ImGui::MenuItem("Build All", "Ctrl+F7", false, m_LevelLoaded)) {
           OnBuildAll();
+        }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Package for Distribution", "Ctrl+Shift+F7", false, m_LevelLoaded)) {
+          OnPackageGame();
         }
         ImGui::Separator();
         if (ImGui::MenuItem("Open Build Folder", nullptr, false, m_LevelLoaded)) {

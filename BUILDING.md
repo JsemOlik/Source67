@@ -14,17 +14,21 @@
 │  ┌────────────────────────────────────────────────────┐ │
 │  │  File  Edit  Settings  Building  Window           │ │
 │  │                        ▼                           │ │
-│  │                    ┌─────────────────────┐         │ │
-│  │                    │ Build Game      F7  │         │ │
-│  │                    │ Build Assets        │         │ │
-│  │                    │ Build All    Ctrl+F7│         │ │
-│  │                    │ ───────────────────│         │ │
-│  │                    │ Open Build Folder   │         │ │
-│  │                    └─────────────────────┘         │ │
+│  │                    ┌────────────────────────────┐  │ │
+│  │                    │ Build Game          F7     │  │ │
+│  │                    │ Build Assets               │  │ │
+│  │                    │ Build All        Ctrl+F7   │  │ │
+│  │                    │ ──────────────────────────│  │ │
+│  │                    │ Package for Distribution   │  │ │
+│  │                    │                 Ctrl+Shift+F7│ │
+│  │                    │ ──────────────────────────│  │ │
+│  │                    │ Open Build Folder          │  │ │
+│  │                    └────────────────────────────┘  │ │
 │  └────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────┘
 
 Just click Building > Build Game (or press F7)!
+To create a distribution package, click Building > Package for Distribution!
 The editor handles everything for you.
 ```
 
@@ -285,6 +289,7 @@ Zip it up → Ready to share!
 | Build game C++ code | Building > Build Game | F7 | ~30 sec |
 | Build assets & Lua | Building > Build Assets | - | ~10 sec |
 | Build everything | Building > Build All | Ctrl+F7 | ~2-5 min |
+| **Package for distribution** | **Building > Package for Distribution** | **Ctrl+Shift+F7** | **~3-6 min** |
 | Open build folder | Building > Open Build Folder | - | instant |
 
 ### Build Types
@@ -401,10 +406,11 @@ Solution: Ctrl+C to cancel
 ### Tip 1: Use Keyboard Shortcuts
 
 ```
-F7           → Build Game (fastest!)
-Ctrl+F7      → Build All
-Ctrl+S       → Save Level
-F5           → Reload Scene (hot-reload Lua!)
+F7                → Build Game (fastest!)
+Ctrl+F7           → Build All
+Ctrl+Shift+F7     → Package for Distribution (creates release ZIP!)
+Ctrl+S            → Save Level
+F5                → Reload Scene (hot-reload Lua!)
 ```
 
 ### Tip 2: Check Console Output

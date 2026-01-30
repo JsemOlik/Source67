@@ -74,6 +74,7 @@ public:
   void OnBuildGame();
   void OnBuildAssets();
   void OnBuildAll();
+  void OnPackageGame();
 
   // Tick System Methods
   void SetTickRate(float rate);
