@@ -191,6 +191,13 @@ Application::Application(const std::string &executablePath,
   
   // Script loading is now deferred to SetProjectRoot or DiscoverProject
 
+  // Initialize Hybrid Build System
+  S67_CORE_INFO("Initializing Hybrid Build System...");
+  m_HybridBuildSystem = CreateScope<HybridBuildSystem>();
+  if (!m_HybridBuildSystem->Initialize(this, &LuaScriptEngine::GetState())) {
+    S67_CORE_WARN("Hybrid build system not available (DLL/assets not found - this is normal if not built yet)");
+  }
+
   m_HUDShader =
       Shader::Create(ResolveAssetPath("assets/shaders/HUD.glsl").string());
   HUDRenderer::SetShader(m_HUDShader);
@@ -325,6 +332,9 @@ void Application::CreateTestScene() {
 }
 
 Application::~Application() {
+  if (m_HybridBuildSystem) {
+    m_HybridBuildSystem->Shutdown();
+  }
   HUDRenderer::Shutdown();
   m_ImGuiLayer->OnDetach();
   PhysicsSystem::Shutdown();
@@ -922,6 +932,36 @@ void Application::OnEvent(Event &e) {
 
   m_ImGuiLayer->OnEvent(e);
 
+  // Forward events to Hybrid Build System (Game DLL)
+  if (m_HybridBuildSystem && m_HybridBuildSystem->IsReady()) {
+    EventDispatcher dispatcher(e);
+    
+    dispatcher.Dispatch<KeyPressedEvent>([this](KeyPressedEvent& event) {
+      m_HybridBuildSystem->OnKeyPressed(event.GetKeyCode());
+      return false; // Don't consume the event
+    });
+    
+    dispatcher.Dispatch<KeyReleasedEvent>([this](KeyReleasedEvent& event) {
+      m_HybridBuildSystem->OnKeyReleased(event.GetKeyCode());
+      return false;
+    });
+    
+    dispatcher.Dispatch<MouseMovedEvent>([this](MouseMovedEvent& event) {
+      m_HybridBuildSystem->OnMouseMoved(event.GetX(), event.GetY());
+      return false;
+    });
+    
+    dispatcher.Dispatch<MouseButtonPressedEvent>([this](MouseButtonPressedEvent& event) {
+      m_HybridBuildSystem->OnMouseButton(event.GetButton(), 1);
+      return false;
+    });
+    
+    dispatcher.Dispatch<MouseButtonReleasedEvent>([this](MouseButtonReleasedEvent& event) {
+      m_HybridBuildSystem->OnMouseButton(event.GetButton(), 0);
+      return false;
+    });
+  }
+
   if (m_SceneState == SceneState::Play) {
     if (m_Scene) {
       if (auto entity = m_Scene->FindEntityByName("Player")) {
@@ -1176,6 +1216,11 @@ void Application::UpdateGameTick(float tick_dt) {
   // 1. Update Scene (includes Scripts -> PlayerController::On
   if (m_Scene)
     m_Scene->OnUpdate(tick_dt);
+
+  // 1b. Update Hybrid Build System (Game DLL update)
+  if (m_HybridBuildSystem && m_HybridBuildSystem->IsReady()) {
+    m_HybridBuildSystem->Update(tick_dt);
+  }
 
   // 2. Update Jolt Physics with fixed timestep
   PhysicsSystem::OnUpdate(Timestep(tick_dt));
@@ -2059,6 +2104,11 @@ void Application::RenderFrame(float alpha) {
   HUDRenderer::EndHUD();
 
   m_GameFramebuffer->Unbind();
+
+  // 4. Hybrid Build System Render (Game DLL render)
+  if (m_HybridBuildSystem && m_HybridBuildSystem->IsReady()) {
+    m_HybridBuildSystem->Render();
+  }
 
   m_ImGuiLayer->Begin();
 
