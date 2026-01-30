@@ -539,12 +539,11 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
       ImGui::Spacing();
       for (int i = 0; i < entity->LuaScripts.size(); i++) {
         ImGui::PushID(i + 100); // Offset to avoid ID collision
-        char buffer[256];
-        strncpy(buffer, entity->LuaScripts[i].FilePath.c_str(), sizeof(buffer));
-        if (ImGui::InputText("File Path", buffer, sizeof(buffer))) {
-          entity->LuaScripts[i].FilePath = buffer;
-          entity->LuaScripts[i].Initialized = false; // Reset to reload
-          Application::Get().SetSceneModified(true);
+        std::filesystem::path path(entity->LuaScripts[i].FilePath);
+        ImGui::Text("%s", path.filename().string().c_str());
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("%s", entity->LuaScripts[i].FilePath.c_str());
         }
 
         if (ImGui::BeginDragDropTarget()) {
