@@ -2301,12 +2301,15 @@ void Application::RenderFrame(float alpha) {
             CloseScene();
         }
 
-        if (!m_ProjectRoot.empty()) {
-          ImGui::Separator();
-          if (ImGui::MenuItem("Build Runtime..."))
-            OnBuildRuntime();
-          ImGui::Separator();
-          if (ImGui::MenuItem("Close Project"))
+        // Project section
+        ImGui::Separator();
+        
+        bool hasProject = !m_ProjectRoot.empty();
+        if (ImGui::MenuItem("Build Runtime...", nullptr, false, hasProject))
+          OnBuildRuntime();
+          
+        if (hasProject) {
+           if (ImGui::MenuItem("Close Project"))
             CloseProject();
         }
 
