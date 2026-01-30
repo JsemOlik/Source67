@@ -156,6 +156,7 @@ private:
   std::string m_ProjectCompany = "Default Company";
   std::string m_ProjectVersion = "N/A";
   std::string m_ProjectDefaultLevel = "";
+  bool m_Standalone = false;
   bool m_LevelLoaded = false;
   std::string m_LevelFilePath = "";
 

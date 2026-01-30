@@ -83,32 +83,51 @@ Application::Application(const std::string &executablePath,
                             });
   Console::Get().RegisterConVar(s_SvTickRate);
 
-  // Find assets root
-  std::filesystem::path currentPath =
-      std::filesystem::absolute(executablePath).parent_path();
-  bool found = false;
-  for (int i = 0; i < 5; i++) {
-    if (std::filesystem::exists(currentPath / "assets")) {
-      std::filesystem::current_path(currentPath);
-      found = true;
-      break;
-    }
-    if (currentPath.has_parent_path())
-      currentPath = currentPath.parent_path();
-    else
-      break;
+  // Professional Bootstrapping: Search for [Project]_Data folder
+  std::filesystem::path exePath = std::filesystem::absolute(executablePath);
+  std::filesystem::path exeDir = exePath.parent_path();
+  std::string exeName = exePath.stem().string();
+
+  // Strip "-Runtime" if it exists (for dev testing)
+  if (exeName.find("-Runtime") != std::string::npos) {
+    exeName = exeName.substr(0, exeName.find("-Runtime"));
   }
 
-  if (!found) {
-    S67_CORE_ERROR(
-        "Could not find 'assets' directory relative to executable path: {0}!",
-        executablePath);
-    m_EngineAssetsRoot =
-        std::filesystem::absolute(executablePath).parent_path();
+  std::filesystem::path dataDir = exeDir / (exeName + "_Data");
+
+  if (std::filesystem::exists(dataDir)) {
+    m_EngineAssetsRoot = dataDir;
+    m_ProjectRoot = dataDir;
+    std::filesystem::current_path(dataDir);
+    m_Standalone = true;
+    S67_CORE_INFO("Professional Standalone Mode: Using data directory {0}",
+                  dataDir.string());
   } else {
-    m_EngineAssetsRoot = currentPath;
-    S67_CORE_INFO("Set working directory to project root: {0}",
-                  currentPath.string());
+    // Legacy search for 'assets' directory relative to executable path
+    std::filesystem::path currentPath = exeDir;
+    bool found = false;
+    for (int i = 0; i < 5; i++) {
+      if (std::filesystem::exists(currentPath / "assets")) {
+        std::filesystem::current_path(currentPath);
+        found = true;
+        break;
+      }
+      if (currentPath.has_parent_path())
+        currentPath = currentPath.parent_path();
+      else
+        break;
+    }
+
+    if (!found) {
+      S67_CORE_ERROR(
+          "Could not find 'assets' directory relative to executable path: {0}!",
+          executablePath);
+      m_EngineAssetsRoot = exeDir;
+    } else {
+      m_EngineAssetsRoot = currentPath;
+      S67_CORE_INFO("Set working directory to project root: {0}",
+                    currentPath.string());
+    }
   }
 
   // Auto-mount Engine Paks
@@ -238,36 +257,38 @@ Application::Application(const std::string &executablePath,
     }
   }
 
-  // Standalone mode detection (after everything is initialized)
-  std::filesystem::path cfgPath = m_EngineAssetsRoot / "game.cfg";
-  if (std::filesystem::exists(cfgPath)) {
-    S67_CORE_INFO("Found game.cfg, entering standalone/shipping mode...");
-    std::ifstream cfgFile(cfgPath);
-    std::string line;
-    while (std::getline(cfgFile, line)) {
-      size_t eqPos = line.find('=');
-      if (eqPos != std::string::npos) {
-        std::string key = line.substr(0, eqPos);
-        std::string val = line.substr(eqPos + 1);
-        // Basic trimming
-        val.erase(val.find_last_not_of(" \n\r\t") + 1);
-        if (key == "project_name")
-          m_ProjectName = val;
-        if (key == "entry_level")
-          m_ProjectDefaultLevel = val;
+  // Consolidate standalone level loading (only if not already loaded via args)
+  if (m_Standalone && !m_LevelLoaded) {
+    std::filesystem::path cfgPath = m_ProjectRoot / "game.cfg";
+    if (std::filesystem::exists(cfgPath)) {
+      std::ifstream cfgFile(cfgPath);
+      std::string line;
+      while (std::getline(cfgFile, line)) {
+        size_t eqPos = line.find('=');
+        if (eqPos != std::string::npos) {
+          std::string key = line.substr(0, eqPos);
+          std::string val = line.substr(eqPos + 1);
+          val.erase(val.find_last_not_of(" \n\r\t") + 1);
+          if (key == "project_name")
+            m_ProjectName = val;
+          if (key == "entry_level")
+            m_ProjectDefaultLevel = val;
+        }
       }
-    }
 
-    // In standalone mode, the engine root IS the project root
-    m_ProjectRoot = m_EngineAssetsRoot;
-
-    if (!m_ProjectDefaultLevel.empty()) {
-      std::filesystem::path levelPath = m_ProjectRoot / m_ProjectDefaultLevel;
-      if (std::filesystem::exists(levelPath)) {
-        S67_CORE_INFO("Standalone auto-loading level: {0}", levelPath.string());
-        OpenScene(levelPath.string());
-        m_SceneState = SceneState::Play;
-        OnScenePlay();
+      if (!m_ProjectDefaultLevel.empty()) {
+        std::string levelPathStr = m_ProjectDefaultLevel;
+        // Check PAK or Disk
+        if (HasPakAsset(levelPathStr) ||
+            std::filesystem::exists(m_ProjectRoot / levelPathStr)) {
+          S67_CORE_INFO("Standalone auto-loading level: {0}", levelPathStr);
+          OpenScene(levelPathStr);
+          m_SceneState = SceneState::Play;
+          OnScenePlay();
+        } else {
+          S67_CORE_ERROR("Standalone could not find entry level: {0}",
+                         levelPathStr);
+        }
       }
     }
   }
@@ -513,14 +534,22 @@ Application::ResolveAssetPath(const std::filesystem::path &path) {
   if (path.is_absolute())
     return path;
 
-  // 1. Try project root
+  std::string genericPath = path.generic_string();
+
+  // 1. Check mounted PAKs first (Source/Unity style: packed assets have
+  // priority)
+  if (HasPakAsset(genericPath)) {
+    return path; // Return as is, asset loaders will handle it via GetPakAsset
+  }
+
+  // 2. Try project root
   if (!m_ProjectRoot.empty()) {
     std::filesystem::path projectPath = m_ProjectRoot / path;
     if (std::filesystem::exists(projectPath))
       return projectPath;
   }
 
-  // 2. Try engine assets root
+  // 3. Try engine assets root
   if (!m_EngineAssetsRoot.empty()) {
     std::filesystem::path enginePath = m_EngineAssetsRoot / path;
     if (std::filesystem::exists(enginePath))
@@ -870,12 +899,14 @@ void Application::OnBuildGame() {
     return;
 
   std::filesystem::path exportDir(exportPath);
-  std::filesystem::create_directories(exportDir);
+  std::filesystem::path dataDir = exportDir / (m_ProjectName + "_Data");
+  std::filesystem::create_directories(dataDir);
+  std::filesystem::create_directories(exportDir / "bin");
 
   S67_CORE_INFO("Building standalone game to {0}...", exportDir.string());
 
-  // 1. Package Assets into assets.pak
-  std::string pakPath = (exportDir / "assets.pak").string();
+  // 1. Package Assets into assets.pak (inside _Data)
+  std::string pakPath = (dataDir / "assets.pak").string();
   {
     PakWriter writer(pakPath);
     TextureProcessor texProc;
@@ -884,71 +915,80 @@ void Application::OnBuildGame() {
     LevelProcessor levelProc;
 
     std::filesystem::path assetsDir = m_ProjectRoot / "assets";
-    for (const auto &entry :
-         std::filesystem::recursive_directory_iterator(assetsDir)) {
-      if (entry.is_directory())
-        continue;
+    if (std::filesystem::exists(assetsDir)) {
+      for (const auto &entry :
+           std::filesystem::recursive_directory_iterator(assetsDir)) {
+        if (entry.is_directory())
+          continue;
 
-      std::filesystem::path path = entry.path();
-      std::string ext = path.extension().string();
-      ProcessedAsset asset;
-      bool processed = false;
+        std::filesystem::path path = entry.path();
+        std::string ext = path.extension().string();
+        ProcessedAsset asset;
+        bool processed = false;
 
-      if (ext == ".png" || ext == ".jpg" || ext == ".tga") {
-        processed = texProc.Process(path, asset);
-      } else if (ext == ".obj" || ext == ".stl") {
-        processed = meshProc.Process(path, asset);
-      } else if (ext == ".glsl") {
-        processed = shaderProc.Process(path, asset);
-      } else if (ext == ".s67") {
-        processed = levelProc.Process(path, asset);
-      } else {
-        std::filesystem::path rel =
-            std::filesystem::relative(path, m_ProjectRoot);
-        std::string relPath = rel.generic_string();
-        if (relPath.find("assets/") != 0) {
-          relPath = (std::filesystem::path("assets") / rel).generic_string();
+        if (ext == ".png" || ext == ".jpg" || ext == ".tga") {
+          processed = texProc.Process(path, asset);
+        } else if (ext == ".obj" || ext == ".stl") {
+          processed = meshProc.Process(path, asset);
+        } else if (ext == ".glsl") {
+          processed = shaderProc.Process(path, asset);
+        } else if (ext == ".s67") {
+          processed = levelProc.Process(path, asset);
+        } else {
+          std::filesystem::path rel =
+              std::filesystem::relative(path, m_ProjectRoot);
+          std::string relPath = rel.generic_string();
+          if (relPath.find("assets/") != 0) {
+            relPath = (std::filesystem::path("assets") / rel).generic_string();
+          }
+          writer.AddFile(relPath, path.string());
+          continue;
         }
-        writer.AddFile(relPath, path.string());
-        continue;
-      }
 
-      if (processed) {
-        std::filesystem::path rel =
-            std::filesystem::relative(path, m_ProjectRoot);
-        std::string relPath = rel.generic_string();
-        if (relPath.find("assets/") != 0) {
-          relPath = (std::filesystem::path("assets") / rel).generic_string();
+        if (processed) {
+          std::filesystem::path rel =
+              std::filesystem::relative(path, m_ProjectRoot);
+          std::string relPath = rel.generic_string();
+          if (relPath.find("assets/") != 0) {
+            relPath = (std::filesystem::path("assets") / rel).generic_string();
+          }
+          writer.AddFile(relPath, asset.Data.data(),
+                         (uint32_t)asset.Data.size());
         }
-        writer.AddFile(relPath, asset.Data.data(), (uint32_t)asset.Data.size());
       }
     }
     writer.Write();
   }
 
   // 2. Copy Executable and DLLs
-  std::filesystem::path binDir = m_EngineAssetsRoot;
-  for (const auto &entry : std::filesystem::directory_iterator(binDir)) {
-    if (entry.path().extension() == ".exe" ||
-        entry.path().extension() == ".dll") {
-      try {
+  std::filesystem::path engineBinDir = m_EngineAssetsRoot;
+  for (const auto &entry : std::filesystem::directory_iterator(engineBinDir)) {
+    std::string ext = entry.path().extension().string();
+    std::string filename = entry.path().filename().string();
+
+    if (ext == ".exe") {
+      if (filename.find("Runtime") != std::string::npos) {
         std::filesystem::copy_file(
-            entry.path(), exportDir / entry.path().filename(),
+            entry.path(), exportDir / (m_ProjectName + ".exe"),
             std::filesystem::copy_options::overwrite_existing);
-      } catch (...) {
-        S67_CORE_ERROR("Failed to copy {0}", entry.path().string());
       }
+    } else if (ext == ".dll") {
+      std::filesystem::copy_file(
+          entry.path(), exportDir / filename,
+          std::filesystem::copy_options::overwrite_existing);
+      // Also copy to bin/ for "professional" look (optional)
+      std::filesystem::copy_file(
+          entry.path(), exportDir / "bin" / filename,
+          std::filesystem::copy_options::overwrite_existing);
     }
   }
 
-  // 3. Create game.cfg
-  std::ofstream cfg(exportDir / "game.cfg");
+  // 3. Create game.cfg (inside _Data)
+  std::ofstream cfg(dataDir / "game.cfg");
   if (cfg.is_open()) {
     cfg << "project_name=" << m_ProjectName << "\n";
     std::string relLevel = "assets/levels/Untitled.s67";
     if (!m_LevelFilePath.empty()) {
-      // Ensure we get a path relative to the project root, starting with
-      // "assets/"
       std::filesystem::path rel =
           std::filesystem::relative(m_LevelFilePath, m_ProjectRoot);
       std::string relStr = rel.generic_string();
