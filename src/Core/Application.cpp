@@ -32,11 +32,10 @@
 #include "Scripting/LuaScriptEngine.h"
 
 #include <GLFW/glfw3.h>
-#ifdef __APPLE__
+#if defined(__APPLE__)
 #define GLFW_EXPOSE_NATIVE_COCOA
 #include <GLFW/glfw3native.h>
-#endif
-#ifdef _WIN32
+#elif defined(_WIN32)
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 #endif
