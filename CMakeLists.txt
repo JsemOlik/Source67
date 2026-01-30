@@ -88,7 +88,7 @@ set(CROSS_PLATFORM_DETERMINISTIC OFF CACHE BOOL "" FORCE)
 # sol2 (C++ Lua binding)
 FetchContent_Declare(
     sol2
-    GIT_REPOSITORY https://github.com/TheOvertake/sol2.git
+    GIT_REPOSITORY https://github.com/ThePhD/sol2
     GIT_TAG        v3.3.0
 )
 
