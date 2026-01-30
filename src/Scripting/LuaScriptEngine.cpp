@@ -9,11 +9,25 @@
 namespace S67 {
 
     sol::state LuaScriptEngine::s_State;
+    std::bitset<512> LuaScriptEngine::s_LastKeys;
+    std::bitset<512> LuaScriptEngine::s_JustPressed;
 
     void LuaScriptEngine::Init() {
         s_State.open_libraries(sol::lib::base, sol::lib::package, sol::lib::math, sol::lib::string);
         BindAPI();
         S67_CORE_INFO("LuaScriptEngine initialized");
+    }
+
+    void LuaScriptEngine::BeginFrame() {
+        s_JustPressed.reset();
+        // Optimize: Only check range of common keys or 0-350 (GLFW_KEY_LAST is 348)
+        for (int i = 32; i <= 348; i++) {
+             bool pressed = Input::IsKeyPressed(i);
+             if (pressed && !s_LastKeys.test(i)) {
+                 s_JustPressed.set(i);
+             }
+             s_LastKeys.set(i, pressed);
+        }
     }
 
     void LuaScriptEngine::Shutdown() {
@@ -102,6 +116,11 @@ namespace S67 {
 
         s_State.set_function("isKeyPressed", [](int key) {
             return Input::IsKeyPressed(key);
+        });
+
+        s_State.set_function("isKeyJustPressed", [](int key) {
+            if (key >= 0 && key < 512) return s_JustPressed.test(key);
+            return false;
         });
 
         // Key Codes

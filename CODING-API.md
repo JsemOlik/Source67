@@ -30,8 +30,10 @@ end
 - `printHUD(text, color)`: Brief HUD message.
 - `entity:getPosition()`: Get absolute position.
 - `entity:setPosition(vec3)`: Set absolute position.
+- `log(message)`: Print to the developer console.
 - `findEntity(name)`: Find an entity by name.
-- `isKeyPressed(KEY_...)`: Check keyboard input.
+- `isKeyPressed(KEY_...)`: Check if key is currently held down.
+- `isKeyJustPressed(KEY_...)`: Check if key was pressed this frame (click).
 
 ## 2. C++ Scripting (Plugins)
 

@@ -127,6 +127,7 @@ void Scene::InstantiateScripts() {
 }
 
 void Scene::OnUpdate(float ts) {
+  LuaScriptEngine::BeginFrame();
   InstantiateScripts();
 
   for (auto &entity : m_Entities) {
