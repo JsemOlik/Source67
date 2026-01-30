@@ -22,26 +22,41 @@ namespace S67 {
 
     void LuaScriptEngine::BindAPI() {
         // Math types
-        s_State.new_usertype<glm::vec2>("vec2",
+        s_State.new_usertype<glm::vec2>("Vec2",
             sol::constructors<glm::vec2(), glm::vec2(float), glm::vec2(float, float)>(),
             "x", &glm::vec2::x,
             "y", &glm::vec2::y
         );
 
-        s_State.new_usertype<glm::vec3>("vec3",
+        s_State.set_function("vec2", sol::overload(
+            [](float c) { return glm::vec2(c); },
+            [](float x, float y) { return glm::vec2(x, y); }
+        ));
+
+        s_State.new_usertype<glm::vec3>("Vec3",
             sol::constructors<glm::vec3(), glm::vec3(float), glm::vec3(float, float, float)>(),
             "x", &glm::vec3::x,
             "y", &glm::vec3::y,
             "z", &glm::vec3::z
         );
 
-        s_State.new_usertype<glm::vec4>("vec4",
+        s_State.set_function("vec3", sol::overload(
+            [](float c) { return glm::vec3(c); },
+            [](float x, float y, float z) { return glm::vec3(x, y, z); }
+        ));
+
+        s_State.new_usertype<glm::vec4>("Vec4",
             sol::constructors<glm::vec4(), glm::vec4(float), glm::vec4(float, float, float, float)>(),
             "x", &glm::vec4::x,
             "y", &glm::vec4::y,
             "z", &glm::vec4::z,
             "w", &glm::vec4::w
         );
+
+        s_State.set_function("vec4", sol::overload(
+            [](float c) { return glm::vec4(c); },
+            [](float x, float y, float z, float w) { return glm::vec4(x, y, z, w); }
+        ));
 
         // Transform
         s_State.new_usertype<Transform>("Transform",
