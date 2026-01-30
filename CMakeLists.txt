@@ -271,6 +271,9 @@ elseif(UNIX)
     target_link_libraries(Source67-Runtime PUBLIC OpenGL::GL)
 endif()
 
+# Ensure Editor always builds the Runtime template
+add_dependencies(Source67 Source67-Runtime)
+
 # Copy assets to build directory
 # Copy assets to build directory
 # add_custom_command(TARGET Source67 POST_BUILD
