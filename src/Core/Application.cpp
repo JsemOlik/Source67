@@ -25,6 +25,8 @@
 #include "Renderer/Framebuffer.h"
 #include "Renderer/SceneSerializer.h"
 #include "Renderer/ScriptableEntity.h"
+#include "Renderer/ScriptRegistry.h"
+#include "Scripting/LuaScriptEngine.h"
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -166,6 +168,13 @@ Application::Application(const std::string &executablePath,
   // Initialize HUD Renderer
   S67_CORE_INFO("Initializing HUD Renderer...");
   HUDRenderer::Init();
+
+  // Initialize Scripting
+  S67_CORE_INFO("Initializing Lua Engine...");
+  LuaScriptEngine::Init();
+  
+  // Script loading is now deferred to SetProjectRoot or DiscoverProject
+
   m_HUDShader =
       Shader::Create(ResolveAssetPath("assets/shaders/HUD.glsl").string());
   HUDRenderer::SetShader(m_HUDShader);
@@ -407,6 +416,16 @@ void Application::SetProjectRoot(const std::filesystem::path &root) {
   m_ProjectRoot = root;
   if (m_ContentBrowserPanel)
     m_ContentBrowserPanel->SetRoot(root);
+
+  // Unload previous project modules
+  ScriptRegistry::Get().UnloadModules();
+
+  // Scan for scripts in the project root
+  std::filesystem::path scriptsDir = root / "Scripts";
+  if (std::filesystem::exists(scriptsDir)) {
+    S67_CORE_INFO("Loading project scripts from: {0}", scriptsDir.string());
+    ScriptRegistry::Get().LoadModules(scriptsDir);
+  }
 }
 
 std::filesystem::path

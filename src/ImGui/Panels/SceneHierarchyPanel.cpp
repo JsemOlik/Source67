@@ -3,6 +3,7 @@
 #include "Core/Logger.h"
 #include "Core/UndoSystem.h"
 #include "Renderer/ScriptRegistry.h"
+#include <filesystem>
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -474,8 +475,8 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
       }
     });
 
-    DrawComponent("Scripts", [&]() {
-      if (ImGui::Button("Add Script")) {
+    DrawComponent("Scripts (Native)", [&]() {
+      if (ImGui::Button("Add Native Script")) {
         ImGui::OpenPopup("AddScriptPopup");
       }
 
@@ -498,9 +499,70 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
         ImGui::Text("%s", entity->Scripts[i].Name.c_str());
         ImGui::SameLine();
         if (ImGui::Button("Remove")) {
-          if (entity->Scripts[i].DestroyScript)
-            entity->Scripts[i].DestroyScript(&entity->Scripts[i]);
+          // Native scripts are handled by Scene::OnUpdate or destructor usually
           entity->Scripts.erase(entity->Scripts.begin() + i);
+          Application::Get().SetSceneModified(true);
+          ImGui::PopID();
+          break;
+        }
+        ImGui::PopID();
+      }
+    });
+
+    DrawComponent("Lua Scripts", [&]() {
+      if (ImGui::Button("Add Lua Script")) {
+        ImGui::OpenPopup("AddLuaScriptPopup");
+      }
+
+      if (ImGui::BeginPopup("AddLuaScriptPopup")) {
+        std::filesystem::path scriptDir = "Scripts";
+        if (!std::filesystem::exists(scriptDir))
+            scriptDir = "../Scripts"; // Try up one level if running from build dir
+
+        if (std::filesystem::exists(scriptDir)) {
+             for (const auto& entry : std::filesystem::directory_iterator(scriptDir)) {
+                 if (entry.path().extension() == ".lua") {
+                     if (ImGui::MenuItem(entry.path().filename().string().c_str())) {
+                         // Store as "Scripts/Filename.lua" to be consistent with project root
+                         std::string relativePath = "Scripts/" + entry.path().filename().string();
+                         entity->LuaScripts.push_back({relativePath, false});
+                         Application::Get().SetSceneModified(true);
+                     }
+                 }
+             }
+        } else {
+            ImGui::Text("Scripts folder not found!");
+        }
+        ImGui::EndPopup();
+      }
+
+      ImGui::Spacing();
+      for (int i = 0; i < entity->LuaScripts.size(); i++) {
+        ImGui::PushID(i + 100); // Offset to avoid ID collision
+        std::filesystem::path path(entity->LuaScripts[i].FilePath);
+        ImGui::Text("%s", path.filename().string().c_str());
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("%s", entity->LuaScripts[i].FilePath.c_str());
+        }
+
+        if (ImGui::BeginDragDropTarget()) {
+          if (const ImGuiPayload *payload =
+                  ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+            const char *path = (const char *)payload->Data;
+            std::filesystem::path assetPath = path;
+            if (assetPath.extension() == ".lua") {
+              entity->LuaScripts[i].FilePath = assetPath.string();
+              entity->LuaScripts[i].Initialized = false;
+              Application::Get().SetSceneModified(true);
+            }
+          }
+          ImGui::EndDragDropTarget();
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Remove")) {
+          entity->LuaScripts.erase(entity->LuaScripts.begin() + i);
           Application::Get().SetSceneModified(true);
           ImGui::PopID();
           break;

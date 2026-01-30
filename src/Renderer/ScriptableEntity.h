@@ -1,20 +1,20 @@
 #pragma once
 
-#include "Entity.h"
 #include "Events/Event.h"
 #include <string>
 #include <glm/glm.hpp>
 
 namespace S67 {
 
+class Entity;
+struct Transform;
+
 class ScriptableEntity {
 public:
   virtual ~ScriptableEntity() {}
 
-  Entity &GetEntity() { return *m_Entity; }
-
-  // Shortcuts
-  Transform &GetTransform() { return m_Entity->Transform; }
+  Entity &GetEntity();
+  Transform &GetTransform();
 
   // "Stupid Simple" API
   Entity *Raycast(float distance = 10.0f);

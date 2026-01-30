@@ -85,7 +85,21 @@ set(PERFORMANCE_TEST OFF CACHE BOOL "" FORCE)
 # Disable warnings-as-errors for Jolt to avoid Windows SDK header warnings
 set(CROSS_PLATFORM_DETERMINISTIC OFF CACHE BOOL "" FORCE)
 
-FetchContent_MakeAvailable(glfw glm spdlog jolt imgui json)
+# sol2 (C++ Lua binding)
+FetchContent_Declare(
+    sol2
+    GIT_REPOSITORY https://github.com/ThePhD/sol2
+    GIT_TAG        v3.5.0
+)
+
+# Lua
+FetchContent_Declare(
+    lua
+    GIT_REPOSITORY https://github.com/walterschell/Lua
+    GIT_TAG        v5.4.7
+)
+
+FetchContent_MakeAvailable(glfw glm spdlog jolt imgui json sol2 lua)
 
 # Override /WX flag for Jolt target on MSVC to prevent Windows SDK warnings from failing the build
 # Using /WX- explicitly disables warnings-as-errors and overrides any /WX set by Jolt's CMake
@@ -118,8 +132,6 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "src/**/*.cpp"
     "src/**/*.mm"
     "src/**/*.h"
-    "Scripts/**/*.cpp"
-    "Scripts/**/*.h"
     "vendor/**/*.cpp"
     "vendor/**/*.h"
 )
@@ -168,6 +180,9 @@ target_link_libraries(Source67 PUBLIC
     glad
     Jolt
     nlohmann_json::nlohmann_json
+    lua_static
+    lua_static
+    sol2
 )
 
 # Compiler warnings
