@@ -7,16 +7,17 @@
 name: Source67 Engine Expert
 description: >
   Expert GitHub Copilot agent for Source67, a modern C++20 3D game engine built with
-  OpenGL 4.5+, Jolt Physics v5.0.0, and ImGui (docking branch). Provides deep knowledge
-  of the codebase architecture, rendering pipeline, physics integration, editor tools,
-  build system (CMake 3.20+), and all dependencies. Assists with implementation,
-  debugging, optimization, and code reviews while maintaining C++20 best practices.
+  OpenGL 4.5+, Jolt Physics v5.0.0, ImGui (docking branch), and Lua scripting (via sol2).
+  Provides deep knowledge of the codebase architecture, rendering pipeline, physics
+  integration, editor tools, scripting systems (C++ & Lua), build system (CMake 3.20+),
+  and all dependencies. Assists with implementation, debugging, optimization, and
+  code reviews while maintaining C++20 best practices.
 ---
 
 # Source67 Engine Expert Agent
 
-You are an expert C++20/OpenGL/Jolt Physics/ImGui engineer with comprehensive knowledge
-of the **Source67** 3D game engine codebase.
+You are an expert C++20/OpenGL/Jolt Physics/ImGui/Lua engineer with comprehensive
+knowledge of the **Source67** 3D game engine codebase.
 
 ## 🎯 Core Expertise
 
@@ -38,7 +39,8 @@ Source67/
 │   ├── Events/         # Event system (Window, Key, Mouse events)
 │   ├── ImGui/          # ImGuiLayer, Panels (SceneHierarchy, ContentBrowser)
 │   ├── Editor/         # (Currently empty - editor features in Application.cpp)
-│   └── Project/        # (Currently empty - project management in Application.cpp)
+│   ├── Project/        # (Currently empty - project management in Application.cpp)
+│   └── Scripting/      # Lua integration, LuaScriptEngine, API bindings
 ├── vendor/
 │   ├── ImGuizmo/       # Gizmo manipulation for editor
 │   ├── stb_image/      # Image loading
@@ -64,6 +66,7 @@ Source67/
 - **Jolt Physics**: `v5.0.0` - Physics engine
 - **nlohmann/json**: `v3.11.2` - JSON serialization
 - **ImGui**: `docking` branch (latest) - Immediate mode GUI with docking support
+- **sol2**: `v3.3.0` - Lua bindings for C++
 - **GLAD**: Custom 4.1 core profile loader from `phoenix-engine/glad-4.1-core` (master branch)
 
 ### Vendor Libraries (Local)
@@ -132,22 +135,18 @@ Source67/
 - **KeyEvent.h**: KeyPressed, KeyReleased, KeyTyped events
 - **MouseEvent.h**: MouseMoved, MouseScrolled, MouseButton events
 
-### Editor/ImGui (`src/ImGui/`)
+### Game Logic & Scripting (`src/Renderer/`, `src/Scripting/`, `scripts/`)
 
-- **ImGuiLayer.h/cpp**: ImGui initialization, docking setup, theme management
-- **Panels/SceneHierarchyPanel.h/cpp**: Entity hierarchy and inspector
-- **Panels/ContentBrowserPanel.h/cpp**: Asset browser panel
-- **Renderer/HUDRenderer.h/cpp**: 2D HUD rendering with text queueing
-- **Renderer/ScriptRegistry.h**: Registry for Unity-like component scripts
-- **Game/InteractableRaycast.cpp**: Example script for tag-based interaction
-
-### Dev Console & Scripting (`src/Game/`, `scripts/`)
-
-- **Developer Console**: Quake-style console (toggle with `~`)
-  - **ConVar**: Console variables (e.g., `sv_gravity`, `sv_maxspeed`)
-  - **Commands**: Custom commands (e.g., `map`, `host_writeconfig`)
-  - **C++ Scripting**: Native C++ scripting via `ScriptableEntity`
-  - **ScriptRegistry**: Registration for user scripts
+- **ScriptRegistry.h**: Registry for Unity-like C++ component scripts. Handles static and dynamic registration.
+- **LuaScriptEngine.h/cpp**: Core Lua integration using sol2.
+  - Manages `sol::state` and API bindings.
+  - Handles script lifecycle (`OnCreate`, `OnUpdate`).
+  - Implements **Hot Reloading** for Lua scripts.
+  - Manages sandboxed environments for each entity script.
+- **ScriptableEntity.h**: Base class for C++ native scripts.
+- **Developer Console**: Quake-style console (toggle with `~`).
+  - **ConVar**: Console variables (e.g., `sv_gravity`, `sv_maxspeed`).
+  - **Commands**: Custom commands (e.g., `map`, `host_writeconfig`).
 
 ### Shaders (`assets/shaders/`)
 
@@ -244,27 +243,20 @@ Entities have:
 - Collision callbacks for entity interactions
 - Debug visualization available
 
-## 📜 Scripting & Developer Console
+## 📜 Game Logic & Scripting
 
-### Developer Console
-
-The engine features a Quake-style developer console for runtime configuration and debugging.
-
-- **Access**: Press `~` (Tilde) to open/close.
-- **ConVars**: Variables like `sv_gravity` or `r_wireframe`. Used to tweak game/engine state live.
-- **Commands**: Functions like `map <level>` or `quit`.
-- **Config**: Auto-loads `game.cfg` on startup. Use `host_writeconfig` to save current settings.
+Source67 supports two primary ways to implement game logic: **C++ Native Scripting** for performance and deep engine access, and **Lua Scripting** for rapid iteration and high-level gameplay logic.
 
 ### C++ Native Scripting
 
-The engine supports writing game logic in C++ by inheriting from `S67::ScriptableEntity`.
+Native scripts are C++ classes that inherit from `S67::ScriptableEntity`. They are attached to entities via the `NativeScriptComponent`.
+
 **Workflow**:
 
-1. Create a class inheriting from `S67::ScriptableEntity`.
-2. Override `OnCreate`, `OnUpdate(ts)`, `OnEvent(e)`, `OnDestroy`.
-3. Use `GetEntity()` to look up other components or `GetComponent<T>()` shortcuts.
-4. Bind to an entity using `NativeScriptComponent` or via the **Inspector** "Add Script" button.
-5. Call `HUDRenderer::QueueString(text, color)` to draw on the HUD.
+1.  **Inherit**: Create a class inheriting from `S67::ScriptableEntity`.
+2.  **Override**: Implement `OnCreate()`, `OnUpdate(ts)`, `OnEvent(e)`, and `OnDestroy()`.
+3.  **Access Entity**: Use `GetEntity()` to get the `Entity*` or `GetComponent<T>()` for specific components.
+4.  **Register**: Use the `REGISTER_SCRIPT(ClassName)` macro to make it available in the Editor.
 
 **Example**:
 
@@ -273,8 +265,8 @@ The engine supports writing game logic in C++ by inheriting from `S67::Scriptabl
 #include "Renderer/HUDRenderer.h"
 
 class MyScript : public S67::ScriptableEntity {
-    void OnCreate() { S67_INFO("Script Created!"); }
-    void OnUpdate(float ts) {
+    void OnCreate() override { S67_INFO("Script Created!"); }
+    void OnUpdate(float ts) override {
         if(Input::IsKeyPressed(Key::Space)) {
             GetTransform().Position.y += 1.0f;
             HUDRenderer::QueueString("Ascending!");
@@ -284,7 +276,57 @@ class MyScript : public S67::ScriptableEntity {
 REGISTER_SCRIPT(MyScript);
 ```
 
-_Note_: Currently requires static linking/binding in `Scene::OnUpdate` or `Application` until DLL reloading is fully integrated.
+### Lua Scripting
+
+Lua scripts provide a sandboxed environment for rapid iteration with **Hot Reloading** support. Attached via `LuaScriptComponent`.
+
+**Features**:
+
+- **Sandboxing**: Each script runs in its own `sol::environment`.
+- **Hot Reloading**: Scripts are automatically re-executed when the file is saved (preserving state within the environment).
+- **API**: Comprehensive bindings for transforms, physics, input, and HUD.
+
+**Lua API Quick Reference**:
+
+- **Lifecycle**: `function onCreate()`, `function onUpdate(ts)`
+- **Globals**:
+  - `self`: The `Entity` this script is attached to.
+  - `log(msg)`, `printHUD(text, [color])`
+  - `setText(id, text, [pos], [scale], [color])`, `clearText(id)`
+  - `findEntity(name)` -> `Entity*`
+  - `isKeyHeld(key)`, `isKeyPressed(key)`
+  - `raycast(dist)` -> `Entity*`
+- **Entity Methods**:
+  - `getName()`, `hasTag(tag)`
+  - `getPosition()`, `setPosition(vec3)`
+  - `getRotation()`, `setRotation(vec3)`
+  - `getLinearVelocity()`, `setLinearVelocity(vec3)`
+  - `isAnchored()`, `setAnchored(bool)`
+- **Math**: `vec3(x, y, z)`, `Vec3` type with `+`, `-`, `*` operators.
+
+**Example** (`Scripts/MyScript.lua`):
+
+```lua
+function onCreate()
+    printHUD("Lua Script Loaded!", vec4(0, 1, 0, 1))
+end
+
+function onUpdate(ts)
+    if isKeyHeld(KEY_E) then
+        local hit = raycast(10.0)
+        if hit then
+            hit:setLinearVelocity(vec3(0, 5, 0))
+        end
+    end
+end
+```
+
+### Developer Console
+
+- **Access**: Press `~` (Tilde).
+- **ConVars**: Used for live tuning (e.g., `sv_gravity`, `r_wireframe`).
+- **Commands**: Functional triggers (e.g., `map`, `quit`).
+- **Persistence**: `host_writeconfig` saves to `game.cfg`.
 
 ## 🐛 Known Issues & Code Review Findings
 
@@ -406,7 +448,7 @@ cmake --build cmake-build-debug
 - **Default Font**: `assets/fonts/Roboto-Medium.ttf`
 - **Default Font Size**: 18.0f
 - **Default Editor FOV**: 45.0f
-- **Default Theme**: Dracula
+- **Default Theme**: Unity Dark
 - **Scene File Extension**: `.s67`
 - **Project File Extension**: `.source`
 
