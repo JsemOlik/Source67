@@ -97,13 +97,16 @@ void SceneSerializer::Serialize(const std::string &filepath) {
       e["Tags"] = entity->Tags;
     }
 
-    // Scripts
-    if (!entity->Scripts.empty()) {
-      json scripts = json::array();
-      for (auto &script : entity->Scripts) {
-        scripts.push_back(script.Name);
-      }
       e["Scripts"] = scripts;
+    }
+
+    // Lua Scripts
+    if (!entity->LuaScripts.empty()) {
+      json luaScripts = json::array();
+      for (auto &script : entity->LuaScripts) {
+        luaScripts.push_back(MakeRelative(script.FilePath));
+      }
+      e["LuaScripts"] = luaScripts;
     }
 
     if (entity->Name == "Player") {
@@ -233,12 +236,19 @@ bool SceneSerializer::Deserialize(const std::string &filepath) {
           }
         }
 
-        // Scripts
-        if (e.contains("Scripts")) {
-          for (auto &scriptName : e["Scripts"]) {
-            NativeScriptComponent nsc;
-            ScriptRegistry::Get().Bind(scriptName.get<std::string>(), nsc);
             entity->Scripts.push_back(nsc);
+          }
+        }
+
+        // Lua Scripts
+        if (e.contains("LuaScripts")) {
+          for (auto &luaPath : e["LuaScripts"]) {
+            std::string path = luaPath.get<std::string>();
+            if (!path.empty()) {
+              std::string resolvedPath =
+                  Application::Get().ResolveAssetPath(path).string();
+              entity->LuaScripts.push_back({resolvedPath, false});
+            }
           }
         }
 

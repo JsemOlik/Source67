@@ -5,6 +5,7 @@
 #include "Physics/PlayerController.h"
 #include "Renderer/ScriptableEntity.h"
 #include "Texture.h"
+#include "Scripting/LuaScriptEngine.h"
 #include <algorithm>
 
 namespace S67 {
@@ -100,15 +101,24 @@ Ref<Entity> Scene::FindEntityByName(const std::string &name) {
 
 void Scene::InstantiateScripts() {
   for (auto &entity : m_Entities) {
-    for (auto &nsc : entity->Scripts) {
-      if (!nsc.Instance && nsc.InstantiateScript) {
-        S67_CORE_INFO("Instantiating script {0} for entity {1}", nsc.Name,
+    for (auto &script : entity->Scripts) {
+      if (!script.Instance) {
+        S67_CORE_INFO("Instantiating script {0} for entity {1}", script.Name,
                       entity->Name);
-        nsc.Instance = nsc.InstantiateScript(&nsc);
-        if (nsc.Instance) {
-          nsc.Instance->m_Entity = entity.get();
-          nsc.Instance->OnCreate();
+        script.Instance = ScriptRegistry::Get().Instantiate(script.Name);
+        if (script.Instance) {
+          script.Instance->m_Entity = entity.get();
+          script.Instance->OnCreate();
         }
+      }
+    }
+
+    for (auto &luaScript : entity->LuaScripts) {
+      if (!luaScript.Initialized && !luaScript.FilePath.empty()) {
+        S67_CORE_INFO("Instantiating Lua script {0} for entity {1}",
+                      luaScript.FilePath, entity->Name);
+        LuaScriptEngine::OnCreate(entity.get());
+        luaScript.Initialized = true;
       }
     }
   }
@@ -118,9 +128,15 @@ void Scene::OnUpdate(float ts) {
   InstantiateScripts();
 
   for (auto &entity : m_Entities) {
-    for (auto &nsc : entity->Scripts) {
-      if (nsc.Instance) {
-        nsc.Instance->OnUpdate(ts);
+    for (auto &script : entity->Scripts) {
+      if (script.Instance) {
+        script.Instance->OnUpdate(ts);
+      }
+    }
+
+    for (auto &luaScript : entity->LuaScripts) {
+      if (luaScript.Initialized) {
+        LuaScriptEngine::OnUpdate(entity.get(), ts);
       }
     }
   }

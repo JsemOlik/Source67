@@ -474,8 +474,8 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
       }
     });
 
-    DrawComponent("Scripts", [&]() {
-      if (ImGui::Button("Add Script")) {
+    DrawComponent("Scripts (Native)", [&]() {
+      if (ImGui::Button("Add Native Script")) {
         ImGui::OpenPopup("AddScriptPopup");
       }
 
@@ -498,9 +498,50 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
         ImGui::Text("%s", entity->Scripts[i].Name.c_str());
         ImGui::SameLine();
         if (ImGui::Button("Remove")) {
-          if (entity->Scripts[i].DestroyScript)
-            entity->Scripts[i].DestroyScript(&entity->Scripts[i]);
+          // Native scripts are handled by Scene::OnUpdate or destructor usually
           entity->Scripts.erase(entity->Scripts.begin() + i);
+          Application::Get().SetSceneModified(true);
+          ImGui::PopID();
+          break;
+        }
+        ImGui::PopID();
+      }
+    });
+
+    DrawComponent("Lua Scripts", [&]() {
+      if (ImGui::Button("Add Lua Script")) {
+        entity->LuaScripts.push_back({"", false});
+        Application::Get().SetSceneModified(true);
+      }
+
+      ImGui::Spacing();
+      for (int i = 0; i < entity->LuaScripts.size(); i++) {
+        ImGui::PushID(i + 100); // Offset to avoid ID collision
+        char buffer[256];
+        strncpy(buffer, entity->LuaScripts[i].FilePath.c_str(), sizeof(buffer));
+        if (ImGui::InputText("File Path", buffer, sizeof(buffer))) {
+          entity->LuaScripts[i].FilePath = buffer;
+          entity->LuaScripts[i].Initialized = false; // Reset to reload
+          Application::Get().SetSceneModified(true);
+        }
+
+        if (ImGui::BeginDragDropTarget()) {
+          if (const ImGuiPayload *payload =
+                  ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+            const char *path = (const char *)payload->Data;
+            std::filesystem::path assetPath = path;
+            if (assetPath.extension() == ".lua") {
+              entity->LuaScripts[i].FilePath = assetPath.string();
+              entity->LuaScripts[i].Initialized = false;
+              Application::Get().SetSceneModified(true);
+            }
+          }
+          ImGui::EndDragDropTarget();
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Remove")) {
+          entity->LuaScripts.erase(entity->LuaScripts.begin() + i);
           Application::Get().SetSceneModified(true);
           ImGui::PopID();
           break;

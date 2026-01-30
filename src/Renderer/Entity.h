@@ -37,7 +37,7 @@ struct Transform {
 class ScriptableEntity;
 
 struct NativeScriptComponent {
-  std::string Name = "Unnamed Script";
+  std::string Name;
   ScriptableEntity *Instance = nullptr;
 
   ScriptableEntity *(*InstantiateScript)(NativeScriptComponent *);
@@ -97,6 +97,7 @@ public:
   MovementSettings Movement;
 
   std::vector<NativeScriptComponent> Scripts;
+  std::vector<LuaScriptComponent> LuaScripts;
   std::vector<std::string> Tags;
 
   template <typename T> T *GetScript() {

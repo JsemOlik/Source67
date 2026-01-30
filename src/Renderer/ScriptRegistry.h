@@ -6,6 +6,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <filesystem>
 
 namespace S67 {
 
@@ -20,6 +21,9 @@ public:
 
   template <typename T> void Register(const std::string &name) {
     m_Registry[name] = []() { return static_cast<ScriptableEntity *>(new T()); };
+    if (m_IsLoadingModule) {
+      m_DynamicScriptNames.push_back(name);
+    }
   }
 
   ScriptableEntity *Instantiate(const std::string &name) {
@@ -46,8 +50,15 @@ public:
     }
   }
 
+  void LoadModules(const std::filesystem::path &directory);
+  void LoadModule(const std::filesystem::path &filepath);
+  void UnloadModules();
+
 private:
   std::map<std::string, InstantiateFunc> m_Registry;
+  std::vector<void *> m_ModuleHandles;
+  std::vector<std::string> m_DynamicScriptNames;
+  bool m_IsLoadingModule = false;
 };
 
 // Helper macro for auto-registration

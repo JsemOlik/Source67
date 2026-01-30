@@ -1,11 +1,37 @@
-## Getting Started
+## Hybrid Scripting
 
-To create a new script:
-1. Create a new `.cpp` file in the `Scripts/` folder in your project root (e.g., `Scripts/MyScript.cpp`).
-2. Inherit from `ScriptableEntity`.
-3. Register your script using `REGISTER_SCRIPT(ClassName)`.
+Source67 supports two ways to write scripts:
+1. **Lua**: Best for quick iteration, no compilation needed. (Recommended for gameplay logic)
+2. **C++ Plugins**: Best for performance-heavy logic or complex systems.
 
-The build system is configured to automatically find and compile any file in the `Scripts/` folder!
+## 1. Lua Scripting (Stupid Simple)
+
+To create a Lua script, simply create a `.lua` file in your `Scripts/` folder.
+
+### Example Lua Script
+```lua
+function onUpdate(ts)
+    local hit = raycast(10.0)
+    if hit and hit:hasTag("Interactable") then
+        setText("HUD", "[E] Interact", vec2(0.5, 0.5))
+        if isKeyPressed(KEY_E) then
+            printHUD("Interacted!")
+        end
+    else
+        clearText("HUD")
+    end
+end
+```
+
+### Lua API Functions
+- `raycast(dist)`: Returns the hit entity.
+- `setText(id, text, pos, scale, color)`: Persistent HUD text.
+- `clearText(id)`: Remove persistent HUD text.
+- `printHUD(text, color)`: Brief HUD message.
+- `findEntity(name)`: Find an entity by name.
+- `isKeyPressed(KEY_...)`: Check keyboard input.
+
+## 2. C++ Scripting (Plugins)
 
 ```cpp
 #include "Renderer/ScriptableEntity.h"
