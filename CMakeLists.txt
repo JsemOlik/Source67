@@ -96,7 +96,7 @@ FetchContent_Declare(
 FetchContent_Declare(
     lua
     GIT_REPOSITORY https://github.com/walterschell/Lua
-    GIT_TAG        v5.4.6
+    GIT_TAG        v5.4.7
 )
 
 FetchContent_MakeAvailable(glfw glm spdlog jolt imgui json sol2 lua)
@@ -180,7 +180,7 @@ target_link_libraries(Source67 PUBLIC
     glad
     Jolt
     nlohmann_json::nlohmann_json
-    lua
+    lua_static
     sol2
 )
 
