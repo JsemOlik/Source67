@@ -212,6 +212,17 @@ Application::Application(const std::string &executablePath,
     } else if (ext == ".source") {
       S67_CORE_INFO("Auto-loading project: {0}", cleanArg);
       DiscoverProject(p);
+
+      // Auto-load Default Level if set
+      if (!m_ProjectDefaultLevel.empty()) {
+        std::filesystem::path defaultLevelPath =
+            ResolveAssetPath(m_ProjectDefaultLevel);
+        if (std::filesystem::exists(defaultLevelPath)) {
+          S67_CORE_INFO("Auto-loading default project level: {0}",
+                        defaultLevelPath.string());
+          OpenScene(defaultLevelPath.string());
+        }
+      }
     }
   }
 
@@ -568,6 +579,7 @@ void Application::SaveManifest() {
   root["ProjectName"] = m_ProjectName;
   root["Company"] = m_ProjectCompany;
   root["Version"] = m_ProjectVersion;
+  root["DefaultLevel"] = m_ProjectDefaultLevel;
 
   std::ofstream fout(manifestPath);
   if (fout.is_open()) {
@@ -593,6 +605,17 @@ void Application::OnOpenProject() {
       // now too
       DiscoverProject(
           manifestPath); // Discovery takes a "level" path essentially
+
+      // Auto-load Default Level if set
+      if (!m_ProjectDefaultLevel.empty()) {
+        std::filesystem::path defaultLevelPath =
+            ResolveAssetPath(m_ProjectDefaultLevel);
+        if (std::filesystem::exists(defaultLevelPath)) {
+          S67_CORE_INFO("Auto-loading default party level: {0}",
+                        defaultLevelPath.string());
+          OpenScene(defaultLevelPath.string());
+        }
+      }
     } else {
       m_ProjectName = folderPath.stem().string();
       m_ProjectVersion = "Developer Root";
@@ -640,6 +663,7 @@ void Application::DiscoverProject(const std::filesystem::path &levelPath) {
         m_ProjectName = data.value("ProjectName", "Unnamed Project");
         m_ProjectCompany = data.value("Company", "Untitled Company");
         m_ProjectVersion = data.value("Version", "1.0.0");
+        m_ProjectDefaultLevel = data.value("DefaultLevel", "");
 
         S67_CORE_INFO("Discovered project: {0} (v{1}) at {2}", m_ProjectName,
                       m_ProjectVersion, currentDir.string());
@@ -1566,6 +1590,35 @@ void Application::UI_ProjectSettingsWindow() {
       if (ImGui::InputText("##CompanyName", companyBuffer,
                            sizeof(companyBuffer))) {
         m_ProjectCompany = companyBuffer;
+      }
+      ImGui::PopItemWidth();
+
+      // Default Level (Relative to Project Root or Assets)
+      ImGui::TableNextRow();
+      ImGui::TableSetColumnIndex(0);
+      ImGui::Text("Default Level");
+      ImGui::TableSetColumnIndex(1);
+      char levelBuffer[256];
+      memset(levelBuffer, 0, sizeof(levelBuffer));
+      strncpy(levelBuffer, m_ProjectDefaultLevel.c_str(),
+              sizeof(levelBuffer) - 1);
+      ImGui::PushItemWidth(-1.0f);
+      if (ImGui::InputText("##DefaultLevel", levelBuffer,
+                           sizeof(levelBuffer))) {
+        m_ProjectDefaultLevel = levelBuffer;
+      }
+      // Drag/Drop for .s67 files
+      if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload *payload =
+                ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+          const char *path = (const char *)payload->Data;
+          std::filesystem::path assetPath = path;
+          // Store relative path if possible
+          if (assetPath.extension() == ".s67") {
+            m_ProjectDefaultLevel = assetPath.string();
+          }
+        }
+        ImGui::EndDragDropTarget();
       }
       ImGui::PopItemWidth();
 
