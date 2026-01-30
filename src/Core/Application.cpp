@@ -1965,7 +1965,11 @@ void Application::RenderFrame(float alpha) {
   HUDRenderer::RenderCrosshair();
 
   if (s_ClShowFPS && s_ClShowFPS->GetBool()) {
-      HUDRenderer::DrawString("FPS: " + std::to_string((int)m_GameFPS), {0.02f, 0.95f}, 0.5f, {0, 1, 0, 1});
+      float scale = 4.0f;
+      float charHeight = 8.0f * scale;
+      float padding = 10.0f;
+      glm::vec2 pos = {padding, m_GameViewportSize.y - charHeight - padding};
+      HUDRenderer::DrawString("FPS: " + std::to_string((int)m_GameFPS), pos, scale, {0, 1, 0, 1});
   }
 
   if (m_Scene) {
