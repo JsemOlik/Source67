@@ -6,12 +6,6 @@
 #include "stb_image.h"
 #include <filesystem>
 #include <glad/glad.h>
-
-#ifdef __APPLE__
-#define GL_SILENCE_DEPRECATION
-#include <Cocoa/Cocoa.h>
-#endif
-
 #include <GLFW/glfw3.h>
 
 namespace S67 {
@@ -239,19 +233,8 @@ void Window::SetIcon(const std::string &path) {
 #ifdef __APPLE__
     // On macOS, glfwSetWindowIcon doesn't set the Dock icon.
     // We need to use Cocoa's setApplicationIconImage.
-    @autoreleasepool {
-      std::filesystem::path absPath = std::filesystem::absolute(path);
-      NSString *nsPath =
-          [NSString stringWithUTF8String:absPath.string().c_str()];
-      NSImage *image = [[NSImage alloc] initWithContentsOfFile:nsPath];
-      if (image) {
-        [NSApp setApplicationIconImage:image];
-        S67_CORE_INFO("Applied macOS Dock icon from {0}", absPath.string());
-      } else {
-        S67_CORE_ERROR("Failed to load macOS Dock icon from {0}",
-                       absPath.string());
-      }
-    }
+    extern void SetMacDockIcon(const std::string& path);
+    SetMacDockIcon(path);
 #endif
   } else {
     S67_CORE_ERROR("Failed to load window icon from {0}", path);
