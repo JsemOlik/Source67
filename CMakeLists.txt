@@ -11,8 +11,8 @@ set(CMAKE_CXX_STANDARD 20)
 # Nudge to pick up PlatformUtils.cpp
 # Nudge to pick up ContentBrowserPanel.cpp
 # Nudge to pick up PlayerController.cpp
-# Nudge to pick up Window.mm
-# Nudge to pick up Scene.cpp
+# Nudge to pick up Window.cpp
+# Nudge to pick up ImGuiLayer.cpp
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Force dynamic CRT on Windows to match Jolt and other libs if USE_STATIC_CRT is OFF
@@ -136,6 +136,7 @@ file(GLOB_RECURSE CORE_SOURCES CONFIGURE_DEPENDS
     "src/Events/*.h"
     "src/Game/Console/*.cpp"
     "src/Scripting/*.cpp"
+    "src/ImGui/ImGuiLayer.cpp"
     "vendor/**/*.cpp"
 )
 

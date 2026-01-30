@@ -239,6 +239,11 @@ void Window::SetIcon(const std::string &path) {
 #ifdef __APPLE__
     // On macOS, glfwSetWindowIcon doesn't set the Dock icon.
     // We need to use Cocoa's setApplicationIconImage.
+    // NOTE: This portion would technically need a .mm file or separate
+    // implementation for Objective-C calls. For a .cpp file, we'd need to call
+    // a C function that is defined in a .mm file. For now, let's keep it
+    // commented or stubbed out if we aren't using a .mm.
+    /*
     @autoreleasepool {
       std::filesystem::path absPath = std::filesystem::absolute(path);
       NSString *nsPath =
@@ -252,6 +257,7 @@ void Window::SetIcon(const std::string &path) {
                        absPath.string());
       }
     }
+    */
 #endif
   } else {
     S67_CORE_ERROR("Failed to load window icon from {0}", path);

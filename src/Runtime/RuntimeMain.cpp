@@ -6,8 +6,20 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 using namespace S67;
+
+#ifdef _WIN32
+int main(int argc, char **argv);
+
+int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline,
+                     int cmdshow) {
+  return main(__argc, __argv);
+}
+#endif
 
 int main(int argc, char **argv) {
   // 1. Init VFS
