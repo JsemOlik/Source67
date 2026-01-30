@@ -8,7 +8,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
 # Add source files
-file(GLOB_RECURSE GAME_SOURCES "src/**/*.cpp")
+# Add source files
+file(GLOB_RECURSE GAME_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
 # Create DLL
 add_library(Game SHARED ${GAME_SOURCES})
