@@ -1479,6 +1479,17 @@ void Application::UI_LauncherScreen() {
         SetProjectRoot(p);
         DiscoverProject(p / "manifest.source");
         AddToRecentProjects(projectPath);
+
+        // Auto-load Default Level if set
+        if (!m_ProjectDefaultLevel.empty()) {
+          std::filesystem::path defaultLevelPath =
+              ResolveAssetPath(m_ProjectDefaultLevel);
+          if (std::filesystem::exists(defaultLevelPath)) {
+            S67_CORE_INFO("Auto-loading default project level: {0}",
+                          defaultLevelPath.string());
+            OpenScene(defaultLevelPath.string());
+          }
+        }
       }
       if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip("%s", projectPath.c_str());

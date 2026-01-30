@@ -195,44 +195,62 @@ namespace S67 {
         });
     }
 
-    void LuaScriptEngine::OnCreate(Entity* entity) {
-        for (auto& script : entity->LuaScripts) {
-            if (script.FilePath.empty()) continue;
-
-            std::string scriptPath = Application::Get().ResolveAssetPath(script.FilePath).string();
-            // Fallback: If not found, try raw path (compatibility)
-            if (!std::filesystem::exists(scriptPath)) scriptPath = script.FilePath;
-
-            // Create Sandboxed Environment
-            // This ensures each script has its own globals (like 'time', 'self', etc.)
-            auto env = std::make_shared<sol::environment>(s_State, sol::create, s_State.globals());
-            script.Environment = env;
-            
-            // Inject 'self' into the environment
-            (*env)["self"] = entity;
-
-            // Load Script into Environment
-            auto result = s_State.safe_script_file(scriptPath, *env, sol::script_pass_on_error);
-            if (!result.valid()) {
-                sol::error err = result;
-                S67_CORE_ERROR("Failed to load Lua script {0}: {1}", script.FilePath, err.what());
-                continue;
-            }
-
-            if (std::filesystem::exists(scriptPath)) {
-                script.LastWriteTime = std::filesystem::last_write_time(scriptPath);
-            }
-
-            // Call onCreate if it exists in the environment
-            sol::protected_function onCreateFunc = (*env)["onCreate"];
-            if (onCreateFunc.valid()) {
-                auto callResult = onCreateFunc();
-                if (!callResult.valid()) {
-                    sol::error err = callResult;
-                    S67_CORE_ERROR("Lua onCreate error in {0}: {1}", script.FilePath, err.what());
-                }
-            }
+    void LuaScriptEngine::OnCreate(Entity *entity) {
+      auto &scripts = entity->LuaScripts;
+      for (auto it = scripts.begin(); it != scripts.end();) {
+        if (it->FilePath.empty()) {
+          it = scripts.erase(it);
+          continue;
         }
+
+        std::string scriptPath =
+            Application::Get().ResolveAssetPath(it->FilePath).string();
+        // Fallback: If not found, try raw path (compatibility)
+        if (!std::filesystem::exists(scriptPath))
+          scriptPath = it->FilePath;
+
+        if (!std::filesystem::exists(scriptPath)) {
+          S67_CORE_WARN("Script file not found, removing from entity: {0}",
+                        it->FilePath);
+          it = scripts.erase(it);
+          continue;
+        }
+
+        // Create Sandboxed Environment
+        auto env = std::make_shared<sol::environment>(s_State, sol::create,
+                                                      s_State.globals());
+        it->Environment = env;
+
+        // Inject 'self' into the environment
+        (*env)["self"] = entity;
+
+        // Load Script into Environment
+        auto result = s_State.safe_script_file(scriptPath, *env,
+                                               sol::script_pass_on_error);
+        if (!result.valid()) {
+          sol::error err = result;
+          S67_CORE_ERROR("Failed to load Lua script {0}: {1}", it->FilePath,
+                         err.what());
+          ++it;
+          continue;
+        }
+
+        if (std::filesystem::exists(scriptPath)) {
+          it->LastWriteTime = std::filesystem::last_write_time(scriptPath);
+        }
+
+        // Call onCreate if it exists in the environment
+        sol::protected_function onCreateFunc = (*env)["onCreate"];
+        if (onCreateFunc.valid()) {
+          auto callResult = onCreateFunc();
+          if (!callResult.valid()) {
+            sol::error err = callResult;
+            S67_CORE_ERROR("Lua onCreate error in {0}: {1}", it->FilePath,
+                           err.what());
+          }
+        }
+        ++it;
+      }
     }
 
     void LuaScriptEngine::OnUpdate(Entity* entity, float ts) {

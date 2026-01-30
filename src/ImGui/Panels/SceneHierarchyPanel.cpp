@@ -515,23 +515,24 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
       }
 
       if (ImGui::BeginPopup("AddLuaScriptPopup")) {
-        std::filesystem::path scriptDir = "Scripts";
-        if (!std::filesystem::exists(scriptDir))
-            scriptDir = "../Scripts"; // Try up one level if running from build dir
+        auto projectRoot = Application::Get().GetProjectRoot();
+        std::filesystem::path scriptDir = projectRoot / "scripts";
 
         if (std::filesystem::exists(scriptDir)) {
-             for (const auto& entry : std::filesystem::directory_iterator(scriptDir)) {
-                 if (entry.path().extension() == ".lua") {
-                     if (ImGui::MenuItem(entry.path().filename().string().c_str())) {
-                         // Store as "Scripts/Filename.lua" to be consistent with project root
-                         std::string relativePath = "Scripts/" + entry.path().filename().string();
-                         entity->LuaScripts.push_back({relativePath, false});
-                         Application::Get().SetSceneModified(true);
-                     }
-                 }
-             }
+          for (const auto &entry :
+               std::filesystem::directory_iterator(scriptDir)) {
+            if (entry.path().extension() == ".lua") {
+              if (ImGui::MenuItem(entry.path().filename().string().c_str())) {
+                // Store as "scripts/Filename.lua"
+                std::string relativePath =
+                    "scripts/" + entry.path().filename().string();
+                entity->LuaScripts.push_back({relativePath, false});
+                Application::Get().SetSceneModified(true);
+              }
+            }
+          }
         } else {
-            ImGui::Text("Scripts folder not found!");
+          ImGui::Text("scripts folder not found!");
         }
         ImGui::EndPopup();
       }
@@ -539,11 +540,23 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
       ImGui::Spacing();
       for (int i = 0; i < entity->LuaScripts.size(); i++) {
         ImGui::PushID(i + 100); // Offset to avoid ID collision
-        std::filesystem::path path(entity->LuaScripts[i].FilePath);
-        ImGui::Text("%s", path.filename().string().c_str());
-        if (ImGui::IsItemHovered())
-        {
-            ImGui::SetTooltip("%s", entity->LuaScripts[i].FilePath.c_str());
+
+        std::string scriptPathStr = entity->LuaScripts[i].FilePath;
+        std::filesystem::path path(scriptPathStr);
+        std::filesystem::path fullPath =
+            Application::Get().ResolveAssetPath(path);
+        bool exists = std::filesystem::exists(fullPath);
+
+        if (!exists) {
+          ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+          ImGui::Text("%s (Missing)", path.filename().string().c_str());
+          ImGui::PopStyleColor();
+        } else {
+          ImGui::Text("%s", path.filename().string().c_str());
+        }
+
+        if (ImGui::IsItemHovered()) {
+          ImGui::SetTooltip("%s", scriptPathStr.c_str());
         }
 
         if (ImGui::BeginDragDropTarget()) {
