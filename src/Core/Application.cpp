@@ -1058,12 +1058,12 @@ void Application::OnEvent(Event &e) {
     });
     
     dispatcher.Dispatch<MouseButtonPressedEvent>([this](MouseButtonPressedEvent& event) {
-      m_HybridBuildSystem->OnMouseButton(event.GetButton(), 1);
+      m_HybridBuildSystem->OnMouseButton(event.GetMouseButton(), 1);
       return false;
     });
     
     dispatcher.Dispatch<MouseButtonReleasedEvent>([this](MouseButtonReleasedEvent& event) {
-      m_HybridBuildSystem->OnMouseButton(event.GetButton(), 0);
+      m_HybridBuildSystem->OnMouseButton(event.GetMouseButton(), 0);
       return false;
     });
   }
