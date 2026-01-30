@@ -33,6 +33,8 @@ end
 - `log(message)`: Print to the developer console.
 - `entity:setLinearVelocity(vec3)`: Set physics velocity.
 - `entity:getLinearVelocity()`: Get physics velocity (vec3).
+- `entity:setRotation(vec3)`: Set rotation (Euler degrees).
+- `entity:getRotation()`: Get rotation (Euler degrees).
 - `entity:setAnchored(bool)`: Pin object in place (Kinematic) or unpin (Dynamic).
 - `findEntity(name)`: Find an entity by name.
 - `isKeyHeld(KEY_...)`: Check if key is currently held down.

@@ -109,7 +109,19 @@ namespace S67 {
                     PhysicsSystem::GetBodyInterface().SetMotionType(self.PhysicsBody, anchored ? JPH::EMotionType::Kinematic : JPH::EMotionType::Dynamic, JPH::EActivation::Activate);
                 }
             },
-            "isAnchored", &Entity::Anchored
+            "isAnchored", &Entity::Anchored,
+            "setRotation", [](Entity& self, const glm::vec3& euler) {
+                self.Transform.Rotation = euler;
+                if (!self.PhysicsBody.IsInvalid()) {
+                    float x = glm::radians(euler.x);
+                    float y = glm::radians(euler.y);
+                    float z = glm::radians(euler.z);
+                    PhysicsSystem::GetBodyInterface().SetRotation(self.PhysicsBody, JPH::Quat::sEulerAngles(JPH::Vec3(x, y, z)), JPH::EActivation::Activate);
+                }
+            },
+            "getRotation", [](Entity& self) -> glm::vec3 {
+                return self.Transform.Rotation;
+            }
         );
 
         // Core API Functions (Stupid Simple)
