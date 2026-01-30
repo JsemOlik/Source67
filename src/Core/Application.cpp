@@ -16,6 +16,7 @@
 
 #include "Core/Input.h"
 #include "Core/PlatformUtils.h"
+#include "Game/Console/ConVar.h"
 #include "Game/Console/Console.h"
 #include "Game/Console/ConsolePanel.h"
 #include "ImGui/Panels/ContentBrowserPanel.h"
