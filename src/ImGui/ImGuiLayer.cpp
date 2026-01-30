@@ -208,4 +208,18 @@ void ImGuiLayer::End() {
   }
 }
 
+void ImGuiLayer::SaveLayout(const std::string& path) {
+    if (path.empty())
+        ImGui::SaveIniSettingsToDisk("imgui.ini");
+    else
+        ImGui::SaveIniSettingsToDisk(path.c_str());
+}
+
+void ImGuiLayer::LoadLayout(const std::string& path) {
+    if (path.empty())
+        ImGui::LoadIniSettingsFromDisk("imgui.ini");
+    else
+        ImGui::LoadIniSettingsFromDisk(path.c_str());
+}
+
 } // namespace S67

@@ -18,6 +18,9 @@ namespace S67 {
 
         void SetBlockEvents(bool block) { m_BlockEvents = block; }
 
+        void SaveLayout(const std::string& path = "");
+        void LoadLayout(const std::string& path = "");
+
     private:
         bool m_BlockEvents = true;
     };

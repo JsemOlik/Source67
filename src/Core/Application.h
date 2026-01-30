@@ -55,6 +55,7 @@ public:
 
   void OnSaveScene();                          // Quick Save (Shortcuts)
   void OnSaveSceneAs();                        // Dialog version
+  void OnBuildRuntime(); // New
   void OnOpenScene();                          // Dialog version
   void OpenScene(const std::string &filepath); // Direct version
   void OnNewScene();

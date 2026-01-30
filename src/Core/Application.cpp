@@ -41,6 +41,9 @@
 #include <imgui_internal.h>
 #endif
 
+#include <cstdlib> // std::system
+#include <thread>  // std::thread
+
 #include <glm/gtc/matrix_transform.hpp>
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -682,6 +685,36 @@ void Application::OnOpenProject() {
     AddToRecentProjects(folderPath.string());
     S67_CORE_INFO("Opened project folder: {0}", path);
   }
+}
+
+void Application::OnBuildRuntime() {
+  if (m_ProjectRoot.empty()) {
+    S67_CORE_WARN("Please open a project first.");
+    return;
+  }
+
+  std::string outputDir = FileDialogs::OpenFolder();
+  if (outputDir.empty())
+    return;
+
+  std::stringstream cmd;
+  // Quote paths to handle spaces
+  // Running python3 from CWD logic (Engine Root)
+  cmd << "python3 Scripts/build.py --project \"" << m_ProjectRoot.string()
+      << "\" --output \"" << outputDir << "\"";
+
+  std::string cmdStr = cmd.str();
+  S67_CORE_INFO("Starting Build: {0}", cmdStr);
+
+  // Run in a separate thread to prevent UI freezing
+  std::thread([cmdStr]() {
+    int result = std::system(cmdStr.c_str());
+    if (result == 0) {
+      S67_CORE_INFO("Build Successful!");
+    } else {
+      S67_CORE_ERROR("Build Failed. Check console for details.");
+    }
+  }).detach();
 }
 
 void Application::AddToRecentProjects(const std::string &path) {
@@ -2269,6 +2302,10 @@ void Application::RenderFrame(float alpha) {
         }
 
         if (!m_ProjectRoot.empty()) {
+          ImGui::Separator();
+          if (ImGui::MenuItem("Build Runtime..."))
+            OnBuildRuntime();
+          ImGui::Separator();
           if (ImGui::MenuItem("Close Project"))
             CloseProject();
         }

@@ -22,7 +22,10 @@ endif()
 
 # Directory Structure
 set(SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
-set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set(INCLUDE_DIR
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/ImGuizmo
+)
 
 include(FetchContent)
 
