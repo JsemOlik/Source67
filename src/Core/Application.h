@@ -1,6 +1,7 @@
 #include "Base.h"
 #include "Core/GameState.h"
 #include "Core/HybridBuildSystem.h"
+#include "Core/BuildSystem.h"
 #include "Core/UndoSystem.h"
 #include "Events/WindowEvent.h"
 #include "ImGui/ImGuiLayer.h"
@@ -220,8 +221,11 @@ private:
   std::vector<std::string> m_RecentProjects;
   Ref<Texture2D> m_LauncherLogo;
 
-  // Hybrid Build System
+  // Hybrid Build System (runtime DLL/asset loading)
   Scope<HybridBuildSystem> m_HybridBuildSystem;
+  
+  // Build System (compile/pack builds)
+  Scope<BuildSystem> m_BuildSystem;
 
   static Application *s_Instance;
 };

@@ -198,6 +198,10 @@ Application::Application(const std::string &executablePath,
     S67_CORE_WARN("Hybrid build system not available (DLL/assets not found - this is normal if not built yet)");
   }
 
+  // Initialize Build System
+  S67_CORE_INFO("Initializing Build System...");
+  m_BuildSystem = CreateScope<BuildSystem>();
+
   m_HUDShader =
       Shader::Create(ResolveAssetPath("assets/shaders/HUD.glsl").string());
   HUDRenderer::SetShader(m_HUDShader);
@@ -895,123 +899,206 @@ void Application::OnEntityCollidableChanged(Ref<Entity> entity) {
 }
 
 void Application::OnBuildGame() {
-  S67_CORE_INFO("Building Game.dll...");
+  S67_CORE_INFO("Building Game.dll with native build system...");
   
   // Save current scene first
   if (m_LevelLoaded && m_SceneModified) {
     OnSaveScene();
   }
 
-  // Always run build scripts from the engine root
-  // The build.bat/build.sh scripts are part of the engine, not the game project
-  std::filesystem::path buildScriptPath = m_EngineAssetsRoot;
-
-#ifdef _WIN32
-  std::string buildCmd = "cd \"" + buildScriptPath.string() + "\" && build.bat Debug game";
-#else
-  std::string buildCmd = "cd \"" + buildScriptPath.string() + "\" && ./build.sh Debug game";
-#endif
-
-  S67_CORE_INFO("Executing: {0}", buildCmd);
-  int result = system(buildCmd.c_str());
+  // Configure build system
+  BuildConfig config;
   
-  if (result == 0) {
-    S67_CORE_INFO("Game.dll built successfully!");
+  // Determine project root: use m_ProjectRoot if set, otherwise engine root
+  if (!m_ProjectRoot.empty()) {
+    config.projectRoot = m_ProjectRoot;
   } else {
-    S67_CORE_ERROR("Game.dll build failed with exit code {0}", result);
+    config.projectRoot = m_EngineAssetsRoot;
+  }
+  
+  config.engineRoot = m_EngineAssetsRoot;
+  config.buildOutputDir = config.projectRoot / "build";
+  config.buildType = "Debug";
+  config.verbose = true;
+  
+  // Status callback to log to console
+  config.statusCallback = [](const std::string& message, bool isError) {
+    if (isError) {
+      S67_CORE_ERROR("{}", message);
+    } else {
+      S67_CORE_INFO("{}", message);
+    }
+  };
+  
+  m_BuildSystem->SetConfig(config);
+  
+  // Build
+  bool success = m_BuildSystem->BuildGame();
+  
+  if (success) {
+    S67_CORE_INFO("==========================================");
+    S67_CORE_INFO("Game.dll built successfully!");
+    S67_CORE_INFO("Output: {}", m_BuildSystem->GetGameDLLPath().string());
+    S67_CORE_INFO("==========================================");
+  } else {
+    S67_CORE_ERROR("==========================================");
+    S67_CORE_ERROR("Game.dll build FAILED!");
+    S67_CORE_ERROR("==========================================");
   }
 }
 
 void Application::OnBuildAssets() {
-  S67_CORE_INFO("Building GameAssets.apak...");
+  S67_CORE_INFO("Building GameAssets.apak with native build system...");
   
   // Save current scene first
   if (m_LevelLoaded && m_SceneModified) {
     OnSaveScene();
   }
 
-  // Always run build scripts from the engine root
-  std::filesystem::path buildScriptPath = m_EngineAssetsRoot;
-
-#ifdef _WIN32
-  std::string buildCmd = "cd \"" + buildScriptPath.string() + "\" && build.bat Debug assets";
-#else
-  std::string buildCmd = "cd \"" + buildScriptPath.string() + "\" && ./build.sh Debug assets";
-#endif
-
-  S67_CORE_INFO("Executing: {0}", buildCmd);
-  int result = system(buildCmd.c_str());
+  // Configure build system
+  BuildConfig config;
   
-  if (result == 0) {
-    S67_CORE_INFO("GameAssets.apak built successfully!");
+  // Determine project root: use m_ProjectRoot if set, otherwise engine root
+  if (!m_ProjectRoot.empty()) {
+    config.projectRoot = m_ProjectRoot;
   } else {
-    S67_CORE_ERROR("GameAssets.apak build failed with exit code {0}", result);
+    config.projectRoot = m_EngineAssetsRoot;
+  }
+  
+  config.engineRoot = m_EngineAssetsRoot;
+  config.buildOutputDir = config.projectRoot / "build";
+  config.buildType = "Debug";
+  config.verbose = true;
+  
+  // Status callback to log to console
+  config.statusCallback = [](const std::string& message, bool isError) {
+    if (isError) {
+      S67_CORE_ERROR("{}", message);
+    } else {
+      S67_CORE_INFO("{}", message);
+    }
+  };
+  
+  m_BuildSystem->SetConfig(config);
+  
+  // Build
+  bool success = m_BuildSystem->BuildAssets();
+  
+  if (success) {
+    S67_CORE_INFO("==========================================");
+    S67_CORE_INFO("GameAssets.apak built successfully!");
+    S67_CORE_INFO("Output: {}", m_BuildSystem->GetAssetsPackPath().string());
+    S67_CORE_INFO("==========================================");
+  } else {
+    S67_CORE_ERROR("==========================================");
+    S67_CORE_ERROR("GameAssets.apak build FAILED!");
+    S67_CORE_ERROR("==========================================");
   }
 }
 
 void Application::OnBuildAll() {
-  S67_CORE_INFO("Building all (Game.dll + GameAssets.apak + Engine)...");
+  S67_CORE_INFO("Building all with native build system...");
   
   // Save current scene first
   if (m_LevelLoaded && m_SceneModified) {
     OnSaveScene();
   }
 
-  // Always run build scripts from the engine root
-  std::filesystem::path buildScriptPath = m_EngineAssetsRoot;
-
-#ifdef _WIN32
-  std::string buildCmd = "cd \"" + buildScriptPath.string() + "\" && build.bat Debug all";
-#else
-  std::string buildCmd = "cd \"" + buildScriptPath.string() + "\" && ./build.sh Debug all";
-#endif
-
-  S67_CORE_INFO("Executing: {0}", buildCmd);
-  int result = system(buildCmd.c_str());
+  // Configure build system
+  BuildConfig config;
   
-  if (result == 0) {
-    S67_CORE_INFO("Build all completed successfully!");
+  // Determine project root: use m_ProjectRoot if set, otherwise engine root
+  if (!m_ProjectRoot.empty()) {
+    config.projectRoot = m_ProjectRoot;
   } else {
-    S67_CORE_ERROR("Build all failed with exit code {0}", result);
+    config.projectRoot = m_EngineAssetsRoot;
+  }
+  
+  config.engineRoot = m_EngineAssetsRoot;
+  config.buildOutputDir = config.projectRoot / "build";
+  config.buildType = "Debug";
+  config.verbose = true;
+  
+  // Status callback to log to console
+  config.statusCallback = [](const std::string& message, bool isError) {
+    if (isError) {
+      S67_CORE_ERROR("{}", message);
+    } else {
+      S67_CORE_INFO("{}", message);
+    }
+  };
+  
+  m_BuildSystem->SetConfig(config);
+  
+  // Build
+  bool success = m_BuildSystem->BuildAll();
+  
+  if (success) {
+    S67_CORE_INFO("==========================================");
+    S67_CORE_INFO("BUILD ALL COMPLETED SUCCESSFULLY!");
+    S67_CORE_INFO("==========================================");
+  } else {
+    S67_CORE_ERROR("==========================================");
+    S67_CORE_ERROR("BUILD ALL FAILED!");
+    S67_CORE_ERROR("==========================================");
   }
 }
 
 void Application::OnPackageGame() {
-  S67_CORE_INFO("Creating distribution package...");
+  S67_CORE_INFO("Creating distribution package with native build system...");
   
   // Save current scene first
   if (m_LevelLoaded && m_SceneModified) {
     OnSaveScene();
   }
 
-  // Always run package scripts from the engine root
-  std::filesystem::path packageScriptPath = m_EngineAssetsRoot;
-
-  // Get project name from manifest or use folder name
-  std::string projectName = "MyGame";
+  // Configure build system
+  BuildConfig config;
+  
+  // Determine project root: use m_ProjectRoot if set, otherwise engine root
   if (!m_ProjectRoot.empty()) {
-    projectName = m_ProjectRoot.filename().string();
-  } else if (!m_EngineAssetsRoot.empty()) {
-    projectName = m_EngineAssetsRoot.filename().string();
+    config.projectRoot = m_ProjectRoot;
+  } else {
+    config.projectRoot = m_EngineAssetsRoot;
   }
   
-  // Get version (you could load this from a settings file)
-  std::string version = "1.0.0";
-
-#ifdef _WIN32
-  std::string packageCmd = "cd \"" + packageScriptPath.string() + "\" && package.bat " + projectName + " " + version;
-#else
-  std::string packageCmd = "cd \"" + packageScriptPath.string() + "\" && ./package.sh " + projectName + " " + version;
-#endif
-
-  S67_CORE_INFO("Executing: {0}", packageCmd);
-  int result = system(packageCmd.c_str());
+  config.engineRoot = m_EngineAssetsRoot;
+  config.buildOutputDir = config.projectRoot / "build";
+  config.buildType = "Release";  // Use Release for distribution
+  config.verbose = true;
   
-  if (result == 0) {
-    S67_CORE_INFO("Package created successfully: {0}_v{1}.zip", projectName, version);
-    S67_CORE_INFO("Ready for distribution!");
+  // Status callback to log to console
+  config.statusCallback = [](const std::string& message, bool isError) {
+    if (isError) {
+      S67_CORE_ERROR("{}", message);
+    } else {
+      S67_CORE_INFO("{}", message);
+    }
+  };
+  
+  m_BuildSystem->SetConfig(config);
+  
+  // Get project name
+  std::string projectName = "MyGame";
+  if (!config.projectRoot.empty()) {
+    projectName = config.projectRoot.filename().string();
+  }
+  
+  // Get version
+  std::string version = "1.0.0";
+  
+  // Package
+  bool success = m_BuildSystem->PackageForDistribution(projectName, version);
+  
+  if (success) {
+    S67_CORE_INFO("==========================================");
+    S67_CORE_INFO("PACKAGE CREATED SUCCESSFULLY!");
+    S67_CORE_INFO("Package: {}_v{}", projectName, version);
+    S67_CORE_INFO("==========================================");
   } else {
-    S67_CORE_ERROR("Packaging failed with exit code {0}", result);
+    S67_CORE_ERROR("==========================================");
+    S67_CORE_ERROR("PACKAGING FAILED!");
+    S67_CORE_ERROR("==========================================");
   }
 }
 
