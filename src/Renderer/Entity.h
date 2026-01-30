@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <filesystem>
+#include <memory>
 #include "Renderer/ScriptableEntity.h"
 
 // Forward declaration
@@ -19,6 +20,7 @@ struct LuaScriptComponent {
   std::string FilePath;
   bool Initialized = false;
   std::filesystem::file_time_type LastWriteTime;
+  std::shared_ptr<void> Environment;
 };
 }
 

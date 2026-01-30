@@ -203,7 +203,16 @@ namespace S67 {
             // Fallback: If not found, try raw path (compatibility)
             if (!std::filesystem::exists(scriptPath)) scriptPath = script.FilePath;
 
-            auto result = s_State.safe_script_file(scriptPath, sol::script_pass_on_error);
+            // Create Sandboxed Environment
+            // This ensures each script has its own globals (like 'time', 'self', etc.)
+            auto env = std::make_shared<sol::environment>(s_State, sol::create, s_State.globals());
+            script.Environment = env;
+            
+            // Inject 'self' into the environment
+            (*env)["self"] = entity;
+
+            // Load Script into Environment
+            auto result = s_State.safe_script_file(scriptPath, *env, sol::script_pass_on_error);
             if (!result.valid()) {
                 sol::error err = result;
                 S67_CORE_ERROR("Failed to load Lua script {0}: {1}", script.FilePath, err.what());
@@ -214,10 +223,9 @@ namespace S67 {
                 script.LastWriteTime = std::filesystem::last_write_time(scriptPath);
             }
 
-            // Call onCreate if it exists
-            sol::protected_function onCreateFunc = s_State["onCreate"];
+            // Call onCreate if it exists in the environment
+            sol::protected_function onCreateFunc = (*env)["onCreate"];
             if (onCreateFunc.valid()) {
-                s_State["self"] = entity; // Set context
                 auto callResult = onCreateFunc();
                 if (!callResult.valid()) {
                     sol::error err = callResult;
@@ -230,21 +238,26 @@ namespace S67 {
     void LuaScriptEngine::OnUpdate(Entity* entity, float ts) {
         for (auto& script : entity->LuaScripts) {
             if (script.FilePath.empty()) continue;
+            
+            // If environment is missing (e.g. added at runtime?), try to create it? 
+            // Better to rely on OnCreate being called first. Scene::InstantiateScripts handles this.
+            if (!script.Environment) continue;
+
+            auto env = std::static_pointer_cast<sol::environment>(script.Environment);
 
             // Hot Reloading Check
             std::string scriptPath = Application::Get().ResolveAssetPath(script.FilePath).string();
-            // Fallback: If not found, try raw path (compatibility)
             if (!std::filesystem::exists(scriptPath)) scriptPath = script.FilePath;
 
             if (std::filesystem::exists(scriptPath)) {
                 auto lastWriteTime = std::filesystem::last_write_time(scriptPath);
                 if (lastWriteTime > script.LastWriteTime) {
-                    // Script has changed, reload it
-                    auto result = s_State.safe_script_file(scriptPath, sol::script_pass_on_error);
+                    // Hot Reload: Re-run script into the SAME environment to update functions but keep state?
+                    // Or new environment? If we want data persistence (like 'time'), same env is better.
+                    auto result = s_State.safe_script_file(scriptPath, *env, sol::script_pass_on_error);
                     if (result.valid()) {
                          script.LastWriteTime = lastWriteTime;
                          S67_CORE_INFO("Hot Reloaded Lua script: {0}", script.FilePath);
-                         // Re-initialize if desired? For now just reloading code is enough for onUpdate logic changes.
                     } else {
                          sol::error err = result;
                          S67_CORE_ERROR("Failed to hot reload Lua script {0}: {1}", script.FilePath, err.what());
@@ -253,9 +266,8 @@ namespace S67 {
             }
 
             // Call onUpdate if it exists
-            sol::protected_function onUpdateFunc = s_State["onUpdate"];
+            sol::protected_function onUpdateFunc = (*env)["onUpdate"];
             if (onUpdateFunc.valid()) {
-                s_State["self"] = entity; // Set context
                 auto callResult = onUpdateFunc(ts);
                 if (!callResult.valid()) {
                     sol::error err = callResult;
