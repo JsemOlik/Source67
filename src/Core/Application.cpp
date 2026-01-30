@@ -238,6 +238,40 @@ Application::Application(const std::string &executablePath,
     }
   }
 
+  // Standalone mode detection (after everything is initialized)
+  std::filesystem::path cfgPath = m_EngineAssetsRoot / "game.cfg";
+  if (std::filesystem::exists(cfgPath)) {
+    S67_CORE_INFO("Found game.cfg, entering standalone/shipping mode...");
+    std::ifstream cfgFile(cfgPath);
+    std::string line;
+    while (std::getline(cfgFile, line)) {
+      size_t eqPos = line.find('=');
+      if (eqPos != std::string::npos) {
+        std::string key = line.substr(0, eqPos);
+        std::string val = line.substr(eqPos + 1);
+        // Basic trimming
+        val.erase(val.find_last_not_of(" \n\r\t") + 1);
+        if (key == "project_name")
+          m_ProjectName = val;
+        if (key == "entry_level")
+          m_ProjectDefaultLevel = val;
+      }
+    }
+
+    // In standalone mode, the engine root IS the project root
+    m_ProjectRoot = m_EngineAssetsRoot;
+
+    if (!m_ProjectDefaultLevel.empty()) {
+      std::filesystem::path levelPath = m_ProjectRoot / m_ProjectDefaultLevel;
+      if (std::filesystem::exists(levelPath)) {
+        S67_CORE_INFO("Standalone auto-loading level: {0}", levelPath.string());
+        OpenScene(levelPath.string());
+        m_SceneState = SceneState::Play;
+        OnScenePlay();
+      }
+    }
+  }
+
   S67_CORE_INFO("Application initialized successfully");
 }
 
@@ -756,7 +790,9 @@ void Application::OnPackageAssets() {
     return;
   }
 
-  std::string defaultName = m_ProjectName + ".pak";
+  std::string defaultName = m_ProjectName;
+  if (defaultName.find(".pak") == std::string::npos)
+    defaultName += ".pak";
   std::string filepath = FileDialogs::SaveFile("Source67 Pak (*.pak)\0*.pak\0",
                                                defaultName.c_str(), "pak");
   if (filepath.empty())
@@ -821,6 +857,97 @@ void Application::OnPackageAssets() {
   } else {
     S67_CORE_ERROR("Failed to create package at {0}", filepath);
   }
+}
+
+void Application::OnBuildGame() {
+  if (m_ProjectRoot.empty()) {
+    S67_CORE_WARN("Cannot build game: No project loaded!");
+    return;
+  }
+
+  std::string exportPath = FileDialogs::OpenFolder();
+  if (exportPath.empty())
+    return;
+
+  std::filesystem::path exportDir(exportPath);
+  std::filesystem::create_directories(exportDir);
+
+  S67_CORE_INFO("Building standalone game to {0}...", exportDir.string());
+
+  // 1. Package Assets into assets.pak
+  std::string pakPath = (exportDir / "assets.pak").string();
+  {
+    PakWriter writer(pakPath);
+    TextureProcessor texProc;
+    MeshProcessor meshProc;
+    ShaderProcessor shaderProc;
+    LevelProcessor levelProc;
+
+    std::filesystem::path assetsDir = m_ProjectRoot / "assets";
+    for (const auto &entry :
+         std::filesystem::recursive_directory_iterator(assetsDir)) {
+      if (entry.is_directory())
+        continue;
+
+      std::filesystem::path path = entry.path();
+      std::string ext = path.extension().string();
+      ProcessedAsset asset;
+      bool processed = false;
+
+      if (ext == ".png" || ext == ".jpg" || ext == ".tga") {
+        processed = texProc.Process(path, asset);
+      } else if (ext == ".obj" || ext == ".stl") {
+        processed = meshProc.Process(path, asset);
+      } else if (ext == ".glsl") {
+        processed = shaderProc.Process(path, asset);
+      } else if (ext == ".s67") {
+        processed = levelProc.Process(path, asset);
+      } else {
+        std::string relPath =
+            std::filesystem::relative(path, m_ProjectRoot).generic_string();
+        writer.AddFile(relPath, path.string());
+        continue;
+      }
+
+      if (processed) {
+        std::string relPath =
+            std::filesystem::relative(path, m_ProjectRoot).generic_string();
+        writer.AddFile(relPath, asset.Data.data(), (uint32_t)asset.Data.size());
+      }
+    }
+    writer.Write();
+  }
+
+  // 2. Copy Executable and DLLs
+  std::filesystem::path binDir = m_EngineAssetsRoot;
+  for (const auto &entry : std::filesystem::directory_iterator(binDir)) {
+    if (entry.path().extension() == ".exe" ||
+        entry.path().extension() == ".dll") {
+      try {
+        std::filesystem::copy_file(
+            entry.path(), exportDir / entry.path().filename(),
+            std::filesystem::copy_options::overwrite_existing);
+      } catch (...) {
+        S67_CORE_ERROR("Failed to copy {0}", entry.path().string());
+      }
+    }
+  }
+
+  // 3. Create game.cfg
+  std::ofstream cfg(exportDir / "game.cfg");
+  if (cfg.is_open()) {
+    cfg << "project_name=" << m_ProjectName << "\n";
+    std::string relLevel = "assets/levels/Untitled.s67";
+    if (!m_LevelFilePath.empty()) {
+      relLevel = std::filesystem::relative(m_LevelFilePath, m_ProjectRoot)
+                     .generic_string();
+    }
+    cfg << "entry_level=" << relLevel << "\n";
+    cfg.close();
+  }
+
+  S67_CORE_INFO("Build successful!");
+  FileDialogs::OpenExplorer(exportPath);
 }
 
 void Application::OnSaveScene() {
@@ -2201,6 +2328,9 @@ void Application::RenderFrame(float alpha) {
         if (ImGui::MenuItem("Package Assets...", nullptr, false,
                             !m_ProjectRoot.empty()))
           OnPackageAssets();
+        if (ImGui::MenuItem("Build Game...", nullptr, false,
+                            !m_ProjectRoot.empty()))
+          OnBuildGame();
         ImGui::EndMenu();
       }
 

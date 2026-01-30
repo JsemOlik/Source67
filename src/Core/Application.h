@@ -60,6 +60,7 @@ public:
   void CloseScene();
   void CloseProject();
   void OnPackageAssets();
+  void OnBuildGame();
 
   void OnEntityCollidableChanged(Ref<Entity> entity);
   void SetSceneModified(bool modified) { m_SceneModified = modified; }
