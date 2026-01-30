@@ -1,33 +1,35 @@
 #include "Application.h"
+#include "VFS.h"
+#include <filesystem>
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
 #endif
-#include "Events/KeyEvent.h"
-#include "Events/MouseEvent.h"
+#include "../Events/KeyEvent.h"
+#include "../Events/MouseEvent.h"
+#include "../Renderer/Buffer.h"
+#include "../Renderer/Renderer.h"
+#include "../Renderer/Shader.h"
+#include "../Renderer/VertexArray.h"
 #include "Logger.h"
-#include "Renderer/Buffer.h"
-#include "Renderer/Renderer.h"
-#include "Renderer/Shader.h"
-#include "Renderer/VertexArray.h"
 #include <glad/glad.h>
 
-#include "Core/Input.h"
-#include "Core/PlatformUtils.h"
-#include "Game/Console/ConVar.h"
-#include "Game/Console/Console.h"
-#include "Game/Console/ConsolePanel.h"
-#include "ImGui/Panels/ContentBrowserPanel.h"
-#include "ImGuizmo/ImGuizmo.h"
-#include "Physics/PhysicsShapes.h"
-#include "Physics/PlayerController.h"
-#include "Renderer/Framebuffer.h"
-#include "Renderer/SceneSerializer.h"
-#include "Renderer/ScriptableEntity.h"
-#include "Renderer/ScriptRegistry.h"
-#include "Scripting/LuaScriptEngine.h"
+#include "../Game/Console/ConVar.h"
+#include "../Game/Console/Console.h"
+#include "../Game/Console/ConsolePanel.h"
+#include "../ImGui/Panels/ContentBrowserPanel.h"
+#include "../ImGuizmo/ImGuizmo.h"
+#include "../Physics/PhysicsShapes.h"
+#include "../Physics/PlayerController.h"
+#include "../Renderer/Framebuffer.h"
+#include "../Renderer/SceneSerializer.h"
+#include "../Renderer/ScriptRegistry.h"
+#include "../Renderer/ScriptableEntity.h"
+#include "../Scripting/LuaScriptEngine.h"
+#include "Input.h"
+#include "PlatformUtils.h"
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -59,24 +61,42 @@ static SceneBackup s_SceneBackup;
 
 Application *Application::s_Instance = nullptr;
 
-static ConVar* s_ClShowFPS = nullptr;
-static ConVar* s_SvTickRate = nullptr;
+static ConVar *s_ClShowFPS = nullptr;
+static ConVar *s_SvTickRate = nullptr;
 
 Application::Application(const std::string &executablePath,
                          const std::string &arg) {
   S67_CORE_ASSERT(!s_Instance, "Application already exists!");
   s_Instance = this;
 
+  VFS::Init();
+
+#ifdef S67_STANDALONE
+  std::string dllPath = FindGameDLL();
+  m_GameDLLHandle = LoadGameDLL(dllPath);
+  if (m_GameDLLHandle) {
+    m_GameAPI = ResolveGameAPI(m_GameDLLHandle);
+  }
+
+  std::string pakPath = FindAssetPack();
+  if (!pakPath.empty()) {
+    VFS::Mount(pakPath);
+  }
+#endif
+
   // Register Console Commands
   s_ClShowFPS = new ConVar("cl_showfps", "0", FCVAR_ARCHIVE, "Draw FPS meter");
   Console::Get().RegisterConVar(s_ClShowFPS);
 
-  s_SvTickRate = new ConVar("sv_tickrate", "66", FCVAR_NOTIFY | FCVAR_ARCHIVE, "Server tick rate", [](ConVar* var, const std::string& newVal) {
-      try {
-          float rate = std::stof(newVal);
-          Application::Get().SetTickRate(rate);
-      } catch(...) {}
-  });
+  s_SvTickRate = new ConVar("sv_tickrate", "66", FCVAR_NOTIFY | FCVAR_ARCHIVE,
+                            "Server tick rate",
+                            [](ConVar *var, const std::string &newVal) {
+                              try {
+                                float rate = std::stof(newVal);
+                                Application::Get().SetTickRate(rate);
+                              } catch (...) {
+                              }
+                            });
   Console::Get().RegisterConVar(s_SvTickRate);
 
   // Find assets root
@@ -188,7 +208,13 @@ Application::Application(const std::string &executablePath,
   // Initialize Scripting
   S67_CORE_INFO("Initializing Lua Engine...");
   LuaScriptEngine::Init();
-  
+
+#ifdef S67_STANDALONE
+  if (m_GameAPI.game_initialize) {
+    m_GameAPI.game_initialize(this, &LuaScriptEngine::GetState());
+  }
+#endif
+
   // Script loading is now deferred to SetProjectRoot or DiscoverProject
 
   m_HUDShader =
@@ -325,6 +351,15 @@ void Application::CreateTestScene() {
 }
 
 Application::~Application() {
+#ifdef S67_STANDALONE
+  if (m_GameAPI.game_shutdown) {
+    m_GameAPI.game_shutdown();
+  }
+  if (m_GameDLLHandle) {
+    UnloadGameDLL(m_GameDLLHandle);
+  }
+#endif
+  VFS::Shutdown();
   HUDRenderer::Shutdown();
   m_ImGuiLayer->OnDetach();
   PhysicsSystem::Shutdown();
@@ -1084,6 +1119,33 @@ void Application::OnEvent(Event &e) {
       }
     }
   }
+
+  // 4. Game DLL Event Handling
+#ifdef S67_STANDALONE
+  if (m_GameAPI.game_on_key_pressed &&
+      e.GetEventType() == EventType::KeyPressed) {
+    m_GameAPI.game_on_key_pressed(((KeyPressedEvent &)e).GetKeyCode());
+  }
+  if (m_GameAPI.game_on_key_released &&
+      e.GetEventType() == EventType::KeyReleased) {
+    m_GameAPI.game_on_key_released(((KeyReleasedEvent &)e).GetKeyCode());
+  }
+  if (m_GameAPI.game_on_mouse_moved &&
+      e.GetEventType() == EventType::MouseMoved) {
+    m_GameAPI.game_on_mouse_moved(((MouseMovedEvent &)e).GetX(),
+                                  ((MouseMovedEvent &)e).GetY());
+  }
+  if (m_GameAPI.game_on_mouse_button &&
+      e.GetEventType() == EventType::MouseButtonPressed) {
+    m_GameAPI.game_on_mouse_button(
+        ((MouseButtonPressedEvent &)e).GetMouseButton(), 1);
+  }
+  if (m_GameAPI.game_on_mouse_button &&
+      e.GetEventType() == EventType::MouseButtonReleased) {
+    m_GameAPI.game_on_mouse_button(
+        ((MouseButtonPressedEvent &)e).GetMouseButton(), 0);
+  }
+#endif
 }
 
 void Application::Run() {
@@ -1094,6 +1156,12 @@ void Application::Run() {
     double current_frame_time = glfwGetTime();
     double frame_time = current_frame_time - m_PreviousFrameTime;
     m_PreviousFrameTime = current_frame_time;
+
+#ifdef S67_STANDALONE
+    if (m_GameAPI.game_update) {
+      m_GameAPI.game_update((float)frame_time);
+    }
+#endif
 
     // Calculate Game FPS from actual frame time
     m_GameFPS =
@@ -1159,7 +1227,8 @@ void Application::Run() {
 }
 
 void Application::SetTickRate(float rate) {
-  if (rate <= 0.0f) return;
+  if (rate <= 0.0f)
+    return;
   m_TickRate = rate;
   m_TickDuration = 1.0f / rate;
 }
@@ -1254,6 +1323,7 @@ bool Application::OnWindowDrop(WindowDropEvent &e) {
   return true;
 }
 
+#ifdef S67_EDITOR
 void Application::UI_SettingsWindow() {
   ImGui::SetNextWindowSizeConstraints(ImVec2(600, 450),
                                       ImVec2(FLT_MAX, FLT_MAX));
@@ -1406,6 +1476,7 @@ void Application::UI_SettingsWindow() {
   ImGui::End();
 }
 
+#ifdef S67_EDITOR
 void Application::UI_LauncherScreen() {
   ImGuiViewport *viewport = ImGui::GetMainViewport();
   ImGui::SetNextWindowPos(viewport->Pos);
@@ -1525,6 +1596,7 @@ void Application::UI_LauncherScreen() {
   ImGui::End();
 }
 
+#ifdef S67_EDITOR
 void Application::UI_ProjectSettingsWindow() {
   ImGui::SetNextWindowSizeConstraints(ImVec2(600, 400),
                                       ImVec2(FLT_MAX, FLT_MAX));
@@ -2032,16 +2104,25 @@ void Application::RenderFrame(float alpha) {
   }
   Renderer::EndScene();
 
+#ifdef S67_STANDALONE
+  if (m_GameAPI.game_render) {
+    m_GameAPI.game_render();
+  }
+#endif
+
+  m_GameFramebuffer->Unbind();
+
   // 3. HUD Rendering (only in game viewport)
   HUDRenderer::BeginHUD(m_GameViewportSize.x, m_GameViewportSize.y);
   HUDRenderer::RenderCrosshair();
 
   if (s_ClShowFPS && s_ClShowFPS->GetBool()) {
-      float scale = 4.0f;
-      float charHeight = 8.0f * scale;
-      float padding = 10.0f;
-      glm::vec2 pos = {padding, m_GameViewportSize.y - charHeight - padding};
-      HUDRenderer::DrawString("FPS: " + std::to_string((int)m_GameFPS), pos, scale, {0, 1, 0, 1});
+    float scale = 4.0f;
+    float charHeight = 8.0f * scale;
+    float padding = 10.0f;
+    glm::vec2 pos = {padding, m_GameViewportSize.y - charHeight - padding};
+    HUDRenderer::DrawString("FPS: " + std::to_string((int)m_GameFPS), pos,
+                            scale, {0, 1, 0, 1});
   }
 
   if (m_Scene) {
@@ -2239,11 +2320,13 @@ void Application::RenderFrame(float alpha) {
       ImGui::End();
     }
 
+#ifdef S67_EDITOR
     if (m_ShowSettingsWindow)
       UI_SettingsWindow();
 
     if (m_ShowProjectSettingsWindow)
       UI_ProjectSettingsWindow();
+#endif
 
     // Scene Viewport
     if (m_ShowScene) {
@@ -2515,9 +2598,11 @@ void Application::RenderFrame(float alpha) {
   if (m_ConsolePanel)
     m_ConsolePanel->OnImGuiRender(&m_ShowConsole);
 
+#ifdef S67_EDITOR
   if (m_ProjectRoot.empty()) {
     UI_LauncherScreen();
   }
+#endif
   // Unsaved Changes Modal Dialogs
   if (ImGui::BeginPopupModal("Unsaved Changes##NewScene", nullptr,
                              ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -2625,6 +2710,113 @@ void Application::RenderFrame(float alpha) {
   }
 
   m_ImGuiLayer->End();
+}
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+namespace S67 {
+
+std::string Application::FindGameDLL() {
+  std::vector<std::string> search_paths = {
+      "./Game.dll",
+      "./game/build/Release/Game.dll",
+      "../game/build/Release/Game.dll",
+      std::getenv("GAME_DLL_PATH") ? std::getenv("GAME_DLL_PATH") : "",
+  };
+
+  for (const auto &path : search_paths) {
+    if (!path.empty() && std::filesystem::exists(path)) {
+      return std::filesystem::absolute(path).string();
+    }
+  }
+  return "";
+}
+
+std::string Application::FindAssetPack() {
+  std::vector<std::string> search_paths = {
+      "./GameAssets.apak",
+      "./assets/GameAssets.apak",
+      "../assets/GameAssets.apak",
+      std::getenv("ASSETPACK_PATH") ? std::getenv("ASSETPACK_PATH") : "",
+  };
+
+  for (const auto &path : search_paths) {
+    if (!path.empty() && std::filesystem::exists(path)) {
+      return std::filesystem::absolute(path).string();
+    }
+  }
+  return "";
+}
+
+void *Application::LoadGameDLL(const std::string &dll_path) {
+#ifdef _WIN32
+  HMODULE dll = LoadLibraryA(dll_path.c_str());
+  if (!dll) {
+    S67_CORE_ERROR("Failed to load Game.dll: {0} (Error: {1})", dll_path,
+                   GetLastError());
+    return nullptr;
+  }
+  return (void *)dll;
+#else
+  // TODO: Linux/macOS support
+  return nullptr;
+#endif
+}
+
+void Application::UnloadGameDLL(void *handle) {
+  if (!handle)
+    return;
+#ifdef _WIN32
+  FreeLibrary((HMODULE)handle);
+#endif
+}
+
+GameAPI Application::ResolveGameAPI(void *dll_handle) {
+  GameAPI api = {};
+
+  auto resolve = [dll_handle](const char *name) -> void * {
+#ifdef _WIN32
+    return (void *)GetProcAddress((HMODULE)dll_handle, name);
+#else
+    return nullptr; // TODO
+#endif
+  };
+
+  api.game_initialize =
+      (decltype(api.game_initialize))resolve("game_initialize");
+  api.game_update = (decltype(api.game_update))resolve("game_update");
+  api.game_render = (decltype(api.game_render))resolve("game_render");
+  api.game_on_key_pressed =
+      (decltype(api.game_on_key_pressed))resolve("game_on_key_pressed");
+  api.game_on_key_released =
+      (decltype(api.game_on_key_released))resolve("game_on_key_released");
+  api.game_on_mouse_moved =
+      (decltype(api.game_on_mouse_moved))resolve("game_on_mouse_moved");
+  api.game_on_mouse_button =
+      (decltype(api.game_on_mouse_button))resolve("game_on_mouse_button");
+  api.game_on_assets_loaded =
+      (decltype(api.game_on_assets_loaded))resolve("game_on_assets_loaded");
+  api.game_on_scene_loaded =
+      (decltype(api.game_on_scene_loaded))resolve("game_on_scene_loaded");
+  api.game_on_lua_script_loaded =
+      (decltype(api.game_on_lua_script_loaded))resolve(
+          "game_on_lua_script_loaded");
+  api.game_on_lua_script_reloaded =
+      (decltype(api.game_on_lua_script_reloaded))resolve(
+          "game_on_lua_script_reloaded");
+  api.game_shutdown = (decltype(api.game_shutdown))resolve("game_shutdown");
+  api.game_get_version =
+      (decltype(api.game_get_version))resolve("game_get_version");
+  api.game_get_build_number =
+      (decltype(api.game_get_build_number))resolve("game_get_build_number");
+
+  if (!api.game_initialize || !api.game_update || !api.game_render) {
+    S67_CORE_ERROR("Failed to resolve core game API functions!");
+  }
+
+  return api;
 }
 
 } // namespace S67

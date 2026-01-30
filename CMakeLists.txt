@@ -15,6 +15,18 @@ set(CMAKE_CXX_STANDARD 20)
 # Nudge to pick up Scene.cpp
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Hybrid Build System Options
+option(STANDALONE_MODE "Build in standalone mode (no editor features)" OFF)
+option(EDITOR_MODE "Build editor with full debug features" ON)
+option(BUILD_GAME_DLL "Build Game.dll from game/ subdirectory" ON)
+
+if(STANDALONE_MODE)
+    add_definitions(-DS67_STANDALONE)
+    set(EDITOR_MODE OFF)
+else()
+    add_definitions(-DS67_EDITOR)
+endif()
+
 # Force dynamic CRT on Windows to match Jolt and other libs if USE_STATIC_CRT is OFF
 if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
@@ -159,9 +171,15 @@ if(NOT APPLE)
     endforeach()
 endif()
 
-add_executable(Source67 WIN32 ${SOURCES})
+if(STANDALONE_MODE)
+    set(EXE_NAME "Source67")
+else()
+    set(EXE_NAME "Source67Editor")
+endif()
 
-target_include_directories(Source67 PUBLIC 
+add_executable(${EXE_NAME} WIN32 ${SOURCES})
+
+target_include_directories(${EXE_NAME} PUBLIC 
     ${INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb_image
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/tinyobjloader
@@ -172,9 +190,7 @@ target_include_directories(Source67 PUBLIC
     ${sol2_SOURCE_DIR}/include
 )
 
-# Let's set up the executable
-
-target_link_libraries(Source67 PUBLIC 
+target_link_libraries(${EXE_NAME} PUBLIC 
     glfw 
     glm::glm
     spdlog::spdlog
@@ -187,36 +203,60 @@ target_link_libraries(Source67 PUBLIC
 
 # Compiler warnings
 if(MSVC)
-    target_compile_options(Source67 PRIVATE /W4)
+    target_compile_options(${EXE_NAME} PRIVATE /W4)
 else()
-    target_compile_options(Source67 PRIVATE -Wall -Wextra -Wpedantic -Wno-changes-meaning)
+    target_compile_options(${EXE_NAME} PRIVATE -Wall -Wextra -Wpedantic -Wno-changes-meaning)
 endif()
 
 # Sanitizers for debug builds
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     if(NOT MSVC)
-        target_compile_options(Source67 PRIVATE -fsanitize=address,undefined)
-        target_link_options(Source67 PRIVATE -fsanitize=address,undefined)
+        target_compile_options(${EXE_NAME} PRIVATE -fsanitize=address,undefined)
+        target_link_options(${EXE_NAME} PRIVATE -fsanitize=address,undefined)
     endif()
 endif()
 
 if(MSVC)
-    target_compile_definitions(Source67 PUBLIC 
+    target_compile_definitions(${EXE_NAME} PUBLIC 
         _CRT_SECURE_NO_WARNINGS
         _SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS
     )
 endif()
 
 if(APPLE)
-    target_link_libraries(Source67 PUBLIC "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
+    target_link_libraries(${EXE_NAME} PUBLIC "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
 elseif(UNIX)
     find_package(OpenGL REQUIRED)
-    target_link_libraries(Source67 PUBLIC OpenGL::GL)
+    target_link_libraries(${EXE_NAME} PUBLIC OpenGL::GL)
 endif()
 
 # Copy assets to build directory
-add_custom_command(TARGET Source67 POST_BUILD
+add_custom_command(TARGET ${EXE_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_CURRENT_SOURCE_DIR}/assets
-    $<TARGET_FILE_DIR:Source67>/assets
+    $<TARGET_FILE_DIR:${EXE_NAME}>/assets
+)
+
+# Subdirectories for Game DLL and Asset Packer
+if(BUILD_GAME_DLL AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/game/CMakeLists.txt")
+    add_subdirectory(game)
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools/asset_packer/CMakeLists.txt")
+    add_subdirectory(tools/asset_packer)
+endif()
+
+# Asset packing target (requires asset_packer tool to be built)
+add_custom_target(pack_assets
+    COMMAND ${CMAKE_BINARY_DIR}/tools/asset_packer/asset_packer
+        -i ${CMAKE_CURRENT_SOURCE_DIR}/assets/
+        -o ${CMAKE_BINARY_DIR}/GameAssets.apak
+        -c lz4 -v --include-lua
+    COMMENT "Packing GameAssets.apak..."
+)
+
+# Full build target
+add_custom_target(build_complete
+    DEPENDS ${EXE_NAME} pack_assets
+    COMMENT "Complete build (engine + game + assets)"
 )
