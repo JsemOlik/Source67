@@ -25,6 +25,12 @@ public:
   static void QueueString(const std::string &text,
                           const glm::vec4 &color = {1.0f, 1.0f, 1.0f, 1.0f});
 
+  static void SetText(const std::string &id, const std::string &text,
+                      const glm::vec2 &position = {0.5f, 0.1f},
+                      float scale = 3.0f,
+                      const glm::vec4 &color = {1.0f, 1.0f, 1.0f, 1.0f});
+  static void ClearText(const std::string &id);
+
   static void DrawString(const std::string &text, const glm::vec2 &position,
                          float scale, const glm::vec4 &color);
 
@@ -45,6 +51,14 @@ private:
       glm::vec4 Color;
     };
     std::vector<QueuedText> TextQueue;
+
+    struct PersistentText {
+      std::string Text;
+      glm::vec2 Position;
+      float Scale;
+      glm::vec4 Color;
+    };
+    std::map<std::string, PersistentText> PersistentTexts;
   };
 
   static HUDData *s_Data;

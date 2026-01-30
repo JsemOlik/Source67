@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iomanip>
+#include <map>
 #include <sstream>
 
 namespace S67 {
@@ -225,6 +226,17 @@ void HUDRenderer::EndHUD() {
     yOffset += 40.0f; // Move down for next line
   }
 
+  // Render Persistent Texts
+  for (auto const &[id, pt] : s_Data->PersistentTexts) {
+    float charW = 8.0f * pt.Scale;
+    float textW = pt.Text.length() * charW;
+    // Position is normalized 0-1
+    glm::vec2 screenPos = {
+        (s_Data->ViewportWidth * pt.Position.x) - (textW * 0.5f),
+        s_Data->ViewportHeight * pt.Position.y};
+    DrawString(pt.Text, screenPos, pt.Scale, pt.Color);
+  }
+
   s_Data->TextQueue.clear();
 
   glEnable(GL_DEPTH_TEST);
@@ -280,6 +292,20 @@ void HUDRenderer::RenderSpeed(float speed) {
 void HUDRenderer::QueueString(const std::string &text, const glm::vec4 &color) {
   if (s_Data) {
     s_Data->TextQueue.push_back({text, color});
+  }
+}
+
+void HUDRenderer::SetText(const std::string &id, const std::string &text,
+                          const glm::vec2 &position, float scale,
+                          const glm::vec4 &color) {
+  if (s_Data) {
+    s_Data->PersistentTexts[id] = {text, position, scale, color};
+  }
+}
+
+void HUDRenderer::ClearText(const std::string &id) {
+  if (s_Data) {
+    s_Data->PersistentTexts.erase(id);
   }
 }
 
