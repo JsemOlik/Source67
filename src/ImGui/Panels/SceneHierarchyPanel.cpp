@@ -523,7 +523,8 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
              for (const auto& entry : std::filesystem::directory_iterator(scriptDir)) {
                  if (entry.path().extension() == ".lua") {
                      if (ImGui::MenuItem(entry.path().filename().string().c_str())) {
-                         std::string relativePath = std::filesystem::relative(entry.path(), std::filesystem::current_path()).string();
+                         // Store as "Scripts/Filename.lua" to be consistent with project root
+                         std::string relativePath = "Scripts/" + entry.path().filename().string();
                          entity->LuaScripts.push_back({relativePath, false});
                          Application::Get().SetSceneModified(true);
                      }

@@ -129,11 +129,19 @@ namespace S67 {
         for (auto& script : entity->LuaScripts) {
             if (script.FilePath.empty()) continue;
 
-            auto result = s_State.safe_script_file(script.FilePath, sol::script_pass_on_error);
+            std::string scriptPath = Application::Get().ResolveAssetPath(script.FilePath).string();
+            // Fallback: If not found, try raw path (compatibility)
+            if (!std::filesystem::exists(scriptPath)) scriptPath = script.FilePath;
+
+            auto result = s_State.safe_script_file(scriptPath, sol::script_pass_on_error);
             if (!result.valid()) {
                 sol::error err = result;
                 S67_CORE_ERROR("Failed to load Lua script {0}: {1}", script.FilePath, err.what());
                 continue;
+            }
+
+            if (std::filesystem::exists(scriptPath)) {
+                script.LastWriteTime = std::filesystem::last_write_time(scriptPath);
             }
 
             // Call onCreate if it exists
@@ -152,6 +160,27 @@ namespace S67 {
     void LuaScriptEngine::OnUpdate(Entity* entity, float ts) {
         for (auto& script : entity->LuaScripts) {
             if (script.FilePath.empty()) continue;
+
+            // Hot Reloading Check
+            std::string scriptPath = Application::Get().ResolveAssetPath(script.FilePath).string();
+            // Fallback: If not found, try raw path (compatibility)
+            if (!std::filesystem::exists(scriptPath)) scriptPath = script.FilePath;
+
+            if (std::filesystem::exists(scriptPath)) {
+                auto lastWriteTime = std::filesystem::last_write_time(scriptPath);
+                if (lastWriteTime > script.LastWriteTime) {
+                    // Script has changed, reload it
+                    auto result = s_State.safe_script_file(scriptPath, sol::script_pass_on_error);
+                    if (result.valid()) {
+                         script.LastWriteTime = lastWriteTime;
+                         S67_CORE_INFO("Hot Reloaded Lua script: {0}", script.FilePath);
+                         // Re-initialize if desired? For now just reloading code is enough for onUpdate logic changes.
+                    } else {
+                         sol::error err = result;
+                         S67_CORE_ERROR("Failed to hot reload Lua script {0}: {1}", script.FilePath, err.what());
+                    }
+                }
+            }
 
             // Call onUpdate if it exists
             sol::protected_function onUpdateFunc = s_State["onUpdate"];
