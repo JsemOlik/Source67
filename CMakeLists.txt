@@ -99,6 +99,11 @@ FetchContent_Declare(
     GIT_TAG        v5.4.7
 )
 
+# Disable testing for dependencies
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(SOL2_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(SOL2_EXAMPLES OFF CACHE BOOL "" FORCE)
+
 FetchContent_MakeAvailable(glfw glm spdlog jolt imgui json sol2 lua)
 
 # Override /WX flag for Jolt target on MSVC to prevent Windows SDK warnings from failing the build

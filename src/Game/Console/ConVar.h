@@ -3,7 +3,6 @@
 #include <string>
 #include <vector>
 
-
 namespace S67 {
 
 // Valve-style FCVAR flags

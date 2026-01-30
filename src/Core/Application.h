@@ -1,10 +1,11 @@
 #include "Base.h"
-#include "Core/GameState.h"
-#include "Core/UndoSystem.h"
 #include "Events/WindowEvent.h"
+#include "GameState.h"
 #include "ImGui/ImGuiLayer.h"
 #include "ImGui/Panels/SceneHierarchyPanel.h"
 #include "Physics/PhysicsSystem.h"
+#include "UndoSystem.h"
+
 // #include "Physics/PlayerController.h" // Removed to break potential cycle
 #include "Renderer/Camera.h"
 #include "Renderer/CameraController.h"
@@ -19,6 +20,7 @@
 #include "Window.h"
 #include <filesystem>
 #include <glad/glad.h>
+#include <nlohmann/json_fwd.hpp>
 
 namespace S67 {
 

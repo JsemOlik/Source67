@@ -1,12 +1,11 @@
 #include "VFS.h"
-#include "Core/Logger.h"
+#include "Logger.h"
 #include "PakSystem.h"
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
-
 
 namespace S67 {
 
