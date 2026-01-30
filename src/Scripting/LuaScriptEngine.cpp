@@ -71,12 +71,21 @@ namespace S67 {
             "hasTag", &Entity::HasTag,
             "getName", [](Entity& self) { return self.Name; },
             "getPosition", [](Entity& self) { return self.Transform.Position; },
-            "setPosition", [](Entity& self, const glm::vec3& pos) { self.Transform.Position = pos; }
+            "setPosition", [](Entity& self, const glm::vec3& pos) { 
+                self.Transform.Position = pos; 
+                if (!self.PhysicsBody.IsInvalid()) {
+                     PhysicsSystem::GetBodyInterface().SetPosition(self.PhysicsBody, JPH::RVec3(pos.x, pos.y, pos.z), JPH::EActivation::Activate);
+                }
+            }
         );
 
         // Core API Functions (Stupid Simple)
         s_State.set_function("printHUD", [](const std::string& text, sol::optional<glm::vec4> color) {
             HUDRenderer::QueueString(text, color.value_or(glm::vec4(1.0f)));
+        });
+
+        s_State.set_function("log", [](const std::string& message) {
+            S67_CORE_INFO("[Lua] {0}", message);
         });
 
         s_State.set_function("setText", [](const std::string& id, const std::string& text, sol::optional<glm::vec2> pos, sol::optional<float> scale, sol::optional<glm::vec4> color) {

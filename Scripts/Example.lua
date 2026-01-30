@@ -14,6 +14,7 @@ function onUpdate(ts)
         setText("Interaction", "[E] " .. hit:getName(), vec2(0.5, 0.1))
         
         if isKeyPressed(KEY_E) then
+            log("Key E Pressed against " .. hit:getName())
             -- Move the object we hit up!
             local pos = hit:getPosition()
             pos.y = pos.y + 0.1
