@@ -2819,4 +2819,16 @@ GameAPI Application::ResolveGameAPI(void *dll_handle) {
   return api;
 }
 
+std::filesystem::path
+Application::ResolveAssetPath(const std::filesystem::path &path) {
+  if (s_Instance) {
+    auto projectPath = s_Instance->m_ProjectRoot / path;
+    if (std::filesystem::exists(projectPath)) {
+      return projectPath;
+    }
+    return s_Instance->m_EngineAssetsRoot / path;
+  }
+  return path;
+}
+
 } // namespace S67

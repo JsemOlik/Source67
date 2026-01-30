@@ -13,6 +13,7 @@
 #include "../Renderer/Framebuffer.h"
 #include "../Renderer/HUDRenderer.h"
 #include "../Renderer/Light.h"
+#include "../Renderer/Mesh.h"
 #include "../Renderer/Scene.h"
 #include "../Renderer/Shader.h"
 #include "../Renderer/Skybox.h"
@@ -20,23 +21,30 @@
 #include "../Renderer/VertexArray.h"
 #include "Window.h"
 
+
 #include <filesystem>
 #include <glad/glad.h>
+#include <glm/glm.hpp>
 #include <memory>
 #include <string>
 #include <vector>
+
 
 namespace S67 {
 
 class ContentBrowserPanel;
 class ConsolePanel;
+class Layer;
 
 struct GameAPI {
-  void (*game_initialize)(void *lua_state);
+  void (*game_initialize)(void *engine_context, void *lua_state);
   void (*game_shutdown)();
   void (*game_update)(float dt);
   void (*game_render)();
-  void (*game_load_assets)(const char *pak_path);
+  void (*game_on_assets_loaded)(void *assetpack_handle);
+  void (*game_on_scene_loaded)(const char *scene_path);
+  void (*game_on_lua_script_loaded)(const char *script_path);
+  void (*game_on_lua_script_reloaded)(const char *script_path);
   void (*game_on_key_pressed)(int key_code);
   void (*game_on_key_released)(int key_code);
   void (*game_on_mouse_moved)(float x, float y);
@@ -58,6 +66,16 @@ public:
 
   inline Window &GetWindow() { return *m_Window; }
   static inline Application &Get() { return *s_Instance; }
+
+  static std::filesystem::path
+  ResolveAssetPath(const std::filesystem::path &path);
+
+  inline PerspectiveCamera &GetCamera() { return *m_Camera; }
+  inline UndoSystem &GetUndoSystem() { return m_UndoSystem; }
+
+  inline void SetSceneModified(bool modified) { m_SceneModified = modified; }
+
+  void CreateTestScene();
 
   // Scene Management
   void OnScenePlay();
@@ -179,6 +197,43 @@ private:
   Ref<Shader> m_OutlineShader;
   Ref<Skybox> m_Skybox;
   Ref<Texture2D> m_LauncherLogo;
+
+  Ref<Shader> m_HUDShader;
+  Ref<Shader> m_DefaultShader;
+  Ref<Texture2D> m_DefaultTexture;
+  Ref<VertexArray>
+      m_CubeMesh; // Using VertexArray as per checking InitDefaultAssets
+
+  bool m_CursorLocked = false;
+  bool m_ResetLayoutOnNextFrame = false;
+
+  // Viewport State
+  glm::vec2 m_SceneViewportSize = {0.0f, 0.0f};
+  glm::vec2 m_SceneViewportPos = {0.0f, 0.0f};
+  glm::vec2 m_GameViewportSize = {0.0f, 0.0f};
+
+  // Editor State members referenced in cpp
+  std::string m_LevelFilePath;
+  bool m_LevelLoaded = false;
+  std::string m_ProjectFilePath;
+  std::string m_PendingScenePath;
+
+  // Editor Settings
+  int m_GizmoType = -1;
+  int m_FPSCap = 60;
+  float m_FontSize = 18.0f;
+
+  enum class EditorTheme {
+    Dark = 0,
+    Light = 1,
+    Classic = 2,
+    Dracula = 3,
+    Nord = 4,
+    Cyberpunk = 5,
+    Unity = 6,
+    Unreal = 7
+  };
+  EditorTheme m_EditorTheme = EditorTheme::Dark;
 
   // UI Panels
   Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
