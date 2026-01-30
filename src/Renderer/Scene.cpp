@@ -1,6 +1,8 @@
 #include "Scene.h"
 #include "Core/Application.h"
 #include "Core/Logger.h"
+#include "Renderer/Entity.h"
+#include "Renderer/ScriptRegistry.h"
 #include "Mesh.h"
 #include "Physics/PlayerController.h"
 #include "Renderer/ScriptableEntity.h"

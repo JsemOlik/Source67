@@ -46,7 +46,7 @@ bool ScriptableEntity::HasTag(const std::string &tag) {
 Entity *ScriptableEntity::FindEntity(const std::string &name) {
   // This would typically involve searching the scene.
   // For now, let's assume we have access to the scene or a registry.
-  return Application::Get().GetScene().FindEntityByName(name);
+  return Application::Get().GetScene().FindEntityByName(name).get();
 }
 
 void ScriptableEntity::Move(const glm::vec3 &delta) {

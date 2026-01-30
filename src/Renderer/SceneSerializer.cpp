@@ -244,7 +244,12 @@ bool SceneSerializer::Deserialize(const std::string &filepath) {
           }
         }
 
-            entity->Scripts.push_back(nsc);
+        // Native Scripts
+        if (e.contains("Scripts")) {
+          for (auto &script : e["Scripts"]) {
+             NativeScriptComponent nsc;
+             nsc.Name = script["Name"];
+             entity->Scripts.push_back(nsc);
           }
         }
 
