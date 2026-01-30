@@ -58,10 +58,25 @@ static SceneBackup s_SceneBackup;
 
 Application *Application::s_Instance = nullptr;
 
+static ConVar* s_ClShowFPS = nullptr;
+static ConVar* s_SvTickRate = nullptr;
+
 Application::Application(const std::string &executablePath,
                          const std::string &arg) {
   S67_CORE_ASSERT(!s_Instance, "Application already exists!");
   s_Instance = this;
+
+  // Register Console Commands
+  s_ClShowFPS = new ConVar("cl_showfps", "0", FCVAR_ARCHIVE, "Draw FPS meter");
+  Console::Get().RegisterConVar(s_ClShowFPS);
+
+  s_SvTickRate = new ConVar("sv_tickrate", "66", FCVAR_NOTIFY | FCVAR_ARCHIVE, "Server tick rate", [](ConVar* var, const std::string& newVal) {
+      try {
+          float rate = std::stof(newVal);
+          Application::Get().SetTickRate(rate);
+      } catch(...) {}
+  });
+  Console::Get().RegisterConVar(s_SvTickRate);
 
   // Find assets root
   std::filesystem::path currentPath =
@@ -1069,21 +1084,21 @@ void Application::Run() {
 
     // PHASE 4: Process all due physics ticks
     int tick_count = 0;
-    while (m_Accumulator >= TICK_DURATION) {
+    while (m_Accumulator >= m_TickDuration) {
       // Save previous state for interpolation
       m_PreviousState = m_CurrentState;
 
       // Run one physics tick with fixed delta time
-      UpdateGameTick(TICK_DURATION);
+      UpdateGameTick(m_TickDuration);
 
       // Deduct from accumulator
-      m_Accumulator -= TICK_DURATION;
+      m_Accumulator -= m_TickDuration;
       tick_count++;
       m_TickNumber++;
     }
 
     // PHASE 5: Render frame with interpolation
-    float alpha = static_cast<float>(m_Accumulator / TICK_DURATION);
+    float alpha = static_cast<float>(m_Accumulator / m_TickDuration);
     RenderFrame(alpha);
 
     // PHASE 6: Window update (swap buffers, poll events)
@@ -1116,6 +1131,12 @@ void Application::Run() {
       }
     }
   }
+}
+
+void Application::SetTickRate(float rate) {
+  if (rate <= 0.0f) return;
+  m_TickRate = rate;
+  m_TickDuration = 1.0f / rate;
 }
 
 void Application::UpdateGameTick(float tick_dt) {
@@ -1941,6 +1962,10 @@ void Application::RenderFrame(float alpha) {
   // 3. HUD Rendering (only in game viewport)
   HUDRenderer::BeginHUD(m_GameViewportSize.x, m_GameViewportSize.y);
   HUDRenderer::RenderCrosshair();
+
+  if (s_ClShowFPS && s_ClShowFPS->GetBool()) {
+      HUDRenderer::DrawString("FPS: " + std::to_string((int)m_GameFPS), {0.02f, 0.95f}, 0.5f, {0, 1, 0, 1});
+  }
 
   if (m_Scene) {
     if (auto entity = m_Scene->FindEntityByName("Player")) {

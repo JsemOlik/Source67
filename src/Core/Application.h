@@ -70,6 +70,7 @@ public:
   void CreateTestScene();
 
   // Tick System Methods
+  void SetTickRate(float rate);
   void UpdateGameTick(float tick_dt);
 
   // Renders a single frame (useful for both Run loop and resize events)
@@ -112,9 +113,8 @@ private:
   bool m_Running = true;
 
   // Tick System Constants
-  static constexpr float TICK_RATE = 66.0f; // Hz (ticks per second)
-  static constexpr float TICK_DURATION =
-      1.0f / 66.0f; // ~0.015151515f seconds (15.15ms)
+  float m_TickRate = 66.0f;
+  float m_TickDuration = 1.0f / 66.0f;
   static constexpr float MAX_FRAME_TIME =
       0.25f; // Max 250ms per frame (prevents spiral of death)
 
