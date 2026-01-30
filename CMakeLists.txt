@@ -95,7 +95,7 @@ FetchContent_Declare(
 # Lua
 FetchContent_Declare(
     lua
-    GIT_REPOSITORY https://github.com/lua/lua
+    GIT_REPOSITORY https://github.com/walterschell/Lua
     GIT_TAG        v5.4.6
 )
 

@@ -97,6 +97,14 @@ void SceneSerializer::Serialize(const std::string &filepath) {
       e["Tags"] = entity->Tags;
     }
 
+    // Native Scripts
+    if (!entity->Scripts.empty()) {
+      json scripts = json::array();
+      for (const auto &script : entity->Scripts) {
+        json s;
+        s["Name"] = script.Name;
+        scripts.push_back(s);
+      }
       e["Scripts"] = scripts;
     }
 
