@@ -9,6 +9,27 @@ A simple, modern 3D game engine written in C++ for learning purposes. Source67 f
 - **Building your game:** [BUILDING.md](BUILDING.md) 🔨 - Use the in-editor build menu!
 - **Understanding the architecture:** [GAME_PROJECT_GUIDE.md](GAME_PROJECT_GUIDE.md) 🎮
 - **First-time setup:** [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md) ⭐
+- **CMake installation:** [CMAKE_INSTALLATION.md](CMAKE_INSTALLATION.md) 🔧 - Required for building!
+
+## 📋 Prerequisites
+
+**To USE the engine (play/edit):**
+- Windows 10/11, Linux, or macOS
+- Graphics card with OpenGL 4.1+ support
+- Nothing else! Just run Source67.exe
+
+**To BUILD games (compile C++ code):**
+- ✅ **CMake 3.20+** - [Installation Guide](CMAKE_INSTALLATION.md)
+- ✅ **C++ Compiler** (MSVC, GCC, or Clang)
+
+**Quick install CMake:**
+- Windows: Download from https://cmake.org/download/ or run `C:\Program Files\Source67\Tools\install_cmake.bat`
+- Linux: `sudo apt install cmake`
+- macOS: `brew install cmake`
+
+**Verify CMake:** `cmake --version`
+
+---
 
 This comprehensive guide walks you through:
 - ✅ What goes where (DLL vs asset pack vs your game folder)

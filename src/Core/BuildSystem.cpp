@@ -14,6 +14,49 @@
 
 namespace S67 {
 
+// Helper function to check if CMake is available
+static bool IsCMakeAvailable() {
+#ifdef _WIN32
+    int result = system("where cmake >nul 2>nul");
+    return result == 0;
+#else
+    int result = system("which cmake >/dev/null 2>&1");
+    return WIFEXITED(result) && WEXITSTATUS(result) == 0;
+#endif
+}
+
+static void ShowCMakeInstallHelp() {
+    S67_CORE_ERROR("========================================");
+    S67_CORE_ERROR("CMake is not installed!");
+    S67_CORE_ERROR("========================================");
+    S67_CORE_ERROR("");
+    S67_CORE_ERROR("CMake is required to build Game.dll from C++ source.");
+    S67_CORE_ERROR("");
+#ifdef _WIN32
+    S67_CORE_ERROR("INSTALLATION OPTIONS:");
+    S67_CORE_ERROR("");
+    S67_CORE_ERROR("1. Run the helper script:");
+    S67_CORE_ERROR("   - Open: C:\\Program Files\\Source67\\Tools\\install_cmake.bat");
+    S67_CORE_ERROR("");
+    S67_CORE_ERROR("2. Download manually:");
+    S67_CORE_ERROR("   - Visit: https://cmake.org/download/");
+    S67_CORE_ERROR("   - Get: cmake-X.XX.X-windows-x86_64.msi");
+    S67_CORE_ERROR("   - Install and add to PATH");
+    S67_CORE_ERROR("");
+    S67_CORE_ERROR("3. Use package manager:");
+    S67_CORE_ERROR("   - Chocolatey: choco install cmake");
+    S67_CORE_ERROR("   - Winget: winget install Kitware.CMake");
+#else
+    S67_CORE_ERROR("Install CMake:");
+    S67_CORE_ERROR("  - Ubuntu/Debian: sudo apt install cmake");
+    S67_CORE_ERROR("  - macOS: brew install cmake");
+    S67_CORE_ERROR("  - Or visit: https://cmake.org/download/");
+#endif
+    S67_CORE_ERROR("");
+    S67_CORE_ERROR("After installation, restart Source67 editor.");
+    S67_CORE_ERROR("========================================");
+}
+
 BuildSystem::BuildSystem() {
     m_AssetPacker = CreateScope<AssetPacker>();
 }
@@ -120,6 +163,13 @@ bool BuildSystem::BuildGame() {
     Log("========================================");
     Log("Building Game.dll...");
     Log("========================================");
+    
+    // Check if CMake is available
+    if (!IsCMakeAvailable()) {
+        LogError("CMake is not installed or not in PATH");
+        ShowCMakeInstallHelp();
+        return false;
+    }
     
     if (!IsProjectValid()) {
         LogError("Invalid project structure. Need game/ and assets/ directories in: " + 
