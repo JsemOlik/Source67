@@ -35,8 +35,8 @@ end
 - `entity:getLinearVelocity()`: Get physics velocity (vec3).
 - `entity:setAnchored(bool)`: Pin object in place (Kinematic) or unpin (Dynamic).
 - `findEntity(name)`: Find an entity by name.
-- `isKeyPressed(KEY_...)`: Check if key is currently held down.
-- `isKeyJustPressed(KEY_...)`: Check if key was pressed this frame (click).
+- `isKeyHeld(KEY_...)`: Check if key is currently held down.
+- `isKeyPressed(KEY_...)`: Check if key was pressed this frame (click).
 
 ## 2. C++ Scripting (Plugins)
 

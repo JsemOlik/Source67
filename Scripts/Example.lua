@@ -15,13 +15,13 @@ function onUpdate(ts)
     if hit then
         if useSmooth then
             setText("Interaction", "[Hold E] Smooth Move " .. hit:getName(), vec2(0.5, 0.1))
-            if isKeyPressed(KEY_E) then
+            if isKeyHeld(KEY_E) then
                 -- Apply velocity to fight gravity and move up
                 hit:setLinearVelocity(vec3(0, 4.0, 0))
             end
         else
             setText("Interaction", "[Click E] Instant Teleport " .. hit:getName(), vec2(0.5, 0.1))
-            if isKeyJustPressed(KEY_E) then
+            if isKeyPressed(KEY_E) then
                 log("Teleporting " .. hit:getName())
                 local pos = hit:getPosition()
                 pos.y = pos.y + 1.0

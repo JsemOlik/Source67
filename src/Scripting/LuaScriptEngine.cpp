@@ -133,11 +133,11 @@ namespace S67 {
             return Application::Get().GetScene().FindEntityByName(name).get();
         });
 
-        s_State.set_function("isKeyPressed", [](int key) {
+        s_State.set_function("isKeyHeld", [](int key) {
             return Input::IsKeyPressed(key);
         });
 
-        s_State.set_function("isKeyJustPressed", [](int key) {
+        s_State.set_function("isKeyPressed", [](int key) {
             if (key >= 0 && key < 512) return s_JustPressed.test(key);
             return false;
         });
