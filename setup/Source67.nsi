@@ -69,8 +69,8 @@ Section "Main Engine (Required)" SecMain
     File /nonfatal "..\cmake-build-debug\*.dll"
   
   ; Assets - preserve folder structure
-  SetOutPath "$INSTDIR\assets"
-  File /r /x .DS_Store "..\assets\*.*"
+  SetOutPath "$INSTDIR"
+  File /r /x .DS_Store "..\assets"
   
   ; Write the installation path into the registry
   WriteRegStr HKCU "Software\Source67" "InstallDir" "$INSTDIR"
