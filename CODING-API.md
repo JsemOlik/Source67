@@ -28,6 +28,8 @@ end
 - `setText(id, text, pos, scale, color)`: Persistent HUD text.
 - `clearText(id)`: Remove persistent HUD text.
 - `printHUD(text, color)`: Brief HUD message.
+- `entity:getPosition()`: Get absolute position.
+- `entity:setPosition(vec3)`: Set absolute position.
 - `findEntity(name)`: Find an entity by name.
 - `isKeyPressed(KEY_...)`: Check keyboard input.
 

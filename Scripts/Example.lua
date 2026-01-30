@@ -15,9 +15,9 @@ function onUpdate(ts)
         
         if isKeyPressed(KEY_E) then
             -- Move the object we hit up!
-            local pos = hit.transform.position
+            local pos = hit:getPosition()
             pos.y = pos.y + 0.1
-            hit.transform.position = pos
+            hit:setPosition(pos)
         end
     else
         clearText("Interaction")

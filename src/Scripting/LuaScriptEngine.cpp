@@ -67,9 +67,11 @@ namespace S67 {
 
         // Entity
         s_State.new_usertype<Entity>("Entity",
-            "transform", &Entity::Transform,
+            "transform", sol::property([](Entity& self) -> Transform& { return self.Transform; }, [](Entity& self, const Transform& t) { self.Transform = t; }),
             "hasTag", &Entity::HasTag,
-            "getName", [](Entity& self) { return self.Name; }
+            "getName", [](Entity& self) { return self.Name; },
+            "getPosition", [](Entity& self) { return self.Transform.Position; },
+            "setPosition", [](Entity& self, const glm::vec3& pos) { self.Transform.Position = pos; }
         );
 
         // Core API Functions (Stupid Simple)
