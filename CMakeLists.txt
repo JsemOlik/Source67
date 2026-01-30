@@ -89,7 +89,7 @@ set(CROSS_PLATFORM_DETERMINISTIC OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
     sol2
     GIT_REPOSITORY https://github.com/ThePhD/sol2
-    GIT_TAG        v3.3.1
+    GIT_TAG        v3.5.0
 )
 
 # Lua
@@ -184,9 +184,6 @@ target_link_libraries(Source67 PUBLIC
     lua_static
     sol2
 )
-
-# Fix for sol2 optional error on C++17+
-target_compile_definitions(Source67 PUBLIC SOL_ALL_SAFETIES_ON SOL_NO_CHECK_EXCEPTIONS)
 
 # Compiler warnings
 if(MSVC)
