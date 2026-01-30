@@ -49,21 +49,16 @@ Section "Main Engine (Required)" SecMain
   SetOutPath "$INSTDIR"
   
   ; Core Files
-  ; Try Debug build first, then Release, then root
-  IfFileExists "..\cmake-build-debug\Debug\Source67.exe" 0 +3
+  ; Compile-time check for Source67.exe (validation in build_installer.bat ensures it exists)
+  !if /FileExists "..\cmake-build-debug\Debug\Source67.exe"
     File "..\cmake-build-debug\Debug\Source67.exe"
-    Goto DoneExe
-  IfFileExists "..\cmake-build-debug\Release\Source67.exe" 0 +3
+  !else if /FileExists "..\cmake-build-debug\Release\Source67.exe"
     File "..\cmake-build-debug\Release\Source67.exe"
-    Goto DoneExe
-  IfFileExists "..\cmake-build-debug\Source67.exe" 0 +3
+  !else if /FileExists "..\cmake-build-debug\Source67.exe"
     File "..\cmake-build-debug\Source67.exe"
-    Goto DoneExe
-  ; If none found, show error
-  MessageBox MB_OK|MB_ICONEXCLAMATION "Source67.exe not found in cmake-build-debug. Please build the engine first!"
-  Abort
-  
-  DoneExe:
+  !else
+    !error "Source67.exe not found! Run build_installer.bat which validates the build exists."
+  !endif
   
   ; Copy any DLL files from Debug/Release folders
   IfFileExists "..\cmake-build-debug\Debug\*.dll" 0 +2
