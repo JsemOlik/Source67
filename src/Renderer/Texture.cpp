@@ -1,9 +1,13 @@
 #include "Texture.h"
-#include "Builder/AssetProcessor.h" // For TextureBinaryHeader
+#include "Builder/AssetProcessor.h"
 #include "Core/Application.h"
 #include "Core/Logger.h"
 #include "stb_image.h"
+#include <cstdint>
 #include <glad/glad.h>
+#include <string>
+#include <vector>
+
 
 namespace S67 {
 

@@ -10,11 +10,7 @@ namespace S67 {
 
 // --- TextureProcessor ---
 
-struct TextureBinaryHeader {
-  uint32_t Width;
-  uint32_t Height;
-  uint32_t Channels;
-};
+// --- TextureProcessor ---
 
 bool TextureProcessor::Process(const std::filesystem::path &inputPath,
                                ProcessedAsset &outAsset) {

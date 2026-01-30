@@ -4,8 +4,13 @@
 #include <string>
 #include <vector>
 
-
 namespace S67 {
+
+struct TextureBinaryHeader {
+  uint32_t Width;
+  uint32_t Height;
+  uint32_t Channels;
+};
 
 struct ProcessedAsset {
   std::string Name;
