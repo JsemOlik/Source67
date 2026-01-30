@@ -80,6 +80,7 @@ public:
   inline static Application &Get() { return *s_Instance; }
 
   Ref<PerspectiveCamera> GetCamera() { return m_Camera; }
+  Scene &GetScene() { return *m_Scene; }
 
   const std::filesystem::path &GetProjectRoot() const { return m_ProjectRoot; }
   void SetProjectRoot(const std::filesystem::path &root);

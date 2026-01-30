@@ -15,7 +15,7 @@ public:
 
     if (currentHit != m_LastHit) {
       if (currentHit && currentHit->HasTag("Interactable")) {
-        SetText("Interaction", "Interactable!", {0.5f, 0.1f});
+        SetText("Interaction", "[E] Interactable!", {0.5f, 0.1f});
       } else {
         ClearText("Interaction");
       }

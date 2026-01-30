@@ -26,6 +26,18 @@ public:
                 const glm::vec4 &color = {1.0f, 1.0f, 1.0f, 1.0f});
   bool HasTag(const std::string &tag);
 
+  // Discovery & Manipulation
+  Entity *FindEntity(const std::string &name);
+  void Move(const glm::vec3 &delta);
+  void Move(Entity *other, const glm::vec3 &delta);
+  void SetPosition(const glm::vec3 &pos);
+  void SetPosition(Entity *other, const glm::vec3 &pos);
+  void Rotate(const glm::vec3 &eulerDelta);
+  void Rotate(Entity *other, const glm::vec3 &eulerDelta);
+
+  // Input
+  bool IsKeyPressed(int key);
+
 protected:
   virtual void OnCreate() {}
   virtual void OnUpdate(float ts) { (void)ts; }

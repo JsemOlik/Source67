@@ -50,4 +50,36 @@ bool ScriptableEntity::HasTag(const std::string& tag) {
     return m_Entity->HasTag(tag);
 }
 
+Entity* ScriptableEntity::FindEntity(const std::string& name) {
+    return Application::Get().GetScene().FindEntityByName(name).get();
+}
+
+void ScriptableEntity::Move(const glm::vec3& delta) {
+    m_Entity->Transform.Position += delta;
+}
+
+void ScriptableEntity::Move(Entity* other, const glm::vec3& delta) {
+    if (other) other->Transform.Position += delta;
+}
+
+void ScriptableEntity::SetPosition(const glm::vec3& pos) {
+    m_Entity->Transform.Position = pos;
+}
+
+void ScriptableEntity::SetPosition(Entity* other, const glm::vec3& pos) {
+    if (other) other->Transform.Position = pos;
+}
+
+void ScriptableEntity::Rotate(const glm::vec3& eulerDelta) {
+    m_Entity->Transform.Rotation += eulerDelta;
+}
+
+void ScriptableEntity::Rotate(Entity* other, const glm::vec3& eulerDelta) {
+    if (other) other->Transform.Rotation += eulerDelta;
+}
+
+bool ScriptableEntity::IsKeyPressed(int key) {
+    return Input::IsKeyPressed(key);
+}
+
 } // namespace S67

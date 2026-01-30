@@ -54,7 +54,35 @@ SetText("MyID", "Hello World!", {0.5f, 0.5f});
 ClearText("MyID");
 ```
 
-### 3. Tags
+### 3. Finding & Manipulating Entities
+You can find other objects in the scene by their name and manipulate them.
+
+```cpp
+// Find a specific object
+Entity* door = FindEntity("MainDoor");
+
+// Move the object (delta)
+if (door) Move(door, {0.0f, 5.0f, 0.0f});
+
+// Move the entity this script is on
+Move({1.0f, 0.0f, 0.0f});
+
+// Set absolute position
+SetPosition({0, 0, 0});
+
+// Rotate (delta in euler degrees)
+Rotate({0, 90, 0});
+```
+
+### 4. Input Handling
+Check if keys are being pressed.
+```cpp
+if (IsKeyPressed(S67_KEY_E)) {
+    // Interaction logic
+}
+```
+
+### 5. Tags
 Easily check if an entity has a specific tag.
 ```cpp
 if (hit->HasTag("Interactable")) {
@@ -62,21 +90,40 @@ if (hit->HasTag("Interactable")) {
 }
 ```
 
-### 4. Transient HUD Messages
+### 6. Transient HUD Messages
 Queue a message that shows up briefly and then disappears.
 ```cpp
 PrintHUD("Achievement Unlocked!", {0.0f, 1.0f, 0.0f, 1.0f}); // Green text
 ```
 
-## Lifecycle Methods
+## Example: Moving a Cube on Interaction
 
-- `OnCreate()`: Initialization logic.
-- `OnUpdate(float ts)`: Core logic (runs at fixed physics frequency).
-- `OnDestroy()`: Cleanup logic.
-- `OnEvent(Event& e)`: Handle engine events (input, window, etc.).
+```cpp
+#include "Renderer/ScriptableEntity.h"
+#include "Renderer/ScriptRegistry.h"
+#include "Core/KeyCodes.h"
 
-## Accessing Components
+namespace S67 {
 
-You can access the owning entity and its components directly:
-- `GetEntity()`: Returns the `Entity` object.
-- `GetTransform()`: Shortcut to the entity's `Transform` component.
+class DoorOpener : public ScriptableEntity {
+public:
+    void OnUpdate(float ts) override {
+        Entity* hit = Raycast(10.0f);
+        
+        if (hit && hit->HasTag("Button")) {
+            SetText("Prompt", "Press E to open door");
+            
+            if (IsKeyPressed(S67_KEY_E)) {
+                Entity* door = FindEntity("SlidingDoor");
+                if (door) Move(door, {0.0f, 0.1f, 0.0f}); // Slide up
+            }
+        } else {
+            ClearText("Prompt");
+        }
+    }
+};
+
+REGISTER_SCRIPT(DoorOpener);
+
+}
+```
