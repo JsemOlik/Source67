@@ -67,6 +67,8 @@ public:
   void DiscoverProject(const std::filesystem::path &levelPath);
   void SaveManifest();
 
+  void OnBuildGame();
+
   void CreateTestScene();
 
   // Tick System Methods

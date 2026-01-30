@@ -1,11 +1,14 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "Mesh.h"
 #include "Core/Logger.h"
+#include "Core/VFS.h"
 #include "tinyobjloader/tiny_obj_loader.h"
 #include <fstream>
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
+#include <sstream>
 #include <unordered_map>
+
 
 namespace S67 {
 
@@ -40,13 +43,20 @@ template <> struct hash<S67::OBJVertex> {
 namespace S67 {
 
 Ref<VertexArray> MeshLoader::LoadOBJ(const std::string &path) {
+  VFSFile file = VFS::Read(path);
+  if (!file.Success) {
+    S67_CORE_ERROR("VFS: Failed to read mesh file '{0}'", path);
+    return nullptr;
+  }
+
   tinyobj::attrib_t attrib;
   std::vector<tinyobj::shape_t> shapes;
   std::vector<tinyobj::material_t> materials;
   std::string warn, err;
 
-  if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
-                        path.c_str())) {
+  std::stringstream ss(std::string((char *)file.Data.data(), file.Data.size()));
+
+  if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, &ss)) {
     S67_CORE_ERROR("Failed to load OBJ: {0}", err);
     return nullptr;
   }
@@ -112,23 +122,23 @@ Ref<VertexArray> MeshLoader::LoadOBJ(const std::string &path) {
 }
 
 Ref<VertexArray> MeshLoader::LoadSTL(const std::string &path) {
-  std::ifstream file(path, std::ios::binary);
-  if (!file.is_open()) {
-    S67_CORE_ERROR("Failed to open STL file: {0}", path);
+  VFSFile file = VFS::Read(path);
+  if (!file.Success) {
+    S67_CORE_ERROR("VFS: Failed to read mesh file '{0}'", path);
+    return nullptr;
+  }
+
+  if (file.Data.size() < 84) {
+    S67_CORE_ERROR("STL file too small: {0}", path);
     return nullptr;
   }
 
   // STL Binary header is 80 bytes, ignored.
-  file.seekg(0, std::ios::end);
-  size_t fileSize = file.tellg();
-  if (fileSize < 84) {
-    S67_CORE_ERROR("STL file too small: {0}", path);
-    return nullptr;
-  }
-  file.seekg(80, std::ios::beg);
+  const uint8_t *ptr = file.Data.data() + 80;
 
   uint32_t triangleCount;
-  file.read(reinterpret_cast<char *>(&triangleCount), sizeof(uint32_t));
+  memcpy(&triangleCount, ptr, sizeof(uint32_t));
+  ptr += sizeof(uint32_t);
 
   std::vector<OBJVertex> vertices;
   std::vector<uint32_t> indices;
@@ -140,15 +150,19 @@ Ref<VertexArray> MeshLoader::LoadSTL(const std::string &path) {
     float v1[3], v2[3], v3[3];
     uint16_t attributeByteCount;
 
-    file.read(reinterpret_cast<char *>(normal), 12);
-    file.read(reinterpret_cast<char *>(v1), 12);
-    file.read(reinterpret_cast<char *>(v2), 12);
-    file.read(reinterpret_cast<char *>(v3), 12);
-    file.read(reinterpret_cast<char *>(&attributeByteCount), 2);
+    memcpy(normal, ptr, 12);
+    ptr += 12;
+    memcpy(v1, ptr, 12);
+    ptr += 12;
+    memcpy(v2, ptr, 12);
+    ptr += 12;
+    memcpy(v3, ptr, 12);
+    ptr += 12;
+    memcpy(&attributeByteCount, ptr, 2);
+    ptr += 2;
 
     glm::vec3 n = {normal[0], normal[1], normal[2]};
 
-    // If normal is zero or invalid, compute it from vertices
     if (glm::length(n) < 0.0001f) {
       glm::vec3 edge1 = {v2[0] - v1[0], v2[1] - v1[1], v2[2] - v1[2]};
       glm::vec3 edge2 = {v3[0] - v1[0], v3[1] - v1[1], v3[2] - v1[2]};
@@ -253,7 +267,6 @@ Ref<VertexArray> MeshLoader::CreateCapsule(float radius, float height) {
   int rings = 8;
   float halfHeight = height * 0.5f;
 
-  // Helper to add vertex
   auto addVertex = [&](float x, float y, float z, float u, float v) {
     vertices.push_back({{x, y, z},
                         glm::normalize(glm::vec3(
@@ -261,7 +274,6 @@ Ref<VertexArray> MeshLoader::CreateCapsule(float radius, float height) {
                         {u, v}});
   };
 
-  // Top Hemisphere
   for (int i = 0; i <= rings; ++i) {
     float lat = (float)i / (float)rings * (glm::pi<float>() / 2.0f);
     float y = glm::sin(lat) * radius + halfHeight;
@@ -270,12 +282,11 @@ Ref<VertexArray> MeshLoader::CreateCapsule(float radius, float height) {
     for (int j = 0; j <= segments; ++j) {
       float lon = (float)j / (float)segments * 2.0f * glm::pi<float>();
       float u = (float)j / (float)segments;
-      float v = (float)i / (float)(rings * 2 + 1); // rough UV
+      float v = (float)i / (float)(rings * 2 + 1);
       addVertex(glm::cos(lon) * r, y, glm::sin(lon) * r, u, v);
     }
   }
 
-  // Bottom Hemisphere
   for (int i = 0; i <= rings; ++i) {
     float lat = (float)i / (float)rings * (glm::pi<float>() / 2.0f);
     float y = -glm::sin(lat) * radius - halfHeight;
@@ -289,8 +300,6 @@ Ref<VertexArray> MeshLoader::CreateCapsule(float radius, float height) {
     }
   }
 
-  // Indices (Simplified: just treat as two independent meshes for now, bridging
-  // is extra code) Just fill indices for rings.
   auto makeIndices = [&](int startRing, int nRings) {
     for (int i = 0; i < nRings; ++i) {
       for (int j = 0; j < segments; ++j) {
@@ -309,10 +318,9 @@ Ref<VertexArray> MeshLoader::CreateCapsule(float radius, float height) {
     }
   };
 
-  makeIndices(0, rings);         // Top
-  makeIndices(rings + 1, rings); // Bottom
+  makeIndices(0, rings);
+  makeIndices(rings + 1, rings);
 
-  // Cylinder Body Connection
   int topRingIndex = rings;
   int bottomRingIndex = rings + 1;
   for (int j = 0; j < segments; ++j) {
@@ -330,11 +338,6 @@ Ref<VertexArray> MeshLoader::CreateCapsule(float radius, float height) {
     indices.push_back(belowNext);
     indices.push_back(currentNext);
   }
-  // Note: vertices buffer size check needed.
-  // Also cylinder body is missing.
-  // For Player debug visual, two spheres separated is "Capsule-ish" enough for
-  // now. It provides the visual "Top" and "Bottom" and collision shape
-  // reference.
 
   Ref<VertexArray> va = VertexArray::Create();
   Ref<VertexBuffer> vb =

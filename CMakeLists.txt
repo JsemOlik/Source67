@@ -122,25 +122,25 @@ if(NOT glad_POPULATED)
     target_include_directories(glad PUBLIC ${glad_SOURCE_DIR}/include)
 endif()
 
-# Let's set up the executable
-
-# Source files - globbing is used for convenience, but requires re-configuring when adding new files
-# (Note: Touching this file triggers a re-scan of the src/ and vendor/ directories)
-# Added Skybox.cpp
-
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
-    "src/**/*.cpp"
-    "src/**/*.mm"
-    "src/**/*.h"
+# S67Core Library
+# Collect core files (excluding main.cpp and UI panels if needed)
+file(GLOB_RECURSE CORE_SOURCES CONFIGURE_DEPENDS
+    "src/Core/*.cpp"
+    "src/Renderer/*.cpp"
+    "src/Physics/*.cpp"
+    "src/Events/*.h"
+    "src/Game/Console/*.cpp"
+    "src/Scripting/*.cpp"
     "vendor/**/*.cpp"
-    "vendor/**/*.h"
 )
-list(APPEND SOURCES "main.cpp")
-list(APPEND SOURCES "src/Renderer/Scene.cpp")
 
-# ImGui Files
+# Exclude specific files from core if they are editor-only
+# (In a more mature engine, these would be in separate directories)
+list(FILTER CORE_SOURCES EXCLUDE REGEX "src/Core/Application.cpp") # Application is the Editor/Launcher crossover for now, might need splitting
+
+# ImGui Files (shared)
 set(IMGUI_DIR ${imgui_SOURCE_DIR})
-list(APPEND SOURCES 
+set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_demo.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
@@ -150,18 +150,9 @@ list(APPEND SOURCES
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
 )
 
-# On non-Apple platforms, compile .mm files as regular C++
-if(NOT APPLE)
-    foreach(source ${SOURCES})
-        if(source MATCHES "\\.mm$")
-            set_source_files_properties(${source} PROPERTIES LANGUAGE CXX)
-        endif()
-    endforeach()
-endif()
+add_library(S67Core STATIC ${CORE_SOURCES} ${IMGUI_SOURCES})
 
-add_executable(Source67 WIN32 ${SOURCES})
-
-target_include_directories(Source67 PUBLIC 
+target_include_directories(S67Core PUBLIC 
     ${INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb_image
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/tinyobjloader
@@ -172,9 +163,7 @@ target_include_directories(Source67 PUBLIC
     ${sol2_SOURCE_DIR}/include
 )
 
-# Let's set up the executable
-
-target_link_libraries(Source67 PUBLIC 
+target_link_libraries(S67Core PUBLIC 
     glfw 
     glm::glm
     spdlog::spdlog
@@ -185,38 +174,56 @@ target_link_libraries(Source67 PUBLIC
     sol2
 )
 
-# Compiler warnings
-if(MSVC)
-    target_compile_options(Source67 PRIVATE /W4)
-else()
-    target_compile_options(Source67 PRIVATE -Wall -Wextra -Wpedantic -Wno-changes-meaning)
-endif()
-
-# Sanitizers for debug builds
-if(CMAKE_BUILD_TYPE MATCHES Debug)
-    if(NOT MSVC)
-        target_compile_options(Source67 PRIVATE -fsanitize=address,undefined)
-        target_link_options(Source67 PRIVATE -fsanitize=address,undefined)
-    endif()
-endif()
-
-if(MSVC)
-    target_compile_definitions(Source67 PUBLIC 
-        _CRT_SECURE_NO_WARNINGS
-        _SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS
-    )
-endif()
-
 if(APPLE)
-    target_link_libraries(Source67 PUBLIC "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
+    target_link_libraries(S67Core PUBLIC "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
 elseif(UNIX)
     find_package(OpenGL REQUIRED)
-    target_link_libraries(Source67 PUBLIC OpenGL::GL)
+    target_link_libraries(S67Core PUBLIC OpenGL::GL)
 endif()
 
-# Copy assets to build directory
-add_custom_command(TARGET Source67 POST_BUILD
+# Source67 Editor
+set(EDITOR_SOURCES 
+    "main.cpp"
+    "src/Core/Application.cpp"
+    "src/ImGui/Panels/ContentBrowserPanel.cpp"
+    "src/ImGui/Panels/SceneHierarchyPanel.cpp"
+    "src/Editor/AssetCooker.cpp"
+    # Add other panels here
+)
+add_executable(Source67Editor WIN32 ${EDITOR_SOURCES})
+target_link_libraries(Source67Editor PRIVATE S67Core)
+
+# Source67 Runtime (Standalone)
+set(RUNTIME_SOURCES 
+    "src/Runtime/RuntimeMain.cpp"
+)
+add_executable(Source67Runtime WIN32 ${RUNTIME_SOURCES})
+target_compile_definitions(Source67Runtime PRIVATE S67_RUNTIME)
+target_link_libraries(Source67Runtime PRIVATE S67Core)
+
+# Compiler warnings and definitions for everything
+foreach(target S67Core Source67Editor Source67Runtime)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4)
+        target_compile_definitions(${target} PUBLIC 
+            _CRT_SECURE_NO_WARNINGS
+            _SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS
+        )
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic -Wno-changes-meaning)
+    endif()
+
+    if(CMAKE_BUILD_TYPE MATCHES Debug)
+        if(NOT MSVC)
+            target_compile_options(${target} PRIVATE -fsanitize=address,undefined)
+            target_link_options(${target} PRIVATE -fsanitize=address,undefined)
+        endif()
+    endif()
+endforeach()
+
+# Copy assets to build directory for Editor
+add_custom_command(TARGET Source67Editor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_CURRENT_SOURCE_DIR}/assets
-    $<TARGET_FILE_DIR:Source67>/assets
+    $<TARGET_FILE_DIR:Source67Editor>/assets
 )

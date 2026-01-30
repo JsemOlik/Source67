@@ -1,11 +1,11 @@
 #include "Shader.h"
 #include "Core/Assert.h"
 #include "Core/Logger.h"
+#include "Core/VFS.h"
 #include <fstream>
 #include <glad/glad.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <vector>
-
 
 namespace S67 {
 
@@ -45,33 +45,32 @@ Shader::Shader(const std::string &name, const std::string &vertexSrc,
   Compile(sources);
 }
 
-Shader::~Shader() { 
+Shader::~Shader() {
   if (m_RendererID != 0) {
-    glDeleteProgram(m_RendererID); 
+    glDeleteProgram(m_RendererID);
   }
 }
 
 // Move constructor
-Shader::Shader(Shader&& other) noexcept
-    : m_RendererID(other.m_RendererID),
-      m_Name(std::move(other.m_Name)),
+Shader::Shader(Shader &&other) noexcept
+    : m_RendererID(other.m_RendererID), m_Name(std::move(other.m_Name)),
       m_FilePath(std::move(other.m_FilePath)) {
   other.m_RendererID = 0;
 }
 
 // Move assignment
-Shader& Shader::operator=(Shader&& other) noexcept {
+Shader &Shader::operator=(Shader &&other) noexcept {
   if (this != &other) {
     // Clean up existing resource
     if (m_RendererID != 0) {
       glDeleteProgram(m_RendererID);
     }
-    
+
     // Move data
     m_RendererID = other.m_RendererID;
     m_Name = std::move(other.m_Name);
     m_FilePath = std::move(other.m_FilePath);
-    
+
     // Nullify moved-from object
     other.m_RendererID = 0;
   }
@@ -79,20 +78,12 @@ Shader& Shader::operator=(Shader&& other) noexcept {
 }
 
 std::string Shader::ReadFile(const std::string &filepath) {
-  std::string result;
-  std::ifstream in(filepath, std::ios::in | std::ios::binary);
-  if (in) {
-    in.seekg(0, std::ios::end);
-    result.resize(in.tellg());
-    in.seekg(0, std::ios::beg);
-    in.read(&result[0], result.size());
-    in.close();
-  } else {
+  VFSFile file = VFS::Read(filepath);
+  if (!file.Success) {
     S67_CORE_ERROR("Could not open file '{0}'", filepath);
-    S67_CORE_ERROR("Current working directory: {0}",
-                   std::filesystem::current_path().string());
+    return "";
   }
-  return result;
+  return std::string((char *)file.Data.data(), file.Data.size());
 }
 
 std::unordered_map<unsigned int, std::string>
@@ -190,7 +181,7 @@ void Shader::Compile(
 
       S67_CORE_ERROR("{0}", infoLog.data());
       S67_CORE_ASSERT(false, "Shader compilation failure!");
-      return;  // Use return instead of break
+      return; // Use return instead of break
     }
 
     glAttachShader(program, shader);

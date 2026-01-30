@@ -1,4 +1,5 @@
 #include "Application.h"
+#include "VFS.h"
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -25,8 +26,8 @@
 #include "Physics/PlayerController.h"
 #include "Renderer/Framebuffer.h"
 #include "Renderer/SceneSerializer.h"
-#include "Renderer/ScriptableEntity.h"
 #include "Renderer/ScriptRegistry.h"
+#include "Renderer/ScriptableEntity.h"
 #include "Scripting/LuaScriptEngine.h"
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -40,12 +41,15 @@
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtx/transform.hpp>
 
+#include "Core/PakSystem.h"
+#include "Editor/AssetCooker.h"
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <nlohmann/json.hpp>
 #include <thread>
+
 
 namespace S67 {
 
@@ -59,24 +63,29 @@ static SceneBackup s_SceneBackup;
 
 Application *Application::s_Instance = nullptr;
 
-static ConVar* s_ClShowFPS = nullptr;
-static ConVar* s_SvTickRate = nullptr;
+static ConVar *s_ClShowFPS = nullptr;
+static ConVar *s_SvTickRate = nullptr;
 
 Application::Application(const std::string &executablePath,
                          const std::string &arg) {
   S67_CORE_ASSERT(!s_Instance, "Application already exists!");
   s_Instance = this;
 
+  VFS::Init();
+
   // Register Console Commands
   s_ClShowFPS = new ConVar("cl_showfps", "0", FCVAR_ARCHIVE, "Draw FPS meter");
   Console::Get().RegisterConVar(s_ClShowFPS);
 
-  s_SvTickRate = new ConVar("sv_tickrate", "66", FCVAR_NOTIFY | FCVAR_ARCHIVE, "Server tick rate", [](ConVar* var, const std::string& newVal) {
-      try {
-          float rate = std::stof(newVal);
-          Application::Get().SetTickRate(rate);
-      } catch(...) {}
-  });
+  s_SvTickRate = new ConVar("sv_tickrate", "66", FCVAR_NOTIFY | FCVAR_ARCHIVE,
+                            "Server tick rate",
+                            [](ConVar *var, const std::string &newVal) {
+                              try {
+                                float rate = std::stof(newVal);
+                                Application::Get().SetTickRate(rate);
+                              } catch (...) {
+                              }
+                            });
   Console::Get().RegisterConVar(s_SvTickRate);
 
   // Find assets root
@@ -105,6 +114,9 @@ Application::Application(const std::string &executablePath,
     m_EngineAssetsRoot = currentPath;
     S67_CORE_INFO("Set working directory to project root: {0}",
                   currentPath.string());
+
+    // Mount engine assets
+    VFS::Mount(currentPath.string(), "");
   }
 
   S67_CORE_INFO("Initializing Window...");
@@ -188,7 +200,7 @@ Application::Application(const std::string &executablePath,
   // Initialize Scripting
   S67_CORE_INFO("Initializing Lua Engine...");
   LuaScriptEngine::Init();
-  
+
   // Script loading is now deferred to SetProjectRoot or DiscoverProject
 
   m_HUDShader =
@@ -444,6 +456,9 @@ void Application::SetProjectRoot(const std::filesystem::path &root) {
   if (m_ContentBrowserPanel)
     m_ContentBrowserPanel->SetRoot(root);
 
+  // Mount project folder
+  VFS::Mount(root.string(), "");
+
   // Unload previous project modules
   ScriptRegistry::Get().UnloadModules();
 
@@ -590,6 +605,58 @@ void Application::SaveManifest() {
     S67_CORE_ERROR("Failed to save project manifest to {0}",
                    manifestPath.string());
   }
+}
+
+void Application::OnBuildGame() {
+  if (m_ProjectRoot.empty()) {
+    S67_CORE_WARN("No project open to build!");
+    return;
+  }
+
+  std::string buildPath = FileDialogs::OpenFolder();
+  if (buildPath.empty())
+    return;
+
+  std::filesystem::path buildDir = buildPath;
+  std::filesystem::path cookedDir = buildDir / "temp_cooked";
+
+  S67_CORE_INFO("Building game to: {0}", buildDir.string());
+
+  // 1. Cook Assets
+  AssetCooker::CookingOptions options;
+  options.SourceDir = m_ProjectRoot / "assets";
+  options.OutputDir = cookedDir;
+  AssetCooker::Cook(options);
+
+  // 2. Pack Assets
+  S67_CORE_INFO("Packing assets...");
+  PakWriter writer((buildDir / "assets.pak").string());
+  for (auto const &dir_entry :
+       std::filesystem::recursive_directory_iterator(cookedDir)) {
+    if (dir_entry.is_regular_file()) {
+      std::string rel =
+          std::filesystem::relative(dir_entry.path(), cookedDir).string();
+      std::vector<uint8_t> data;
+
+      std::ifstream f(dir_entry.path(), std::ios::binary);
+      if (f.is_open()) {
+        data.assign((std::istreambuf_iterator<char>(f)),
+                    std::istreambuf_iterator<char>());
+        writer.AddFile(rel, data);
+      }
+    }
+  }
+  writer.Write();
+
+  // 3. Copy Manifest
+  std::filesystem::copy_file(m_ProjectRoot / "manifest.source",
+                             buildDir / "manifest.source",
+                             std::filesystem::copy_options::overwrite_existing);
+
+  // Cleanup
+  std::filesystem::remove_all(cookedDir);
+
+  S67_CORE_INFO("Build successful!");
 }
 
 void Application::OnOpenProject() {
@@ -1159,7 +1226,8 @@ void Application::Run() {
 }
 
 void Application::SetTickRate(float rate) {
-  if (rate <= 0.0f) return;
+  if (rate <= 0.0f)
+    return;
   m_TickRate = rate;
   m_TickDuration = 1.0f / rate;
 }
@@ -2037,11 +2105,12 @@ void Application::RenderFrame(float alpha) {
   HUDRenderer::RenderCrosshair();
 
   if (s_ClShowFPS && s_ClShowFPS->GetBool()) {
-      float scale = 4.0f;
-      float charHeight = 8.0f * scale;
-      float padding = 10.0f;
-      glm::vec2 pos = {padding, m_GameViewportSize.y - charHeight - padding};
-      HUDRenderer::DrawString("FPS: " + std::to_string((int)m_GameFPS), pos, scale, {0, 1, 0, 1});
+    float scale = 4.0f;
+    float charHeight = 8.0f * scale;
+    float padding = 10.0f;
+    glm::vec2 pos = {padding, m_GameViewportSize.y - charHeight - padding};
+    HUDRenderer::DrawString("FPS: " + std::to_string((int)m_GameFPS), pos,
+                            scale, {0, 1, 0, 1});
   }
 
   if (m_Scene) {
@@ -2108,6 +2177,12 @@ void Application::RenderFrame(float alpha) {
           m_ShowSettingsWindow = true;
         if (ImGui::MenuItem("Project Settings"))
           m_ShowProjectSettingsWindow = true;
+        ImGui::EndMenu();
+      }
+
+      if (ImGui::BeginMenu("Build")) {
+        if (ImGui::MenuItem("Build Game..."))
+          OnBuildGame();
         ImGui::EndMenu();
       }
 
