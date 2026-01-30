@@ -448,7 +448,7 @@ void Application::SetProjectRoot(const std::filesystem::path &root) {
   ScriptRegistry::Get().UnloadModules();
 
   // Scan for scripts in the project root
-  std::filesystem::path scriptsDir = root / "Scripts";
+  std::filesystem::path scriptsDir = root / "scripts";
   if (std::filesystem::exists(scriptsDir)) {
     S67_CORE_INFO("Loading project scripts from: {0}", scriptsDir.string());
     ScriptRegistry::Get().LoadModules(scriptsDir);
@@ -491,7 +491,7 @@ void Application::OnNewProject() {
 
     std::filesystem::path projectAssets = projectRoot / "assets";
     std::filesystem::path projectScripts =
-        projectRoot / "Scripts"; // Capitalized as requested
+        projectRoot / "scripts"; // Lowercase as requested
     std::filesystem::create_directories(projectAssets / "shaders");
     std::filesystem::create_directories(projectAssets / "textures");
     std::filesystem::create_directories(projectScripts);
@@ -1593,32 +1593,40 @@ void Application::UI_ProjectSettingsWindow() {
       }
       ImGui::PopItemWidth();
 
-      // Default Level (Relative to Project Root or Assets)
+      // Default Level (Dropdown)
       ImGui::TableNextRow();
       ImGui::TableSetColumnIndex(0);
       ImGui::Text("Default Level");
       ImGui::TableSetColumnIndex(1);
-      char levelBuffer[256];
-      memset(levelBuffer, 0, sizeof(levelBuffer));
-      strncpy(levelBuffer, m_ProjectDefaultLevel.c_str(),
-              sizeof(levelBuffer) - 1);
-      ImGui::PushItemWidth(-1.0f);
-      if (ImGui::InputText("##DefaultLevel", levelBuffer,
-                           sizeof(levelBuffer))) {
-        m_ProjectDefaultLevel = levelBuffer;
-      }
-      // Drag/Drop for .s67 files
-      if (ImGui::BeginDragDropTarget()) {
-        if (const ImGuiPayload *payload =
-                ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
-          const char *path = (const char *)payload->Data;
-          std::filesystem::path assetPath = path;
-          // Store relative path if possible
-          if (assetPath.extension() == ".s67") {
-            m_ProjectDefaultLevel = assetPath.string();
+
+      std::vector<std::string> levelFiles;
+      levelFiles.push_back("<None>");
+      if (!m_ProjectRoot.empty()) {
+        for (const auto &entry :
+             std::filesystem::directory_iterator(m_ProjectRoot)) {
+          if (entry.path().extension() == ".s67") {
+            levelFiles.push_back(entry.path().filename().string());
           }
         }
-        ImGui::EndDragDropTarget();
+      }
+
+      const std::string &previewValue =
+          m_ProjectDefaultLevel.empty() ? "<None>" : m_ProjectDefaultLevel;
+
+      ImGui::PushItemWidth(-1.0f);
+      if (ImGui::BeginCombo("##DefaultLevel", previewValue.c_str())) {
+        for (const auto &file : levelFiles) {
+          bool isSelected = (previewValue == file);
+          if (ImGui::Selectable(file.c_str(), isSelected)) {
+            if (file == "<None>")
+              m_ProjectDefaultLevel = "";
+            else
+              m_ProjectDefaultLevel = file;
+          }
+          if (isSelected)
+            ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
       }
       ImGui::PopItemWidth();
 
