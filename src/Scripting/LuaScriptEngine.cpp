@@ -90,7 +90,26 @@ namespace S67 {
                 if (!self.PhysicsBody.IsInvalid()) {
                      PhysicsSystem::GetBodyInterface().SetPosition(self.PhysicsBody, JPH::RVec3(pos.x, pos.y, pos.z), JPH::EActivation::Activate);
                 }
-            }
+            },
+            "getLinearVelocity", [](Entity& self) -> glm::vec3 {
+                if (!self.PhysicsBody.IsInvalid()) {
+                    JPH::RVec3 v = PhysicsSystem::GetBodyInterface().GetLinearVelocity(self.PhysicsBody);
+                    return glm::vec3(v.GetX(), v.GetY(), v.GetZ());
+                }
+                return glm::vec3(0.0f);
+            },
+            "setLinearVelocity", [](Entity& self, const glm::vec3& velocity) {
+                if (!self.PhysicsBody.IsInvalid()) {
+                    PhysicsSystem::GetBodyInterface().SetLinearVelocity(self.PhysicsBody, JPH::RVec3(velocity.x, velocity.y, velocity.z));
+                }
+            },
+            "setAnchored", [](Entity& self, bool anchored) {
+                self.Anchored = anchored;
+                if (!self.PhysicsBody.IsInvalid()) {
+                    PhysicsSystem::GetBodyInterface().SetMotionType(self.PhysicsBody, anchored ? JPH::EMotionType::Kinematic : JPH::EMotionType::Dynamic, JPH::EActivation::Activate);
+                }
+            },
+            "isAnchored", &Entity::Anchored
         );
 
         // Core API Functions (Stupid Simple)

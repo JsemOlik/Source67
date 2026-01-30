@@ -31,6 +31,9 @@ end
 - `entity:getPosition()`: Get absolute position.
 - `entity:setPosition(vec3)`: Set absolute position.
 - `log(message)`: Print to the developer console.
+- `entity:setLinearVelocity(vec3)`: Set physics velocity.
+- `entity:getLinearVelocity()`: Get physics velocity (vec3).
+- `entity:setAnchored(bool)`: Pin object in place (Kinematic) or unpin (Dynamic).
 - `findEntity(name)`: Find an entity by name.
 - `isKeyPressed(KEY_...)`: Check if key is currently held down.
 - `isKeyJustPressed(KEY_...)`: Check if key was pressed this frame (click).
