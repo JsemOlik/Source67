@@ -2,6 +2,7 @@
 #include "Core/Application.h"
 #include "Core/Logger.h"
 #include "Renderer/Mesh.h"
+#include "Renderer/ScriptRegistry.h"
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -90,6 +91,20 @@ void SceneSerializer::Serialize(const std::string &filepath) {
 
     e["Collidable"] = entity->Collidable;
     e["Anchored"] = entity->Anchored;
+
+    // Tags
+    if (!entity->Tags.empty()) {
+      e["Tags"] = entity->Tags;
+    }
+
+    // Scripts
+    if (!entity->Scripts.empty()) {
+      json scripts = json::array();
+      for (auto &script : entity->Scripts) {
+        scripts.push_back(script.Name);
+      }
+      e["Scripts"] = scripts;
+    }
 
     if (entity->Name == "Player") {
       e["CameraFOV"] = entity->CameraFOV;
@@ -210,6 +225,22 @@ bool SceneSerializer::Deserialize(const std::string &filepath) {
 
         entity->Collidable = e.value("Collidable", false);
         entity->Anchored = e.value("Anchored", false);
+
+        // Tags
+        if (e.contains("Tags")) {
+          for (auto &tag : e["Tags"]) {
+            entity->Tags.push_back(tag.get<std::string>());
+          }
+        }
+
+        // Scripts
+        if (e.contains("Scripts")) {
+          for (auto &scriptName : e["Scripts"]) {
+            NativeScriptComponent nsc;
+            ScriptRegistry::Get().Bind(scriptName.get<std::string>(), nsc);
+            entity->Scripts.push_back(nsc);
+          }
+        }
 
         if (entity->Name == "Player" && e.contains("Movement")) {
           entity->CameraFOV = e.value("CameraFOV", 45.0f);

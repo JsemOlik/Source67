@@ -22,6 +22,9 @@ public:
   static void RenderCrosshair();
   static void RenderSpeed(float speed);
 
+  static void QueueString(const std::string &text,
+                          const glm::vec4 &color = {1.0f, 1.0f, 1.0f, 1.0f});
+
   static void DrawString(const std::string &text, const glm::vec2 &position,
                          float scale, const glm::vec4 &color);
 
@@ -36,6 +39,12 @@ private:
     glm::mat4 ProjectionMatrix;
     float ViewportWidth;
     float ViewportHeight;
+
+    struct QueuedText {
+      std::string Text;
+      glm::vec4 Color;
+    };
+    std::vector<QueuedText> TextQueue;
   };
 
   static HUDData *s_Data;

@@ -75,8 +75,18 @@ void Scene::EnsurePlayerExists() {
   // User didn't ask for physics yet, just visual.
 
   // Bind PlayerController Script
-  if (!player->NativeScript.Instance) {
-    player->NativeScript.Bind<PlayerController>();
+  bool hasPlayerController = false;
+  for (auto &script : player->Scripts) {
+    if (script.Name == "PlayerController") {
+      hasPlayerController = true;
+      break;
+    }
+  }
+
+  if (!hasPlayerController) {
+    NativeScriptComponent nsc;
+    nsc.Bind<PlayerController>("PlayerController");
+    player->Scripts.push_back(nsc);
   }
 }
 
@@ -90,13 +100,16 @@ Ref<Entity> Scene::FindEntityByName(const std::string &name) {
 
 void Scene::InstantiateScripts() {
   for (auto &entity : m_Entities) {
-    auto &nsc = entity->NativeScript;
-    if (!nsc.Instance && nsc.InstantiateScript) {
-      S67_CORE_INFO("Instantiating script for entity {0}", entity->Name);
-      nsc.Instance = nsc.InstantiateScript();
-      nsc.Instance->m_Entity = entity.get();
-      nsc.Instance->OnCreate();
-      S67_CORE_INFO("Script instantiated successfully");
+    for (auto &nsc : entity->Scripts) {
+      if (!nsc.Instance && nsc.InstantiateScript) {
+        S67_CORE_INFO("Instantiating script {0} for entity {1}", nsc.Name,
+                      entity->Name);
+        nsc.Instance = nsc.InstantiateScript(&nsc);
+        if (nsc.Instance) {
+          nsc.Instance->m_Entity = entity.get();
+          nsc.Instance->OnCreate();
+        }
+      }
     }
   }
 }
@@ -105,9 +118,10 @@ void Scene::OnUpdate(float ts) {
   InstantiateScripts();
 
   for (auto &entity : m_Entities) {
-    if (entity->NativeScript.Instance) {
-      // S67_CORE_TRACE("Updating script for {0}", entity->Name);
-      entity->NativeScript.Instance->OnUpdate(ts);
+    for (auto &nsc : entity->Scripts) {
+      if (nsc.Instance) {
+        nsc.Instance->OnUpdate(ts);
+      }
     }
   }
 }

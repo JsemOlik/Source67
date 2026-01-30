@@ -321,12 +321,7 @@ void Application::OnScenePlay() {
         startRotation = entity->Transform.Rotation;
         fov = entity->CameraFOV;
 
-        // Scene now handles script instantiation via Update or Explicit call
-        // We will trust the instance is ready or handled by OnUpdate(0) call if
-        // we add it, or better, we will access it safely.
-
-        if (auto *pc = dynamic_cast<PlayerController *>(
-                entity->NativeScript.Instance)) {
+        if (auto *pc = entity->GetScript<PlayerController>()) {
           pc->Reset(startPos);
           pc->SetRotation(startRotation.y, startRotation.x);
         }
@@ -393,9 +388,7 @@ void Application::OnSceneStop() {
   // Final sync: Update PlayerController and Camera to the restored state
   for (auto &entity : m_Scene->GetEntities()) {
     if (entity->Name == "Player") {
-      // Fetch Script
-      if (auto *pc =
-              dynamic_cast<PlayerController *>(entity->NativeScript.Instance)) {
+      if (auto *pc = entity->GetScript<PlayerController>()) {
         pc->Reset(entity->Transform.Position);
         pc->SetRotation(entity->Transform.Rotation.y,
                         entity->Transform.Rotation.x);
@@ -873,8 +866,7 @@ void Application::OnEvent(Event &e) {
   if (m_SceneState == SceneState::Play) {
     if (m_Scene) {
       if (auto entity = m_Scene->FindEntityByName("Player")) {
-        if (auto *pc = dynamic_cast<PlayerController *>(
-                entity->NativeScript.Instance)) {
+        if (auto *pc = entity->GetScript<PlayerController>()) {
           pc->OnEvent(e);
         }
       }
@@ -1126,9 +1118,8 @@ void Application::UpdateGameTick(float tick_dt) {
   // 3. Update game state from player controller for interpolation
   if (m_Scene) {
     Ref<Entity> playerEntity = m_Scene->FindEntityByName("Player");
-    if (playerEntity && playerEntity->NativeScript.Instance) {
-      if (auto *pc = dynamic_cast<PlayerController *>(
-              playerEntity->NativeScript.Instance)) {
+    if (playerEntity) {
+      if (auto *pc = playerEntity->GetScript<PlayerController>()) {
         m_CurrentState.player_position =
             m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
         m_CurrentState.player_velocity = pc->GetVelocity();
@@ -1836,8 +1827,7 @@ void Application::RenderFrame(float alpha) {
     // Real-time Player Sync (during Play/Pause)
     if (entity->Name == "Player" && (m_SceneState == SceneState::Play ||
                                      m_SceneState == SceneState::Pause)) {
-      if (auto *pc =
-              dynamic_cast<PlayerController *>(entity->NativeScript.Instance)) {
+      if (auto *pc = entity->GetScript<PlayerController>()) {
         pc->SetSettings(entity->Movement);
         entity->Transform.Position =
             m_Camera->GetPosition() - glm::vec3(0.0f, 1.7f, 0.0f);
@@ -1935,8 +1925,7 @@ void Application::RenderFrame(float alpha) {
 
   if (m_Scene) {
     if (auto entity = m_Scene->FindEntityByName("Player")) {
-      if (auto *pc =
-              dynamic_cast<PlayerController *>(entity->NativeScript.Instance)) {
+      if (auto *pc = entity->GetScript<PlayerController>()) {
         // 1 unit = 0.75 inches
         // 1 meter = 52.4934 Hammer Units
         constexpr float METERS_TO_HU = 52.4934f;
@@ -2377,8 +2366,7 @@ void Application::RenderFrame(float alpha) {
       glm::vec3 vel(0.0f);
       if (m_Scene) {
         if (auto entity = m_Scene->FindEntityByName("Player")) {
-          if (auto *pc = dynamic_cast<PlayerController *>(
-                  entity->NativeScript.Instance)) {
+          if (auto *pc = entity->GetScript<PlayerController>()) {
             speed = pc->GetSpeed();
             vel = pc->GetVelocity();
           }

@@ -2,6 +2,7 @@
 #include "Core/Application.h"
 #include "Core/Logger.h"
 #include "Core/UndoSystem.h"
+#include "Renderer/ScriptRegistry.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -435,16 +436,71 @@ void SceneHierarchyPanel::DrawProperties(Ref<Entity> entity) {
       }
     });
 
-    if (entity->Material.AlbedoMap) {
-      DrawComponent("Material", [&]() {
-        ImGui::Text("Texture: %s",
-                    std::filesystem::path(entity->Material.AlbedoMap->GetPath())
-                        .filename()
-                        .string()
-                        .c_str());
         DrawVec2Control("Tiling", entity->Material.Tiling, 1.0f);
       });
     }
+
+    DrawComponent("Tags", [&]() {
+      static char tagBuffer[256] = "";
+      ImGui::InputText("##NewTag", tagBuffer, sizeof(tagBuffer));
+      ImGui::SameLine();
+      if (ImGui::Button("Add Tag")) {
+        if (entity->Tags.size() < 10 && strlen(tagBuffer) > 0) {
+          entity->Tags.push_back(tagBuffer);
+          tagBuffer[0] = '\0';
+          m_SceneModified = true;
+        }
+      }
+
+      ImGui::Spacing();
+      for (int i = 0; i < entity->Tags.size(); i++) {
+        ImGui::PushID(i);
+        ImGui::Text("%s", entity->Tags[i].c_str());
+        ImGui::SameLine();
+        if (ImGui::Button("X")) {
+          entity->Tags.erase(entity->Tags.begin() + i);
+          m_SceneModified = true;
+          ImGui::PopID();
+          break;
+        }
+        ImGui::PopID();
+      }
+    });
+
+    DrawComponent("Scripts", [&]() {
+      if (ImGui::Button("Add Script")) {
+        ImGui::OpenPopup("AddScriptPopup");
+      }
+
+      if (ImGui::BeginPopup("AddScriptPopup")) {
+        for (auto const &[name, func] :
+             ScriptRegistry::Get().GetAvailableScripts()) {
+          if (ImGui::MenuItem(name.c_str())) {
+            NativeScriptComponent nsc;
+            ScriptRegistry::Get().Bind(name, nsc);
+            entity->Scripts.push_back(nsc);
+            m_SceneModified = true;
+          }
+        }
+        ImGui::EndPopup();
+      }
+
+      ImGui::Spacing();
+      for (int i = 0; i < entity->Scripts.size(); i++) {
+        ImGui::PushID(i);
+        ImGui::Text("%s", entity->Scripts[i].Name.c_str());
+        ImGui::SameLine();
+        if (ImGui::Button("Remove")) {
+          if (entity->Scripts[i].DestroyScript)
+            entity->Scripts[i].DestroyScript(&entity->Scripts[i]);
+          entity->Scripts.erase(entity->Scripts.begin() + i);
+          m_SceneModified = true;
+          ImGui::PopID();
+          break;
+        }
+        ImGui::PopID();
+      }
+    });
   }
 }
 

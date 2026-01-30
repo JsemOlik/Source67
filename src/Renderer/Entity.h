@@ -8,6 +8,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <string>
+#include <vector>
 
 // Forward declaration
 namespace S67 {
@@ -36,13 +37,15 @@ struct Transform {
 class ScriptableEntity;
 
 struct NativeScriptComponent {
+  std::string Name = "Unnamed Script";
   ScriptableEntity *Instance = nullptr;
 
-  ScriptableEntity *(*InstantiateScript)();
+  ScriptableEntity *(*InstantiateScript)(NativeScriptComponent *);
   void (*DestroyScript)(NativeScriptComponent *);
 
-  template <typename T> void Bind() {
-    InstantiateScript = []() {
+  template <typename T> void Bind(const std::string &name) {
+    Name = name;
+    InstantiateScript = [](NativeScriptComponent *) {
       return static_cast<ScriptableEntity *>(new T());
     };
     DestroyScript = [](NativeScriptComponent *nsc) {
@@ -93,7 +96,16 @@ public:
 
   MovementSettings Movement;
 
-  NativeScriptComponent NativeScript;
+  std::vector<NativeScriptComponent> Scripts;
+  std::vector<std::string> Tags;
+
+  template <typename T> T *GetScript() {
+    for (auto &script : Scripts) {
+      if (T *instance = dynamic_cast<T *>(script.Instance))
+        return instance;
+    }
+    return nullptr;
+  }
 };
 
 } // namespace S67
