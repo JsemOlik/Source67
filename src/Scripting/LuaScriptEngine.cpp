@@ -39,7 +39,10 @@ namespace S67 {
         s_State.new_usertype<glm::vec2>("Vec2",
             sol::constructors<glm::vec2(), glm::vec2(float), glm::vec2(float, float)>(),
             "x", &glm::vec2::x,
-            "y", &glm::vec2::y
+            "y", &glm::vec2::y,
+            sol::meta_function::addition, [](const glm::vec2& a, const glm::vec2& b) { return a + b; },
+            sol::meta_function::subtraction, [](const glm::vec2& a, const glm::vec2& b) { return a - b; },
+            sol::meta_function::multiplication, [](const glm::vec2& a, float b) { return a * b; }
         );
 
         s_State.set_function("vec2", sol::overload(
@@ -51,7 +54,10 @@ namespace S67 {
             sol::constructors<glm::vec3(), glm::vec3(float), glm::vec3(float, float, float)>(),
             "x", &glm::vec3::x,
             "y", &glm::vec3::y,
-            "z", &glm::vec3::z
+            "z", &glm::vec3::z,
+            sol::meta_function::addition, [](const glm::vec3& a, const glm::vec3& b) { return a + b; },
+            sol::meta_function::subtraction, [](const glm::vec3& a, const glm::vec3& b) { return a - b; },
+            sol::meta_function::multiplication, [](const glm::vec3& a, float b) { return a * b; }
         );
 
         s_State.set_function("vec3", sol::overload(
@@ -64,7 +70,10 @@ namespace S67 {
             "x", &glm::vec4::x,
             "y", &glm::vec4::y,
             "z", &glm::vec4::z,
-            "w", &glm::vec4::w
+            "w", &glm::vec4::w,
+            sol::meta_function::addition, [](const glm::vec4& a, const glm::vec4& b) { return a + b; },
+            sol::meta_function::subtraction, [](const glm::vec4& a, const glm::vec4& b) { return a - b; },
+            sol::meta_function::multiplication, [](const glm::vec4& a, float b) { return a * b; }
         );
 
         s_State.set_function("vec4", sol::overload(
