@@ -262,12 +262,17 @@ This creates optimized versions:
 ```
 Create a folder with:
   Portal/
-  ├── Source67.exe          (from cmake-build-release/)
+  ├── Portal.exe            (Source67.exe renamed)
   ├── Game.dll              (from game/build/Release/)
-  └── GameAssets.apak       (from root)
+  ├── GameAssets.apak       (from root)
+  ├── README.txt            (game instructions)
+  └── LICENSE.txt           (your license)
 
 Zip it up → Ready to share!
 ```
+
+**For complete distribution guide (Steam, itch.io, etc.):**
+→ See **[DISTRIBUTION.md](DISTRIBUTION.md)** for detailed packaging instructions!
 
 ---
 
@@ -472,6 +477,7 @@ build.bat Debug all       # Everything
 
 ## 📚 Related Documentation
 
+- **Distribution & Publishing:** [DISTRIBUTION.md](DISTRIBUTION.md) 🚀 - Package for Steam, itch.io, etc.
 - **Understanding the system:** GAME_PROJECT_GUIDE.md
 - **First-time setup:** QUICK_START_GUIDE.md
 - **Visual workflows:** VISUAL_WORKFLOW.md

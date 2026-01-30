@@ -6,8 +6,23 @@
 
 ## 🎯 I Want To...
 
+### → **Publish my game on Steam, itch.io, etc.**
+See: **[DISTRIBUTION.md](DISTRIBUTION.md)** 📦 **NEW!**
+
+Complete guide to packaging and distributing your game:
+- How to create a distributable game package
+- What files are needed (just 3 essential files!)
+- Steam publishing workflow
+- itch.io, GOG, Epic Games Store
+- Automated packaging scripts
+- Platform-specific builds (Windows, Linux, macOS)
+
+**Time:** 15 minutes to read, ready to publish!
+
+---
+
 ### → **Build my game (easy in-editor building!)**
-See: **[BUILDING.md](BUILDING.md)** 🔨 **NEW!**
+See: **[BUILDING.md](BUILDING.md)** 🔨
 
 Essential guide for building your game:
 - Click "Building > Build Game" in the editor (F7)
@@ -204,6 +219,12 @@ A: Run `RUN.bat` or run `cmake-build-debug\Debug\Source67.exe` directly.
 
 **Q: Do I need to rebuild everything when I change game code?**  
 A: No! Just run `build.bat Debug game` to rebuild only the game DLL (~30 seconds).
+
+**Q: How do I publish my game on Steam/itch.io?**  
+A: Build with Release mode, package the 3 files (YourGame.exe, Game.dll, GameAssets.apak), and distribute! See **DISTRIBUTION.md** for complete guide.
+
+**Q: What files do I need to distribute my game?**  
+A: Just 3 files: Your renamed Source67.exe (e.g., MyGame.exe), Game.dll, and GameAssets.apak. Add README.txt and LICENSE.txt. See **DISTRIBUTION.md**.
 
 ---
 
