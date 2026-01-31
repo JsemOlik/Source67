@@ -50,23 +50,12 @@ Section "Main Engine (Required)" SecMain
   
   ; Core Files
   ; Compile-time check for Source67.exe (validation in build_installer.bat ensures it exists)
-  !if /FileExists "..\cmake-build-debug\Debug\Source67.exe"
-    File "..\cmake-build-debug\Debug\Source67.exe"
-  !else if /FileExists "..\cmake-build-debug\Release\Source67.exe"
-    File "..\cmake-build-debug\Release\Source67.exe"
-  !else if /FileExists "..\cmake-build-debug\Source67.exe"
-    File "..\cmake-build-debug\Source67.exe"
-  !else
-    !error "Source67.exe not found! Run build_installer.bat which validates the build exists."
-  !endif
+  ; Core Files
+  ; Compile-time check for Source67.exe (validation in build_installer.bat ensures it exists)
+  File "..\cmake-build-debug\Source67.exe"
   
   ; Copy any DLL files from Debug/Release folders
-  IfFileExists "..\cmake-build-debug\Debug\*.dll" 0 +2
-    File /nonfatal "..\cmake-build-debug\Debug\*.dll"
-  IfFileExists "..\cmake-build-debug\Release\*.dll" 0 +2
-    File /nonfatal "..\cmake-build-debug\Release\*.dll"
-  IfFileExists "..\cmake-build-debug\*.dll" 0 +2
-    File /nonfatal "..\cmake-build-debug\*.dll"
+  File /nonfatal "..\cmake-build-debug\*.dll"
   
   ; Assets - preserve folder structure
   SetOutPath "$INSTDIR"
