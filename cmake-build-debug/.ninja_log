@@ -246,3 +246,6 @@
 17543	22237	7915202636459798	CMakeFiles/Source67.dir/main.cpp.obj	a3cedb6ded3d7d7
 17114	25322	7915202632168889	CMakeFiles/Source67.dir/src/Scripting/LuaScriptEngine.cpp.obj	bbc5831412af003c
 2121	2435	7915204032100581	Source67.exe	27ba520fd1668bfc
+7	22	7915213134130633	C:/Users/olik/Desktop/Coding/Source67/cmake-build-debug/CMakeFiles/cmake.verify_globs	706495517e93fe4e
+32	2272	7915213134386791	CMakeFiles/Source67.dir/src/Core/BuildSystem.cpp.obj	87e6ffdde31e8069
+2272	2635	7915213156774417	Source67.exe	27ba520fd1668bfc
