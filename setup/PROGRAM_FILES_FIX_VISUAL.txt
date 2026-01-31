@@ -1,0 +1,282 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║         FIX FOR PROGRAM FILES CRASH (0xc0000409) - VISUAL GUIDE            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ THE PROBLEM                                                                │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Your Experience:
+
+  ✅ Works from build directory:
+     C:\Users\olik\Desktop\Coding\Source67\cmake-build-release\Source67.exe
+     
+  ❌ Crashes from Program Files:
+     C:\Program Files\Source67\Source67.exe
+
+Event Viewer Error:
+  
+  ┌─────────────────────────────────────────┐
+  │ Faulting application: Source67.exe      │
+  │ Faulting module: ucrtbase.dll           │
+  │ Exception code: 0xc0000409              │
+  │ (STATUS_STACK_BUFFER_OVERRUN)           │
+  └─────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ ROOT CAUSE                                                                 │
+└────────────────────────────────────────────────────────────────────────────┘
+
+What Happened:
+
+  1. Engine Starts
+     ↓
+  2. Logger::Init() tries to create "logs/" directory
+     ↓
+  3. ❌ FAILS! (Program Files requires admin)
+     std::filesystem::create_directories("logs")  // No error handling!
+     ↓
+  4. Code continues, assuming directory exists
+     ↓
+  5. Tries to create log file in non-existent directory
+     ↓
+  6. 💥 Stack buffer overrun in ucrtbase.dll
+     ↓
+  7. ❌ CRASH! Exception 0xc0000409
+
+Why It Worked from Build Directory:
+  
+  C:\Users\olik\Desktop\Coding\Source67\cmake-build-release\
+  └─ User has WRITE PERMISSIONS ✅
+  
+Why It Failed from Program Files:
+  
+  C:\Program Files\Source67\
+  └─ Requires ADMIN PERMISSIONS ❌
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ THE FIX                                                                    │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Key Changes:
+
+  1. Use User-Writable Directory for Logs
+  
+     OLD: C:\Program Files\Source67\logs\           ❌ Requires admin
+     NEW: C:\Users\olik\AppData\Local\Source67\logs\ ✅ User-writable
+
+  2. Add Comprehensive Error Handling
+  
+     OLD:
+       std::filesystem::create_directories(logDir);  // No error handling!
+     
+     NEW:
+       try {
+         std::filesystem::create_directories(logDir);
+       } catch (const std::filesystem::filesystem_error& e) {
+         // Try fallback location...
+       }
+
+  3. Fallback Chain
+  
+     Try 1: AppData\Local\Source67\logs  ✅ Usually succeeds
+     Try 2: Temp\Source67\logs           ✅ Fallback
+     Try 3: ./logs (current directory)   ✅ Last resort
+     Try 4: Continue without file logs   ✅ Never crash
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ BEFORE vs AFTER                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+BEFORE (Broken):
+
+  C:\Program Files\Source67\
+  ├── Source67.exe
+  ├── assets\
+  └── logs\                     ← Tried to create here
+      └── (PERMISSION DENIED!)  ❌
+  
+  Result: CRASH! 0xc0000409
+
+AFTER (Fixed):
+
+  C:\Program Files\Source67\
+  ├── Source67.exe
+  └── assets\
+  
+  C:\Users\olik\AppData\Local\Source67\
+  └── logs\                     ← Created here instead
+      └── Source67_*.txt        ✅ SUCCESS!
+  
+  Result: WORKS!
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ HOW TO APPLY THE FIX                                                       │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Step-by-Step:
+
+  1. Pull Latest Code
+     
+     cd C:\Users\olik\Desktop\Coding\Source67
+     git pull origin copilot/fix-debug-error-source67
+
+  2. Rebuild Release
+     
+     cmake -B cmake-build-release -DCMAKE_BUILD_TYPE=Release
+     cmake --build cmake-build-release --config Release
+
+  3. Rebuild Installer
+     
+     cd setup
+     build_installer.bat
+
+  4. Uninstall Old Version
+     
+     Start Menu → Source67 → Uninstall Source67
+
+  5. Clean Up
+     
+     PowerShell (as Admin):
+       Remove-Item -Recurse -Force "C:\Program Files\Source67"
+
+  6. Install New Version
+     
+     Run: setup\Source67_Setup.exe
+
+  7. Test!
+     
+     cd "C:\Program Files\Source67"
+     .\Source67.exe
+     
+     Should open without crashing! ✅
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ WHAT YOU'LL SEE                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Console Output (Normal):
+
+  [INFO] CORE: Logger initialized. Log file: C:\Users\olik\AppData\Local\Source67\logs\Source67_2026-01-31_12-34-56.txt
+  [INFO] CORE: Found assets at: C:\Program Files\Source67
+  [INFO] CORE: Initializing Window...
+  [INFO] CORE: Initializing Renderer...
+  
+  ✅ Engine window opens!
+
+If Working Directory Can't Change (Normal, Safe):
+
+  [WARN] CORE: Could not change working directory to C:\Program Files\Source67: ...
+  [WARN] CORE: Continuing with current working directory...
+  [INFO] CORE: Found assets at: C:\Program Files\Source67
+  
+  ✅ Engine still works fine!
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ FINDING YOUR LOGS                                                          │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Quick Access:
+
+  Press: Win + R
+  Type:  %LOCALAPPDATA%\Source67\logs
+  Press: Enter
+  
+  OR
+  
+  Navigate to:
+    C:\Users\olik\AppData\Local\Source67\logs\
+
+Logs Look Like:
+
+  Source67_2026-01-31_12-34-56.txt
+  Source67_2026-01-31_14-22-18.txt
+  Source67_2026-01-31_16-45-03.txt
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ VERIFICATION CHECKLIST                                                     │
+└────────────────────────────────────────────────────────────────────────────┘
+
+After applying fix:
+
+  □ Pulled latest code (commit 70af662 or later)
+  □ Rebuilt Release build
+  □ Rebuilt installer
+  □ Uninstalled old version
+  □ Deleted C:\Program Files\Source67
+  □ Installed new version
+  
+  □ Engine opens from Program Files
+  □ No crash dialog
+  □ No Event Viewer errors
+  □ Logs created in AppData
+  □ Console shows log location
+  □ Engine UI loads correctly
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ BENEFITS                                                                   │
+└────────────────────────────────────────────────────────────────────────────┘
+
+✅ Works WITHOUT admin privileges
+✅ Logs in PROPER location (AppData)
+✅ Logs PERSIST across installs
+✅ Easy to FIND logs
+✅ Never CRASHES from permissions
+✅ Graceful ERROR handling
+✅ Multiple FALLBACKS
+✅ Clear ERROR messages
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ TECHNICAL DETAILS                                                          │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Exception 0xc0000409:
+  - STATUS_STACK_BUFFER_OVERRUN
+  - Security exception from C runtime
+  - Indicates stack corruption detected
+  - Caused by failed filesystem operations
+
+Fix Implementation:
+  - Uses Windows API: SHGetKnownFolderPath()
+  - Gets AppData path correctly
+  - Try/catch on all filesystem ops
+  - Preserves error details for debugging
+  - Multiple fallback locations
+  - Continues without file logging if needed
+
+Files Modified:
+  - src/Core/Logger.cpp      (AppData logs + error handling)
+  - src/Core/Application.cpp (current_path error handling)
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ IF IT STILL DOESN'T WORK                                                   │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Check Event Viewer:
+
+  Win + R → eventvwr.msc
+  Windows Logs → Application
+  Look for: Source67.exe errors
+
+Check Logs:
+
+  Win + R → %LOCALAPPDATA%\Source67\logs
+  Open latest .txt file
+  Look for error messages
+
+Report:
+  - Event Viewer error code
+  - Log file contents
+  - Console output
+  - Steps to reproduce
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║ STATUS: FIX COMPLETE - READY TO TEST                                       ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+All code changes implemented ✅
+All error handling added ✅
+All documentation written ✅
+Code review passed ✅
+
+User Action: Follow steps above to rebuild and test!
