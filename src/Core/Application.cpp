@@ -85,9 +85,20 @@ Application::Application(const std::string &executablePath,
   bool found = false;
   for (int i = 0; i < 5; i++) {
     if (std::filesystem::exists(currentPath / "assets")) {
-      std::filesystem::current_path(currentPath);
-      found = true;
-      break;
+      // Try to set working directory, but don't fail if we can't
+      try {
+        std::filesystem::current_path(currentPath);
+        found = true;
+        break;
+      } catch (const std::filesystem::filesystem_error& e) {
+        S67_CORE_WARN("Could not change working directory to {0}: {1}", 
+                      currentPath.string(), e.what());
+        S67_CORE_WARN("Continuing with current working directory...");
+        // Still mark as found since assets exist at this path
+        m_EngineAssetsRoot = currentPath;
+        found = true;
+        break;
+      }
     }
     if (currentPath.has_parent_path())
       currentPath = currentPath.parent_path();
@@ -102,9 +113,13 @@ Application::Application(const std::string &executablePath,
     m_EngineAssetsRoot =
         std::filesystem::absolute(executablePath).parent_path();
   } else {
-    m_EngineAssetsRoot = currentPath;
-    S67_CORE_INFO("Set working directory to project root: {0}",
-                  currentPath.string());
+    if (std::filesystem::current_path() == currentPath) {
+      m_EngineAssetsRoot = currentPath;
+      S67_CORE_INFO("Set working directory to project root: {0}",
+                    currentPath.string());
+    } else {
+      S67_CORE_INFO("Found assets at: {0}", m_EngineAssetsRoot.string());
+    }
   }
 
   S67_CORE_INFO("Initializing Window...");
