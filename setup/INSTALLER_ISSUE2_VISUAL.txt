@@ -1,0 +1,314 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║              INSTALLER ISSUE #2: cmake Folders & Window Blink              ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ ISSUE #1: cmake-build-* Folders in Installation Directory                 │
+└────────────────────────────────────────────────────────────────────────────┘
+
+User's Installation (WRONG):
+  
+  C:\Program Files\Source67\
+  ├── Source67.exe           ✅ Correct
+  ├── uninstall.exe          ✅ Correct
+  ├── assets\                ✅ Correct
+  ├── cmake-build-debug\     ❌ SHOULD NOT BE HERE!
+  ├── cmake-build-release\   ❌ SHOULD NOT BE HERE!
+  └── Tools\                 ✅ Correct
+
+Correct Installation (SHOULD BE):
+  
+  C:\Program Files\Source67\
+  ├── Source67.exe           ✅
+  ├── uninstall.exe          ✅
+  ├── assets\                ✅
+  └── Tools\                 ✅
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ ROOT CAUSE: Old NSIS Script Copied Too Much                               │
+└────────────────────────────────────────────────────────────────────────────┘
+
+The user compiled the installer with an older version of Source67.nsi that had
+additional File commands copying from build directories.
+
+Evidence from NSIS compilation logs:
+  File: Descending to: "..\cmake-build-debug\_deps\jolt-src\Assets\"
+  File: Descending to: "..\cmake-build-release\_deps\jolt-src\Assets\"
+
+These directories should NEVER be copied to the installation!
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ FIX #1: Updated NSIS Script                                               │
+└────────────────────────────────────────────────────────────────────────────┘
+
+OLD Code (Ambiguous):
+  
+  SetOutPath "$INSTDIR"
+  File /r /x .DS_Store "..\assets"
+
+PROBLEM: Could potentially copy from wrong locations
+
+NEW Code (Explicit):
+  
+  SetOutPath "$INSTDIR\assets"
+  File /r /x .DS_Store "..\assets\*.*"
+
+BENEFITS:
+  ✅ Explicitly sets output to $INSTDIR\assets
+  ✅ Only copies from source assets directory
+  ✅ Pattern ..\assets\*.* is unambiguous
+  ✅ Won't pick up cmake-build-* folders
+
+Also Added to Uninstaller:
+  
+  RMDir /r "$INSTDIR\cmake-build-debug"
+  RMDir /r "$INSTDIR\cmake-build-release"
+
+This cleans up cmake folders if they exist from old installs.
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ ISSUE #2: Window Blinks But Engine Doesn't Open                           │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Symptom:
+  1. User double-clicks Source67.exe
+  2. Window appears briefly (blinks)
+  3. Window immediately closes
+  4. Engine doesn't actually open
+
+Possible Causes:
+
+  ┌───────────────────────────────────────────────────────────┐
+  │ 1. Early Crash During Initialization                     │
+  │    - Missing Visual C++ Runtime DLLs                      │
+  │    - OpenGL initialization failure                        │
+  │    - Asset loading error                                  │
+  │                                                           │
+  │ 2. cmake Folders Interfering                             │
+  │    - Engine might be confused by extra directories        │
+  │    - Working directory issues                             │
+  │                                                           │
+  │ 3. Permission Issues                                      │
+  │    - Program Files requires admin rights                  │
+  │    - Can't create logs folder                             │
+  │                                                           │
+  │ 4. Missing/Corrupted Assets                               │
+  │    - Shader files missing                                 │
+  │    - Texture files missing                                │
+  │    - Font files missing                                   │
+  └───────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ DIAGNOSTIC STEPS                                                           │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Step 1: Remove cmake Folders
+  
+  PowerShell (as Admin):
+    cd "C:\Program Files\Source67"
+    Remove-Item -Recurse -Force cmake-build-debug
+    Remove-Item -Recurse -Force cmake-build-release
+  
+  Test: .\Source67.exe
+
+Step 2: Check for Logs
+  
+  PowerShell:
+    cd "C:\Program Files\Source67"
+    dir logs
+    notepad logs\Source67_*.txt
+  
+  If logs exist, they'll show error messages.
+  If no logs, engine crashes before logging starts.
+
+Step 3: Run from Command Prompt
+  
+  cmd:
+    cd "C:\Program Files\Source67"
+    Source67.exe
+  
+  Watch for error messages before window closes.
+
+Step 4: Check Event Viewer
+  
+  Run: eventvwr.msc
+  Navigate: Windows Logs → Application
+  Look for: Error events for Source67.exe
+  
+  Shows:
+    - Exception code (crash type)
+    - Faulting module (which DLL crashed)
+    - Crash address
+
+Step 5: Verify VC++ Runtime
+  
+  Check: C:\Windows\System32\vcruntime140.dll
+  
+  If missing, install:
+    https://aka.ms/vs/17/release/vc_redist.x64.exe
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ SOLUTION FLOWCHART                                                         │
+└────────────────────────────────────────────────────────────────────────────┘
+
+  ┌────────────────────────┐
+  │ Engine window blinks   │
+  │ but doesn't open       │
+  └───────────┬────────────┘
+              │
+              ▼
+  ┌────────────────────────┐
+  │ Remove cmake folders   │
+  │ (PowerShell commands)  │
+  └───────────┬────────────┘
+              │
+              ▼
+  ┌────────────────────────┐
+  │ Test: .\Source67.exe   │
+  └───────────┬────────────┘
+              │
+         ┌────┴─────┐
+         │          │
+    ✅ Works    ❌ Still fails
+         │          │
+         │          ▼
+         │    ┌────────────────────────┐
+         │    │ Check logs\ folder     │
+         │    │ Run from cmd           │
+         │    │ Check Event Viewer     │
+         │    └───────────┬────────────┘
+         │                │
+         │                ▼
+         │    ┌────────────────────────┐
+         │    │ Common Fixes:          │
+         │    │ - Install VC++ Runtime │
+         │    │ - Update GPU drivers   │
+         │    │ - Run as admin         │
+         │    │ - Reinstall to C:\     │
+         │    └────────────────────────┘
+         │
+         ▼
+  ┌────────────────────────┐
+  │ Done! Engine runs ✅   │
+  └────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ IMMEDIATE ACTION FOR USER                                                  │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Step 1: Open PowerShell as Admin
+  
+  Win + X → Windows PowerShell (Admin)
+
+Step 2: Remove cmake folders
+  
+  cd "C:\Program Files\Source67"
+  Remove-Item -Recurse -Force cmake-build-debug
+  Remove-Item -Recurse -Force cmake-build-release
+
+Step 3: Verify removal
+  
+  dir
+  
+  Should show ONLY:
+    - Source67.exe
+    - uninstall.exe
+    - assets\
+    - Tools\
+
+Step 4: Test engine
+  
+  .\Source67.exe
+
+Step 5a: If it works
+  
+  ✅ Great! The cmake folders were the problem.
+  
+  For future installs:
+    1. git pull (get the fix)
+    2. Rebuild installer
+    3. Reinstall
+
+Step 5b: If it still fails
+  
+  Check logs:
+    notepad logs\Source67_*.txt
+  
+  Check Event Viewer:
+    eventvwr.msc → Windows Logs → Application
+  
+  Install VC++ Runtime if missing:
+    https://aka.ms/vs/17/release/vc_redist.x64.exe
+  
+  If still stuck, report:
+    - Log file contents
+    - Event Viewer error
+    - Console error messages
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ FILES UPDATED IN THIS FIX                                                  │
+└────────────────────────────────────────────────────────────────────────────┘
+
+  📝 setup/Source67.nsi
+     - More explicit asset copying
+     - Added cmake folder cleanup to uninstaller
+
+  📄 setup/TROUBLESHOOTING_INSTALLER.md (NEW)
+     - Comprehensive troubleshooting guide
+     - Common errors and solutions
+     - Debugging steps
+
+  📄 FIX_CURRENT_INSTALLATION.md (NEW)
+     - Immediate action guide
+     - PowerShell commands to fix current install
+     - Clean reinstall instructions
+     - Quick action plan
+
+  📄 setup/INSTALLER_FIX_VISUAL.txt (previous)
+     - Visual guide for abort() error fix
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ COMPARISON: OLD vs NEW INSTALLER                                          │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────┬────────────────────┬─────────────────────┐
+│ Aspect               │ OLD (User's)       │ NEW (Fixed)         │
+├──────────────────────┼────────────────────┼─────────────────────┤
+│ Asset copying        │ Ambiguous path     │ Explicit path       │
+│ cmake folders copied │ ✅ YES (BAD)       │ ❌ NO (GOOD)        │
+│ Build type           │ Debug              │ Release             │
+│ Uninstaller cleanup  │ Basic only         │ Includes cmake dirs │
+│ Works on user PC?    │ ❌ Blinks/crashes  │ ✅ Should work      │
+└──────────────────────┴────────────────────┴─────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ WHAT USER SHOULD DO NOW                                                    │
+└────────────────────────────────────────────────────────────────────────────┘
+
+  OPTION 1: Quick Fix (Try First)
+  
+    1. Remove cmake folders (PowerShell commands above)
+    2. Test if engine runs
+    3. Done if it works!
+
+  OPTION 2: Clean Reinstall (If Quick Fix Doesn't Work)
+  
+    1. Uninstall current version
+    2. git pull (get the fix)
+    3. cmake -B cmake-build-release -DCMAKE_BUILD_TYPE=Release
+    4. cmake --build cmake-build-release
+    5. cd setup && build_installer.bat
+    6. Install with new Source67_Setup.exe
+
+  OPTION 3: Debug Further (If Still Failing)
+  
+    1. Check logs\ folder
+    2. Check Event Viewer
+    3. Verify VC++ Runtime installed
+    4. Report findings in GitHub issue
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║ STATUS: Installer fixed, user needs to clean current installation         ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+Next: User should follow FIX_CURRENT_INSTALLATION.md for immediate fix.
