@@ -417,6 +417,7 @@ bool BuildSystem::CopyEngineExecutable(const std::string& gameName) {
 #ifdef _WIN32
     // Look for Source67.exe in engine root or build directories
     std::vector<std::filesystem::path> searchPaths = {
+        m_Config.engineRoot / "Source67.exe",  // Installed location
         m_Config.engineRoot / "cmake-build-debug" / "Debug" / "Source67.exe",
         m_Config.engineRoot / "cmake-build-release" / "Release" / "Source67.exe",
         m_Config.engineRoot / "build" / "Debug" / "Source67.exe",
@@ -424,6 +425,7 @@ bool BuildSystem::CopyEngineExecutable(const std::string& gameName) {
     };
 #else
     std::vector<std::filesystem::path> searchPaths = {
+        m_Config.engineRoot / "Source67",  // Installed location
         m_Config.engineRoot / "cmake-build-debug" / "Source67",
         m_Config.engineRoot / "cmake-build-release" / "Source67",
         m_Config.engineRoot / "build" / "Source67",
