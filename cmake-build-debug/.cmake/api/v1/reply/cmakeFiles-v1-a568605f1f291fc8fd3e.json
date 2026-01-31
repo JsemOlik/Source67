@@ -1,0 +1,997 @@
+{
+	"globsDependent" : 
+	[
+		{
+			"expression" : "C:/Users/olik/Desktop/Coding/Source67/cmake-build-debug/_deps/sol2-src/include/sol*.hpp",
+			"paths" : 
+			[
+				"C:/Users/olik/Desktop/Coding/Source67/cmake-build-debug/_deps/sol2-src/include/sol/sol.hpp"
+			],
+			"recurse" : true
+		},
+		{
+			"expression" : "C:/Users/olik/Desktop/Coding/Source67/cmake-build-debug/_deps/sol2-src/source/**",
+			"paths" : [],
+			"recurse" : true
+		},
+		{
+			"expression" : "C:/Users/olik/Desktop/Coding/Source67/src/**/*.cpp",
+			"paths" : 
+			[
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/Application.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/BuildSystem.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/HybridBuildSystem.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/Input.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/Logger.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/PlatformUtils.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Game/Console/ConCommand.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Game/Console/ConVar.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Game/Console/Console.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Game/Console/ConsolePanel.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Game/Console/StandardCommands.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/ImGui/ImGuiLayer.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/ImGui/Panels/ContentBrowserPanel.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/ImGui/Panels/SceneHierarchyPanel.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Physics/PhysicsSystem.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Physics/PlayerController.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Buffer.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Camera.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/CameraController.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Framebuffer.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/HUDRenderer.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Mesh.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Renderer.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Scene.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/SceneSerializer.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/ScriptRegistry.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/ScriptableEntity.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Shader.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Skybox.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Texture.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/VertexArray.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Scripting/LuaScriptEngine.cpp"
+			],
+			"recurse" : true
+		},
+		{
+			"expression" : "C:/Users/olik/Desktop/Coding/Source67/src/**/*.h",
+			"paths" : 
+			[
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/Application.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/Assert.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/Base.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/BuildSystem.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/GameState.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/HybridBuildSystem.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/Input.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/KeyCodes.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/Logger.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/MouseCodes.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/PlatformUtils.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/Timer.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/Timestep.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/UndoSystem.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/Window.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Events/Event.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Events/KeyEvent.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Events/MouseEvent.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Events/WindowEvent.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Game/Console/ConCommand.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Game/Console/ConVar.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Game/Console/Console.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Game/Console/ConsolePanel.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/ImGui/ImGuiLayer.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/ImGui/Panels/ContentBrowserPanel.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/ImGui/Panels/SceneHierarchyPanel.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Physics/PhysicsShapes.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Physics/PhysicsSystem.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Physics/PlayerController.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Buffer.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Camera.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/CameraController.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Entity.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Framebuffer.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/GameModule.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/HUDRenderer.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Light.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Mesh.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Renderer.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Scene.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/SceneSerializer.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/ScriptRegistry.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/ScriptableEntity.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Shader.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Skybox.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/Texture.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Renderer/VertexArray.h",
+				"C:/Users/olik/Desktop/Coding/Source67/src/Scripting/LuaScriptEngine.h"
+			],
+			"recurse" : true
+		},
+		{
+			"expression" : "C:/Users/olik/Desktop/Coding/Source67/src/**/*.mm",
+			"paths" : 
+			[
+				"C:/Users/olik/Desktop/Coding/Source67/src/Core/Window.mm"
+			],
+			"recurse" : true
+		},
+		{
+			"expression" : "C:/Users/olik/Desktop/Coding/Source67/vendor/**/*.cpp",
+			"paths" : 
+			[
+				"C:/Users/olik/Desktop/Coding/Source67/vendor/ImGuizmo/ImGuizmo.cpp",
+				"C:/Users/olik/Desktop/Coding/Source67/vendor/stb_image/stb_image.cpp"
+			],
+			"recurse" : true
+		},
+		{
+			"expression" : "C:/Users/olik/Desktop/Coding/Source67/vendor/**/*.h",
+			"paths" : 
+			[
+				"C:/Users/olik/Desktop/Coding/Source67/vendor/ImGuizmo/ImGuizmo.h",
+				"C:/Users/olik/Desktop/Coding/Source67/vendor/stb_image/stb_image.h",
+				"C:/Users/olik/Desktop/Coding/Source67/vendor/tinyobjloader/tiny_obj_loader.h"
+			],
+			"recurse" : true
+		}
+	],
+	"inputs" : 
+	[
+		{
+			"path" : "CMakeLists.txt"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/CMakeFiles/4.1.2/CMakeSystem.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakeSystemSpecificInitialize.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Platform/Windows-Initialize.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/CMakeFiles/4.1.2/CMakeCCompiler.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/CMakeFiles/4.1.2/CMakeCXXCompiler.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakeSystemSpecificInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakeGenericSystem.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakeInitializeConfigs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Platform/Windows.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Platform/WindowsPaths.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakeCInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakeLanguageInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Compiler/MSVC-C.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Compiler/MSVC.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Compiler/CMakeCommonCompilerMacros.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Platform/Windows-MSVC-C.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Platform/Windows-MSVC.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/CMakeFiles/4.1.2/CMakeRCCompiler.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakeRCInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakeCommonLanguageInclude.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Internal/CMakeCLinkerInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Internal/CMakeCommonLinkerInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Linker/MSVC-C.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Linker/MSVC.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Platform/Linker/Windows-MSVC-C.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Platform/Linker/Windows-MSVC.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakeCXXInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakeLanguageInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Compiler/MSVC-CXX.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Compiler/MSVC.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Compiler/CMakeCommonCompilerMacros.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Platform/Windows-MSVC-CXX.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Platform/Windows-MSVC.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakeCommonLanguageInclude.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Internal/CMakeCXXLinkerInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Internal/CMakeCommonLinkerInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Linker/MSVC-CXX.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Linker/MSVC.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Platform/Linker/Windows-MSVC-CXX.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Platform/Linker/Windows-MSVC.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FetchContent.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/ExternalProject/shared_internal_commands.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindGit.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageHandleStandardArgs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageMessage.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FetchContent/CMakeLists.cmake.in"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindGit.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageHandleStandardArgs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageMessage.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FetchContent/CMakeLists.cmake.in"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindGit.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageHandleStandardArgs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageMessage.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FetchContent/CMakeLists.cmake.in"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindGit.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageHandleStandardArgs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageMessage.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FetchContent/CMakeLists.cmake.in"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindGit.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageHandleStandardArgs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageMessage.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FetchContent/CMakeLists.cmake.in"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindGit.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageHandleStandardArgs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageMessage.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FetchContent/CMakeLists.cmake.in"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindGit.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageHandleStandardArgs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageMessage.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FetchContent/CMakeLists.cmake.in"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindGit.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageHandleStandardArgs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageMessage.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FetchContent/CMakeLists.cmake.in"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindGit.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageHandleStandardArgs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageMessage.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FetchContent/CMakeLists.cmake.in"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/glfw-src/CMakeLists.txt"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/GNUInstallDirs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakeDependentOption.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindThreads.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckLibraryExists.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckIncludeFile.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckCSourceCompiles.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Internal/CheckSourceCompiles.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageHandleStandardArgs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageMessage.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakePackageConfigHelpers.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/WriteBasicConfigVersionFile.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/glfw-src/src/glfw3Config.cmake.in"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/BasicConfigVersion-SameMajorVersion.cmake.in"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/glfw-src/src/glfw_config.h.in"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/glfw-src/src/glfw3.pc.in"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/glfw-src/src/CMakeLists.txt"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/glm-src/CMakeLists.txt"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/GNUInstallDirs.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/glm-src/glm/CMakeLists.txt"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/spdlog-src/CMakeLists.txt"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/spdlog-src/cmake/utils.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/spdlog-src/cmake/ide.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/GNUInstallDirs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindThreads.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckLibraryExists.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckIncludeFile.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckCSourceCompiles.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageHandleStandardArgs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FindPackageMessage.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/jolt-src/Build/CMakeLists.txt"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakeDependentOption.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckIPOSupported.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckIPOSupported/CMakeLists-CXX.txt.in"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckIPOSupported/foo.cpp"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckIPOSupported/main.cpp"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckIPOSupported/CMakeLists-C.txt.in"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckIPOSupported/foo.c"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckIPOSupported/main.c"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/jolt-src/Jolt/Jolt.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/json-src/CMakeLists.txt"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/ExternalProject.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/ExternalProject/shared_internal_commands.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/GNUInstallDirs.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/json-src/cmake/pkg-config.pc.in"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakePackageConfigHelpers.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/WriteBasicConfigVersionFile.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/json-src/cmake/nlohmann_jsonConfigVersion.cmake.in"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/json-src/cmake/config.cmake.in"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/sol2-src/CMakeLists.txt"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/sol2-src/cmake/Includes/Project.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckCXXCompilerFlag.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Internal/CheckCompilerFlag.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Internal/CheckFlagCommonConfig.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Internal/CheckSourceCompiles.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakeCheckCompilerFlagCommonPatterns.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckCXXSourceCompiles.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Internal/CheckSourceCompiles.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckCCompilerFlag.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/Internal/CheckCompilerFlag.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckCSourceCompiles.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckIPOSupported.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakeDependentOption.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakePrintHelpers.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/GNUInstallDirs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FeatureSummary.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FetchContent.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/ExternalProject/shared_internal_commands.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CTest.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CTestUseLaunchers.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CTestTargets.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/DartConfiguration.tcl.in"
+		},
+		{
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Templates/CTestScript.cmake.in"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/sol2-src/cmake/Modules/CheckCompilerDiagnostic.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckCXXCompilerFlag.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckCCompilerFlag.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/sol2-src/cmake/Modules/CheckCompilerFlag.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckCXXCompilerFlag.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckCCompilerFlag.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/sol2-src/cmake/Modules/FindVersion.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakePackageConfigHelpers.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/WriteBasicConfigVersionFile.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CheckCXXCompilerFlag.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakeDependentOption.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/GNUInstallDirs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/FetchContent.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/ExternalProject/shared_internal_commands.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/sol2-src/cmake/sol2-config.cmake.in"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/BasicConfigVersion-AnyNewerVersion.cmake.in"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/lua-src/CMakeLists.txt"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/lua-src/lua-5.4.7/CMakeLists.txt"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/CMakePackageConfigHelpers.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/WriteBasicConfigVersionFile.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/Users/olik/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.1/Modules/BasicConfigVersion-SameMajorVersion.cmake.in"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/lua-src/lua-5.4.7/LuaConfig.cmake.in"
+		},
+		{
+			"path" : "tools/asset_packer/CMakeLists.txt"
+		},
+		{
+			"path" : "game/CMakeLists.txt"
+		}
+	],
+	"kind" : "cmakeFiles",
+	"paths" : 
+	{
+		"build" : "C:/Users/olik/Desktop/Coding/Source67/cmake-build-debug",
+		"source" : "C:/Users/olik/Desktop/Coding/Source67"
+	},
+	"version" : 
+	{
+		"major" : 1,
+		"minor" : 1
+	}
+}

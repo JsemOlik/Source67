@@ -1,0 +1,158 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"install"
+		],
+		"files" : 
+		[
+			"cmake-build-debug/_deps/lua-src/lua-5.4.7/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 141,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 145,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 156,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 168,
+				"parent" : 0
+			}
+		]
+	},
+	"installers" : 
+	[
+		{
+			"backtrace" : 1,
+			"component" : "Unspecified",
+			"destination" : "lib",
+			"paths" : 
+			[
+				"_deps/lua-build/lua-5.4.7/lua_shared.lib"
+			],
+			"targetId" : "lua_shared::@5122c2ce2b3ae2ae7c82",
+			"targetIndex" : 37,
+			"targetIsImportLibrary" : true,
+			"type" : "target"
+		},
+		{
+			"backtrace" : 1,
+			"component" : "Unspecified",
+			"destination" : "bin",
+			"paths" : 
+			[
+				"_deps/lua-build/lua-5.4.7/lua_shared.dll"
+			],
+			"targetId" : "lua_shared::@5122c2ce2b3ae2ae7c82",
+			"targetIndex" : 37,
+			"type" : "target"
+		},
+		{
+			"backtrace" : 1,
+			"component" : "Unspecified",
+			"destination" : "lib",
+			"paths" : 
+			[
+				"_deps/lua-build/lua-5.4.7/lua_static.lib"
+			],
+			"targetId" : "lua_static::@5122c2ce2b3ae2ae7c82",
+			"targetIndex" : 38,
+			"type" : "target"
+		},
+		{
+			"backtrace" : 1,
+			"component" : "Unspecified",
+			"destination" : "bin",
+			"paths" : 
+			[
+				"_deps/lua-build/luac.exe"
+			],
+			"targetId" : "luac::@5122c2ce2b3ae2ae7c82",
+			"targetIndex" : 39,
+			"type" : "target"
+		},
+		{
+			"backtrace" : 2,
+			"component" : "Unspecified",
+			"destination" : "include",
+			"paths" : 
+			[
+				{
+					"from" : "cmake-build-debug/_deps/lua-src/lua-5.4.7/include",
+					"to" : "."
+				}
+			],
+			"type" : "directory"
+		},
+		{
+			"backtrace" : 3,
+			"component" : "Unspecified",
+			"destination" : "share/cmake/Lua",
+			"exportName" : "LuaTargets",
+			"exportTargets" : 
+			[
+				{
+					"id" : "lua_internal::@5122c2ce2b3ae2ae7c82",
+					"index" : 0
+				},
+				{
+					"id" : "lua_include::@5122c2ce2b3ae2ae7c82",
+					"index" : 0
+				},
+				{
+					"id" : "lua_shared::@5122c2ce2b3ae2ae7c82",
+					"index" : 37
+				},
+				{
+					"id" : "lua_static::@5122c2ce2b3ae2ae7c82",
+					"index" : 38
+				},
+				{
+					"id" : "luac::@5122c2ce2b3ae2ae7c82",
+					"index" : 39
+				}
+			],
+			"paths" : 
+			[
+				"_deps/lua-build/lua-5.4.7/CMakeFiles/Export/dd9fddb1fbe02ec484c92778afdb8232/LuaTargets.cmake"
+			],
+			"type" : "export"
+		},
+		{
+			"backtrace" : 4,
+			"component" : "Unspecified",
+			"destination" : "share/cmake/Lua",
+			"paths" : 
+			[
+				"cmake-build-debug/_deps/lua-build/lua-5.4.7/LuaConfig.cmake",
+				"cmake-build-debug/_deps/lua-build/lua-5.4.7/LuaConfigVersion.cmake"
+			],
+			"type" : "file"
+		}
+	],
+	"paths" : 
+	{
+		"build" : "_deps/lua-build/lua-5.4.7",
+		"source" : "cmake-build-debug/_deps/lua-src/lua-5.4.7"
+	}
+}
