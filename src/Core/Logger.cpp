@@ -3,6 +3,7 @@
 #include <chrono>
 #include <filesystem>
 #include <iomanip>
+#include <iostream>
 #include <mutex>
 #include <spdlog/sinks/base_sink.h>
 #include <spdlog/sinks/basic_file_sink.h>
