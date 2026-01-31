@@ -48,14 +48,9 @@ Section "Main Engine (Required)" SecMain
 
   SetOutPath "$INSTDIR"
   
-  ; Core Files
-  ; Compile-time check for Source67.exe (validation in build_installer.bat ensures it exists)
-  ; Core Files
-  ; Compile-time check for Source67.exe (validation in build_installer.bat ensures it exists)
-  File "..\cmake-build-debug\Source67.exe"
-  
-  ; Copy any DLL files from Debug/Release folders
-  File /nonfatal "..\cmake-build-debug\*.dll"
+  ; Core Files - Use Release build for distribution
+  ; Source67 uses static linking, so no DLLs are needed
+  File "..\cmake-build-release\Source67.exe"
   
   ; Assets - preserve folder structure
   SetOutPath "$INSTDIR"
@@ -203,7 +198,6 @@ Section "Uninstall"
 
   ; Remove files and uninstaller
   Delete "$INSTDIR\Source67.exe"
-  Delete "$INSTDIR\*.dll"
   Delete "$INSTDIR\uninstall.exe"
   RMDir /r "$INSTDIR\assets"
   RMDir /r "$INSTDIR\Tools"

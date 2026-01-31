@@ -6,20 +6,30 @@ This folder contains the NSIS installer script and build tools for creating the 
 
 Before building the installer, you need:
 
-### 1. Built Source67 Engine
+### 1. Built Source67 Engine (RELEASE BUILD!)
 
-**The engine MUST be built first!**
+**⚠️ IMPORTANT: Always use Release builds for distribution, NOT Debug builds!**
+
+**The engine MUST be built in Release mode first!**
 
 ```cmd
 # From Source67 root directory
-cmake -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
-cmake --build cmake-build-debug --config Debug
+cmake -B cmake-build-release -DCMAKE_BUILD_TYPE=Release
+cmake --build cmake-build-release --config Release
 ```
 
 This creates:
-- `cmake-build-debug/Debug/Source67.exe` (Windows)
-- `cmake-build-debug/Debug/*.dll` (if any shared libraries)
-- `assets/` folder with all engine assets
+- `cmake-build-release/Source67.exe` (Windows)
+- `assets/` folder with all engine assets (copied to build folder)
+
+**Why Release and not Debug?**
+- Release builds are optimized and fast
+- Release builds are much smaller (no debug symbols)
+- Release builds don't require debug C runtime DLLs
+- Debug builds may crash on systems without Visual Studio
+- Debug builds should NEVER be distributed to end users
+
+**Note:** Source67 uses static linking, so no DLL files are needed!
 
 ### 2. NSIS (Nullsoft Scriptable Install System)
 
@@ -64,9 +74,11 @@ makensis Source67.nsi
 The installer includes:
 
 ### Required Files (Always)
-- ✅ `Source67.exe` - Main engine executable
+- ✅ `Source67.exe` - Main engine executable (Release build)
 - ✅ `assets/**` - All engine assets (shaders, fonts, icons, etc.)
-- ✅ `*.dll` - Any DLL dependencies (spdlog, etc.)
+
+**Note:** Source67 uses static linking, so no external DLL files are needed!
+All dependencies (GLFW, ImGui, Jolt Physics, etc.) are compiled directly into the executable.
 
 ### Optional Components (User Choice)
 - ✅ **Desktop Shortcut** - Shortcut on user's desktop
@@ -80,16 +92,16 @@ Default: `C:\Program Files\Source67\`
 
 ## 🎯 Build Directory Detection
 
-The installer script intelligently searches for Source67.exe:
+The installer script expects a **Release build** at:
+- `cmake-build-release/Source67.exe`
 
-1. **Try:** `cmake-build-debug/Debug/Source67.exe` (MSVC Debug)
-2. **Try:** `cmake-build-debug/Release/Source67.exe` (MSVC Release)
-3. **Try:** `cmake-build-debug/Source67.exe` (MinGW/Makefile)
-4. **Error:** If none found, show error and abort
+If the file doesn't exist, `build_installer.bat` will show an error and exit.
 
-**Also copies:**
-- All `*.dll` files from the same directory
-- Handles both Debug and Release builds
+**Always build Release version before creating installer:**
+```cmd
+cmake -B cmake-build-release -DCMAKE_BUILD_TYPE=Release
+cmake --build cmake-build-release --config Release
+```
 
 ---
 
@@ -101,8 +113,7 @@ The installer script intelligently searches for Source67.exe:
 
 ```nsis
 Section "Main Engine (Required)"
-  - Copies Source67.exe
-  - Copies all DLL files
+  - Copies Source67.exe (Release build)
   - Copies assets folder
   - Creates registry keys
   - Creates shortcuts
@@ -121,8 +132,8 @@ SectionEnd
 
 ### Key Features
 
-- ✅ **Multi-build support** - Detects Debug/Release builds
-- ✅ **DLL bundling** - Automatically includes dependencies
+- ✅ **Release build packaging** - Uses optimized Release builds
+- ✅ **Static linking** - No DLL dependencies needed
 - ✅ **Validation** - Checks if files exist before packaging
 - ✅ **Smart defaults** - Installs to Program Files
 - ✅ **Uninstaller** - Clean removal of all files
@@ -133,13 +144,13 @@ SectionEnd
 
 ### "Source67.exe not found"
 
-**Problem:** Engine hasn't been built yet.
+**Problem:** Engine hasn't been built in Release mode yet.
 
 **Solution:**
 ```cmd
 # From Source67 root
-cmake -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
-cmake --build cmake-build-debug --config Debug
+cmake -B cmake-build-release -DCMAKE_BUILD_TYPE=Release
+cmake --build cmake-build-release --config Release
 ```
 
 ### "makensis is not recognized"
@@ -154,29 +165,54 @@ cmake --build cmake-build-debug --config Debug
 
 ### Installer builds but exe doesn't run
 
-**Problem:** Missing DLL dependencies.
+**Problem:** Using Debug build instead of Release build.
 
 **Solution:**
-The updated installer (this version) automatically copies DLLs. Make sure you:
-1. Rebuilt the installer after building the engine
-2. Used the updated `Source67.nsi` script
-3. Check that DLLs exist in `cmake-build-debug/Debug/`
+Debug builds require debug C runtime DLLs that aren't on most systems. Always use Release builds:
+```cmd
+# Build Release version
+cmake -B cmake-build-release -DCMAKE_BUILD_TYPE=Release
+cmake --build cmake-build-release --config Release
+
+# Rebuild installer
+cd setup
+build_installer.bat
+```
 
 ### "abort() has been called" when running installed exe
 
-**Possible causes:**
-1. ❌ Missing DLLs - Fixed by this update
-2. ❌ Assets not found - Check `C:\Program Files\Source67\assets\`
-3. ❌ Wrong build configuration - Try Release build instead of Debug
+**Root Cause:**
+The installer was packaging a **Debug build** instead of a **Release build**. Debug builds:
+1. Are much larger (include debug symbols)
+2. May depend on debug C runtime DLLs not present on user systems
+3. Are not optimized and run slowly
+4. Should never be distributed to end users
 
-**Debug steps:**
-1. Check if `assets/` folder exists in install directory
-2. Check if any `.dll` files are in install directory
-3. Try running from build directory first:
+**Solution (FIXED):**
+1. The NSIS script now uses `cmake-build-release\Source67.exe` (Release build)
+2. `build_installer.bat` now checks for Release build instead of Debug
+3. Source67 uses static linking, so no DLLs are needed
+
+**To build the installer correctly:**
+```cmd
+# First, build Release version (NOT Debug!)
+cmake -B cmake-build-release -DCMAKE_BUILD_TYPE=Release
+cmake --build cmake-build-release --config Release
+
+# Then build the installer
+cd setup
+build_installer.bat
+```
+
+**Debug steps if still having issues:**
+1. Verify Release build exists: `dir ..\cmake-build-release\Source67.exe`
+2. Test the Release exe directly before packaging:
    ```cmd
-   cmake-build-debug\Debug\Source67.exe
+   cd cmake-build-release
+   Source67.exe
    ```
-4. If that works but installer doesn't, rebuild installer
+3. If that works, rebuild the installer
+4. If it doesn't work, check that assets folder exists in cmake-build-release
 
 ---
 
@@ -226,9 +262,10 @@ Users can:
 
 When you update the engine:
 
-1. **Rebuild the engine**
+1. **Rebuild the engine (Release mode)**
    ```cmd
-   cmake --build cmake-build-debug --config Debug
+   cmake -B cmake-build-release -DCMAKE_BUILD_TYPE=Release
+   cmake --build cmake-build-release --config Release
    ```
 
 2. **Rebuild the installer**
@@ -252,7 +289,7 @@ When you update the engine:
 
 Before building the installer:
 
-- [ ] Engine is built (`cmake-build-debug/Debug/Source67.exe` exists)
+- [ ] Engine is built in **Release mode** (`cmake-build-release/Source67.exe` exists)
 - [ ] NSIS is installed (`makensis /VERSION` works)
 - [ ] Assets folder is up to date
 - [ ] All changes are committed to git
