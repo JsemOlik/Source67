@@ -62,6 +62,7 @@ static std::filesystem::path GetLogDirectory() {
     CoTaskMemFree(localAppDataPath);
   } else {
     // Fallback to current directory if AppData not available
+    std::cerr << "WARNING: Failed to get AppData folder path. Using current directory for logs." << std::endl;
     logDir = "logs";
   }
 #else
@@ -70,6 +71,7 @@ static std::filesystem::path GetLogDirectory() {
   if (home) {
     logDir = std::filesystem::path(home) / ".local" / "share" / "Source67" / "logs";
   } else {
+    std::cerr << "WARNING: HOME environment variable not set. Using current directory for logs." << std::endl;
     logDir = "logs";
   }
 #endif
@@ -105,9 +107,11 @@ void Logger::Init() {
         if (!std::filesystem::exists(logDir)) {
           std::filesystem::create_directories(logDir);
         }
-      } catch (...) {
+      } catch (const std::exception& e) {
         // If all else fails, we'll try to continue without file logging
-        std::cerr << "WARNING: Could not create log directory anywhere. File logging disabled." << std::endl;
+        std::cerr << "WARNING: Could not create log directory in current directory: " 
+                  << e.what() << std::endl;
+        std::cerr << "File logging disabled. Console and ImGui logging will still work." << std::endl;
       }
     }
   }
