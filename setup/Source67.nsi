@@ -52,9 +52,10 @@ Section "Main Engine (Required)" SecMain
   ; Source67 uses static linking, so no DLLs are needed
   File "..\cmake-build-release\Source67.exe"
   
-  ; Assets - preserve folder structure
-  SetOutPath "$INSTDIR"
-  File /r /x .DS_Store "..\assets"
+  ; Assets - Copy ONLY from the source assets directory
+  ; Do NOT copy from build directories!
+  SetOutPath "$INSTDIR\assets"
+  File /r /x .DS_Store "..\assets\*.*"
   
   ; Write the installation path into the registry
   WriteRegStr HKCU "Software\Source67" "InstallDir" "$INSTDIR"
@@ -201,6 +202,10 @@ Section "Uninstall"
   Delete "$INSTDIR\uninstall.exe"
   RMDir /r "$INSTDIR\assets"
   RMDir /r "$INSTDIR\Tools"
+  
+  ; Clean up cmake build folders if they exist (from old installers)
+  RMDir /r "$INSTDIR\cmake-build-debug"
+  RMDir /r "$INSTDIR\cmake-build-release"
   
   ; Remove shortcuts
   Delete "$SMPROGRAMS\Source67\Source67 Engine.lnk"
